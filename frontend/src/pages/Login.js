@@ -56,11 +56,11 @@ function Login() {
         Chưa có tài khoản? <a href="/signup">Đăng ký ngay</a>
       </p>
 
-      <div>
+      {/* <div>
         <p>Hoặc đăng nhập bằng:</p>
         <button>Google</button>
         <button>Facebook</button>
-      </div>
+      </div> */}
     </div>
   );
 }
