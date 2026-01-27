@@ -3,17 +3,51 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
 // Đăng ký người dùng mới
+// exports.register = async (req, res) => {
+//   try {
+//     const { email, fullName, gender, password, dob, idCard, phone, address } =
+//       req.body;
+
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser)
+//       return res.status(400).json({ message: "Email đã tồn tại" });
+
+//     const passwordHash = await bcrypt.hash(password, 10);
+
+//     const newUser = new User({
+//       email,
+//       fullName,
+//       gender,
+//       passwordHash,
+//       dob,
+//       idCard,
+//       phone,
+//       address,
+//       role: "Customer",
+//       status: "Active",
+//     });
+
+//     await newUser.save();
+//     res.status(201).json({ message: "Đăng ký thành công" });
+//   } catch (error) {
+//     res.status(500).json({ message: "Lỗi server", error });
+//   }
+// };
+
 exports.register = async (req, res) => {
   try {
     const { email, fullName, gender, password, dob, idCard, phone, address } =
       req.body;
 
+    // Kiểm tra email tồn tại
     const existingUser = await User.findOne({ email });
     if (existingUser)
       return res.status(400).json({ message: "Email đã tồn tại" });
 
+    // Hash mật khẩu
     const passwordHash = await bcrypt.hash(password, 10);
 
+    // Tạo user mới
     const newUser = new User({
       email,
       fullName,
@@ -30,10 +64,20 @@ exports.register = async (req, res) => {
     await newUser.save();
     res.status(201).json({ message: "Đăng ký thành công" });
   } catch (error) {
-    res.status(500).json({ message: "Lỗi server", error });
+    // Nếu lỗi là ValidationError của Mongoose
+    if (error.name === "ValidationError") {
+      console.error("Validation Error:", error.errors); // log chi tiết lỗi ra console
+      return res.status(400).json({
+        message: "Dữ liệu không hợp lệ",
+        errors: Object.values(error.errors).map((err) => err.message),
+      });
+    }
+
+    // Các lỗi khác
+    console.error("Server Error:", error);
+    res.status(500).json({ message: "Lỗi server" });
   }
 };
-
 // Đăng nhập
 exports.login = async (req, res) => {
   try {
