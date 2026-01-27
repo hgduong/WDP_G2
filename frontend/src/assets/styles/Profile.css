@@ -1,0 +1,14 @@
+/* src/pages/Profile.css */
+.profile {
+  padding: 20px;
+}
+.profile h1 {
+  margin-bottom: 10px;
+}
+.profile ul {
+  margin-top: 10px;
+  padding-left: 20px;
+}
+.profile li {
+  margin-bottom: 6px;
+}

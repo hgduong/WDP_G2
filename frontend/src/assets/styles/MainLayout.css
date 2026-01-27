@@ -1,0 +1,15 @@
+/* src/layouts/MainLayout.css */
+.layout {
+  min-height: 100vh;        /* chiếm toàn bộ chiều cao màn hình */
+  display: flex;
+  flex-direction: column;   /* sắp xếp theo cột */
+  background-color: #d6d6d6;   /* nền xám đậm */
+  color: #0f0f0f;              /* chữ trắng */
+}
+
+.main {
+  flex: 1;                  /* nội dung chiếm hết khoảng trống */
+  max-width: 1200px;        /* giới hạn chiều rộng */
+  margin: 0 auto;           /* căn giữa */
+  padding: 24px;            /* khoảng cách trong */
+}

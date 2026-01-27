@@ -1,0 +1,27 @@
+/* src/pages/Checkout.css */
+.checkout {
+  max-width: 400px;
+  margin: 20px auto;
+  background: #222;
+  color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+.form input {
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+}
+.btn {
+  padding: 10px;
+  background: green;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+}
