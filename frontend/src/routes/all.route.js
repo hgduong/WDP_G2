@@ -8,6 +8,7 @@ import Checkout from "../pages/Checkout";
 import Profile from "../pages/Profile";
 import Login from "../pages/Login"; 
 import Signup from "../pages/Signup";
+import OtpVerify from "../pages/OtpVerify";
 
 export const router = createBrowserRouter([
   { path: "/", element: <MainLayout><Home /></MainLayout> },
@@ -17,4 +18,5 @@ export const router = createBrowserRouter([
   { path: "/profile", element: <MainLayout><Profile /></MainLayout> },
   { path: "/login", element: <MainLayout><Login /></MainLayout> }, 
   { path: "/signup", element: <MainLayout><Signup /></MainLayout> },
+   { path: "/otp_verify", element: <MainLayout><OtpVerify /></MainLayout> },
 ]);
