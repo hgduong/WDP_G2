@@ -100,8 +100,8 @@ exports.verifyOtp = async (req, res) => {
 
     // Nếu OTP hợp lệ → cập nhật trạng thái user
     user.status = "Active";
-    user.otpCode = undefined;
-    user.otpExpires = undefined;
+    user.otpCode = null;
+    user.otpExpires = null;
     user.pendingSince = undefined;
 
     await user.save();
