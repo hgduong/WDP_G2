@@ -1,38 +1,121 @@
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 
-// Đăng ký người dùng mới
-// exports.register = async (req, res) => {
-//   try {
-//     const { email, fullName, gender, password, dob, idCard, phone, address } =
-//       req.body;
+exports.sendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: "Email là bắt buộc" });
+    }
 
-//     const existingUser = await User.findOne({ email });
-//     if (existingUser)
-//       return res.status(400).json({ message: "Email đã tồn tại" });
+    // Tìm user theo email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: "Không tìm thấy user" });
+    }
 
-//     const passwordHash = await bcrypt.hash(password, 10);
+    if (
+      user.lastOtpSentAt &&
+      Date.now() - user.lastOtpSentAt.getTime() < 60 * 1000
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Bạn chỉ có thể gửi lại OTP sau 60 giây" });
+    }
 
-//     const newUser = new User({
-//       email,
-//       fullName,
-//       gender,
-//       passwordHash,
-//       dob,
-//       idCard,
-//       phone,
-//       address,
-//       role: "Customer",
-//       status: "Active",
-//     });
+    // Sinh OTP 6 chữ số
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-//     await newUser.save();
-//     res.status(201).json({ message: "Đăng ký thành công" });
-//   } catch (error) {
-//     res.status(500).json({ message: "Lỗi server", error });
-//   }
-// };
+    // Lưu OTP và thời hạn (1 phút)
+    user.otpCode = otp;
+    user.otpExpires = new Date(Date.now() + 60 * 1000);
+    user.lastOtpSentAt = new Date();
+    await user.save();
+
+    // Cấu hình transporter SMTP
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    // Gửi email OTP
+    await transporter.sendMail({
+      from: process.env.SMTP_USER,
+      to: user.email,
+      subject: "Mã xác thực OTP",
+      text: `Xin chào ${user.fullName},\n\nMã OTP của bạn là: ${otp}\nMã này sẽ hết hạn sau 15 phút.\n\nTrân trọng.`,
+    });
+
+    res.json({ message: "OTP đã được gửi về email của bạn" });
+  } catch (error) {
+    console.error("Send OTP Error:", error);
+    res.status(500).json({ error: "Lỗi server khi gửi OTP" });
+  }
+};
+
+exports.verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    // Validate input
+    if (!email || !otp) {
+      return res.status(400).json({
+        error: "Email và OTP là bắt buộc",
+      });
+    }
+
+    // Tìm user theo email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        error: "Không tìm thấy user",
+      });
+    }
+
+    // Kiểm tra OTP tồn tại
+    if (!user.otpCode || !user.otpExpires) {
+      return res.status(400).json({
+        error: "OTP chưa được tạo",
+      });
+    }
+
+    // Kiểm tra OTP hết hạn
+    if (new Date() > user.otpExpires) {
+      return res.status(400).json({
+        error: "OTP đã hết hạn",
+      });
+    }
+
+    // Kiểm tra OTP đúng hay không
+    if (user.otpCode !== otp) {
+      return res.status(400).json({
+        error: "OTP không đúng",
+      });
+    }
+
+    // Nếu OTP hợp lệ → cập nhật trạng thái user
+    user.status = "Active";
+    user.otpCode = undefined;
+    user.otpExpires = undefined;
+    user.pendingSince = undefined;
+
+    await user.save();
+
+    return res.json({
+      message: "Xác thực thành công, tài khoản đã Active",
+    });
+  } catch (error) {
+    console.error("Verify OTP Error:", error);
+    return res.status(500).json({
+      error: "Lỗi server khi xác thực OTP",
+    });
+  }
+};
 
 exports.register = async (req, res) => {
   try {
@@ -58,18 +141,16 @@ exports.register = async (req, res) => {
       phone,
       address,
       role: "Customer",
-      status: "Active",
+      status: "Pending",
     });
 
     await newUser.save();
     res.status(201).json({ message: "Đăng ký thành công" });
   } catch (error) {
-    // Nếu lỗi là ValidationError của Mongoose
     if (error.name === "ValidationError") {
-      console.error("Validation Error:", error.errors); // log chi tiết lỗi ra console
+      console.error("Validation Error:", error.errors);
       return res.status(400).json({
         message: "Dữ liệu không hợp lệ",
-        errors: Object.values(error.errors).map((err) => err.message),
       });
     }
 
@@ -78,6 +159,7 @@ exports.register = async (req, res) => {
     res.status(500).json({ message: "Lỗi server" });
   }
 };
+
 // Đăng nhập
 exports.login = async (req, res) => {
   try {

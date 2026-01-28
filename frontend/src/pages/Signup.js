@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { registerUser } from "../services/api.js";
+import { useNavigate } from "react-router-dom";
 
 function Signup() {
   const [formData, setFormData] = useState({
@@ -14,7 +15,7 @@ function Signup() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
-
+  const navigate = useNavigate();
   const validateField = (name, value) => {
     let errorMsg = "";
 
@@ -134,7 +135,8 @@ function Signup() {
 
     try {
       const result = await registerUser(formData);
-      alert(result.message);
+      alert(result.data.message);
+      navigate("/otp_verify", { state: { email: formData.email } });
     } catch (err) {
       alert("Đăng ký thất bại: " + err.message);
     }
@@ -142,7 +144,13 @@ function Signup() {
 
   return (
     <div>
-      <h2>Đăng ký tài khoản</h2>
+      <h2>
+        Đăng ký tài khoản{" "}
+        <button type="button" onClick={() => setShowPassword(!showPassword)}>
+          {showPassword ? "🙈" : "👁"}
+        </button>
+      </h2>
+
       <form onSubmit={handleSubmit}>
         <div>
           <label>Họ và tên</label>
@@ -181,18 +189,6 @@ function Signup() {
             placeholder="Nhập mật khẩu"
             required
           />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            style={{
-              position: "absolute",
-              right: 5,
-              top: "50%",
-              transform: "translateY(-50%)",
-            }}
-          >
-            {showPassword ? "🙈" : "👁"}
-          </button>
           {errors.password && (
             <span style={{ color: "red" }}>{errors.password}</span>
           )}
@@ -201,7 +197,7 @@ function Signup() {
         <div>
           <label>Xác nhận mật khẩu</label>
           <input
-            type="password"
+            type={showPassword ? "text" : "password"}
             name="confirmPassword"
             value={formData.confirmPassword}
             onChange={handleChange}

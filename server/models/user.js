@@ -1,24 +1,3 @@
-// const mongoose = require('mongoose');
-
-// const userSchema = new mongoose.Schema({
-//   email: { type: String, required: true, unique: true },
-//   fullName: { type: String, required: true },
-//   gender: { type: String, enum: ['Male', 'Female', 'Other'], required: true },
-//   passwordHash: { type: String, required: true },
-//   dob: { type: Date },
-//   idCard: { type: Number },
-//   phone: { type: Number },
-//   address: { type: String },
-//   role: { type: String, enum: ['Customer', 'Manager', 'Admin'], default: 'Customer' },
-//   status: { type: String, enum: ['Active', 'Inactive', 'Banned'], default: 'Active' },
-//   createdAt: { type: Date, default: Date.now },
-//   updatedAt: { type: Date, default: Date.now }
-// });
-
-// module.exports = mongoose.model('User', userSchema);
-
-// models/User.js
-
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema({
@@ -51,7 +30,7 @@ const userSchema = new mongoose.Schema({
     type: Date,
     validate: {
       validator: function (value) {
-        if (!value) return true; // cho phép bỏ trống
+        if (!value) return true;
         const today = new Date();
         const age = today.getFullYear() - value.getFullYear();
         return age >= 13;
@@ -66,7 +45,10 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
     required: [true, "Số điện thoại là bắt buộc"],
-    match: [/^(0|\+84)(\d{9})$/, "Số điện thoại không hợp lệ (VD: 0912345678 hoặc +84912345678)"],
+    match: [
+      /^(0|\+84)(\d{9})$/,
+      "Số điện thoại không hợp lệ (VD: 0912345678 hoặc +84912345678)",
+    ],
   },
   address: {
     type: String,
@@ -82,9 +64,13 @@ const userSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["Active", "Inactive", "Banned"],
-    default: "Active",
+    enum: ["Active", "Inactive", "Pending", "Banned"],
+    default: "Pending",
   },
+  pendingSince: { type: Date, default: Date.now, expires: 60 * 60 * 24 * 10 },
+  otpCode: { type: String, default: null },
+  otpExpires: { type: Date, default: null },
+  lastOtpSentAt: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
