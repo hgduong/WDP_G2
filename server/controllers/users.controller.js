@@ -117,6 +117,7 @@ exports.verifyOtp = async (req, res) => {
   }
 };
 
+// Đăng ký
 exports.register = async (req, res) => {
   try {
     const { email, fullName, gender, password, dob, idCard, phone, address } =
