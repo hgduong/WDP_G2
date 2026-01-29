@@ -10,8 +10,8 @@ function Login() {
     e.preventDefault();
     try {
       const result = await loginUser({ email: username, password });
-      console.log("Token nhận được:", result.token);
-      alert(result.message);
+      console.log("Token nhận được:", result.data.token);
+      alert(result.data.message);
     } catch (err) {
       alert("Đăng ký thất bại: " + err.message);
     }
@@ -52,6 +52,9 @@ function Login() {
         <button type="submit">Đăng nhập</button>
       </form>
 
+      <p>
+        Quên mật khẩu? <a href="/forgot-password">Quên mật khẩu</a>
+      </p>
       <p>
         Chưa có tài khoản? <a href="/signup">Đăng ký ngay</a>
       </p>
