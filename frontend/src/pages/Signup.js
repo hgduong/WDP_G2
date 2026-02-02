@@ -136,7 +136,9 @@ function Signup() {
     try {
       const result = await registerUser(formData);
       alert(result.data.message);
-      navigate("/otp_verify", { state: { email: formData.email } });
+      navigate("/otp_verify", {
+        state: { email: formData.email, purpose: "register" },
+      });
     } catch (err) {
       alert("Đăng ký thất bại: " + err.message);
     }

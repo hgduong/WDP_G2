@@ -8,6 +8,7 @@ function OtpVerify() {
   const [message, setMessage] = useState("");
   const location = useLocation();
   const email = location.state?.email;
+  const purpose = location.state?.purpose;
   const [isDisabled, setIsDisabled] = useState(false);
   const [remainingTime, setRemainingTime] = useState(0);
   const [showModal, setShowModal] = useState(false);
@@ -43,8 +44,8 @@ function OtpVerify() {
   // Xác nhận OTP
   const handleVerifyOtp = async () => {
     try {
-      const res = await verifyOtp(email, otp);
-      // setMessage(res.data.message);
+      const res = await verifyOtp(email, otp, purpose);
+      setMessage(res.data.message);
       setShowModal(true);
     } catch (err) {
       setMessage(err.response?.data?.error || "OTP không đúng hoặc đã hết hạn");
@@ -98,7 +99,7 @@ function OtpVerify() {
             }}
           >
             <h3>Xác thực thành công!</h3>
-            <p>Tài khoản của bạn đã được kích hoạt.</p>
+            {/* <p>Tài khoản của bạn đã được kích hoạt.</p> */}
             <button
               onClick={() => navigate("/login")}
               style={{
