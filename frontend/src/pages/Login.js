@@ -53,7 +53,7 @@ function Login() {
       </form>
 
       <p>
-        Quên mật khẩu? <a href="/forgot-password">Quên mật khẩu</a>
+        Quên mật khẩu? <a href="/forgot_password">Quên mật khẩu</a>
       </p>
       <p>
         Chưa có tài khoản? <a href="/signup">Đăng ký ngay</a>

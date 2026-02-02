@@ -33,9 +33,27 @@ export const sendOtp = async (email) => {
   }
 };
 
-export const verifyOtp = async (email, otp) => {
+export const verifyOtp = async (email, otp, purpose) => {
   try {
-    const res = await API.post("/verify-otp", { email, otp });
+    const res = await API.post("/verify-otp", { email, otp, purpose });
+    return res;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const checkEmailExists = async (email) => {
+  try {
+    const res = await API.post("/check-email-exists", { email});
+    return res;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const resetPassword = async (token, newPassword) => {
+  try {
+    const res = await API.post("/reset-password", { token, newPassword });
     return res;
   } catch (error) {
     throw error;
