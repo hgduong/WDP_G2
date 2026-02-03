@@ -182,7 +182,19 @@ exports.login = async (req, res) => {
       },
     );
 
-    res.status(200).json({ message: "Đăng nhập thành công", token });
+    res
+      .status(200)
+      .json({
+        message: "Đăng nhập thành công",
+        token,
+        user: {
+          id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role,
+          avatarUrl: user.avatarUrl || null,
+        },
+      });
   } catch (error) {
     res.status(500).json({ message: "Lỗi server", error });
   }

@@ -41,19 +41,16 @@ function ResetPassword() {
 
   return (
     <div style={{ maxWidth: "400px", margin: "auto", padding: "20px" }}>
-      {" "}
-      <h2>Đặt lại mật khẩu</h2>{" "}
+      <h2>Đặt lại mật khẩu</h2>
       <div style={{ marginBottom: "10px" }}>
-        {" "}
-        <label>Mật khẩu mới:</label>{" "}
+        <label>Mật khẩu mới:</label>
         <div style={{ display: "flex", alignItems: "center" }}>
-          {" "}
           <input
             type={showNewPassword ? "text" : "password"}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             style={{ flex: 1, padding: "8px", marginTop: "5px" }}
-          />{" "}
+          />
           <button
             type="button"
             onClick={() => setShowNewPassword(!showNewPassword)}
@@ -66,22 +63,19 @@ function ResetPassword() {
               cursor: "pointer",
             }}
           >
-            {" "}
-            {showNewPassword ? "Ẩn" : "Hiện"}{" "}
-          </button>{" "}
-        </div>{" "}
-      </div>{" "}
+            {showNewPassword ? "Ẩn" : "Hiện"}
+          </button>
+        </div>
+      </div>
       <div style={{ marginBottom: "10px" }}>
-        {" "}
-        <label>Xác nhận mật khẩu:</label>{" "}
+        <label>Xác nhận mật khẩu:</label>
         <div style={{ display: "flex", alignItems: "center" }}>
-          {" "}
           <input
             type={showConfirmPassword ? "text" : "password"}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             style={{ flex: 1, padding: "8px", marginTop: "5px" }}
-          />{" "}
+          />
           <button
             type="button"
             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -94,11 +88,10 @@ function ResetPassword() {
               cursor: "pointer",
             }}
           >
-            {" "}
-            {showConfirmPassword ? "Ẩn" : "Hiện"}{" "}
-          </button>{" "}
-        </div>{" "}
-      </div>{" "}
+            {showConfirmPassword ? "Ẩn" : "Hiện"}
+          </button>
+        </div>
+      </div>
       <button
         onClick={handleResetPassword}
         style={{
@@ -110,12 +103,9 @@ function ResetPassword() {
           cursor: "pointer",
         }}
       >
-        {" "}
-        Đặt lại mật khẩu{" "}
-      </button>{" "}
-      {message && (
-        <p style={{ marginTop: "15px", color: "blue" }}>{message}</p>
-      )}{" "}
+        Đặt lại mật khẩu
+      </button>
+      {message && <p style={{ marginTop: "15px", color: "blue" }}>{message}</p>}
     </div>
   );
 }
