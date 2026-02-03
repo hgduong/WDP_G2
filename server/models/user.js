@@ -67,6 +67,7 @@ const userSchema = new mongoose.Schema({
     enum: ["Active", "Inactive", "Pending", "Banned"],
     default: "Pending",
   },
+  avatarUrl: { type: String, default: null },
   pendingSince: { type: Date, default: Date.now, expires: 60 * 60 * 24 * 10 },
   otpCode: { type: String, default: null },
   otpExpires: { type: Date, default: null },

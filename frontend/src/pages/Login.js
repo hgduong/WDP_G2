@@ -1,17 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { loginUser } from "../services/api.js";
+import { useNavigate } from "react-router-dom";
+import { UserContext } from "../context/UserContext.js";
 
 function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
+  const {login } = useContext(UserContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const result = await loginUser({ email: username, password });
-      console.log("Token nhận được:", result.data.token);
+      login(result.data.user, result.data.token);
+      // console.log("Token nhận được:", result.data.token);
       alert(result.data.message);
+      navigate("/");
     } catch (err) {
       alert("Đăng ký thất bại: " + err.message);
     }
@@ -60,10 +66,10 @@ function Login() {
       </p>
 
       {/* <div>
-        <p>Hoặc đăng nhập bằng:</p>
-        <button>Google</button>
-        <button>Facebook</button>
-      </div> */}
+          <p>Hoặc đăng nhập bằng:</p>
+          <button>Google</button>
+          <button>Facebook</button>
+        </div> */}
     </div>
   );
 }
