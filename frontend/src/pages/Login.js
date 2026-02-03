@@ -8,16 +8,23 @@ function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const {login } = useContext(UserContext);
+  const { login } = useContext(UserContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const result = await loginUser({ email: username, password });
-      login(result.data.user, result.data.token);
-      // console.log("Token nhận được:", result.data.token);
-      alert(result.data.message);
-      navigate("/");
+      const result = await loginUser({ email: username, password});
+      if (result.data.requireOtp) {
+        alert(result.data.message);
+        navigate("/otp_verify", {
+          state: { email: username, purpose: "register" },
+        });
+        return;
+      } else {
+        login(result.data.user, result.data.token);
+        alert(result.data.message);
+        navigate("/");
+      }
     } catch (err) {
       alert("Đăng ký thất bại: " + err.message);
     }
