@@ -16,7 +16,7 @@ Manage account information and booking history.
 The application is built using the Fullstack JavaScript model with Frontend (React) and Backend (Node.js/Express + MongoDB).
 
 Project Structure
-Mã
+
 WDP_G2/
 │
 ├── frontend/        # User interface (ReactJS)
@@ -34,6 +34,8 @@ WDP_G2/
 │   └── README.md
 │
 └── README.md        # Main project documentation
+
+
 Technologies Used
 Frontend: ReactJS, React Router, Axios, TailwindCSS/Bootstrap.
 
@@ -62,13 +64,15 @@ npm install
 3. Configure environment variables
 Create a .env file inside the server/ directory:
 
-Mã
+
 PORT=5000
 MONGO_URI=mongodb://localhost:27017/cinema_booking
 JWT_SECRET=your_secret_key
 EMAIL_SERVICE=your_email_service
 EMAIL_USER=your_email
 EMAIL_PASS=your_password
+
+
 4. Run the application
 Backend:
 
