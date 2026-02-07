@@ -3,6 +3,8 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const axios = require("axios");
+const { client_id, client_secret, redirect_uri } = require("../config/google");
 
 exports.sendOtp = async (req, res) => {
   try {
@@ -332,4 +334,25 @@ exports.resetPassword = async (req, res) => {
     console.error("Reset Password Error:", error);
     return res.status(500).json({ error: "Lỗi server khi đặt lại mật khẩu" });
   }
+};
+
+exports.loginWithGoogle = (req, res) => {
+  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${client_id}&redirect_uri=${redirect_uri}&response_type=code&scope=email profile`;
+  res.redirect(url);
+};
+
+exports.googleCallback = async (req, res) => {
+  const { code } = req.query;
+  const tokenRes = await axios.post("https://oauth2.googleapis.com/token", {
+    code,
+    client_id,
+    client_secret,
+    redirect_uri,
+    grant_type: "authorization_code",
+  });
+  const { access_token } = tokenRes.data;
+  const userRes = await axios.get("https://www.googleapis.com/oauth2/v3/userinfo", {
+    headers: { Authorization: `Bearer ${access_token}` },
+  });
+  res.json(userRes.data);
 };
