@@ -120,9 +120,9 @@
   transition: background 0.2s;
 }
 
-.navbar-dropdown li:hover {
+/* .navbar-dropdown li:hover {
   background: #f5f5f5;
-}
+} */
 
 .navbar-dropdown .dropdown-header {
   font-weight: bold;

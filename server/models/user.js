@@ -68,7 +68,7 @@ const userSchema = new mongoose.Schema({
     default: "Pending",
   },
   avatarUrl: { type: String, default: null },
-  pendingSince: { type: Date, default: Date.now, expires: 60 * 60 * 24 * 10 },
+  pendingSince: { type: Date, default: Date.now, expires: 60 * 60},
   otpCode: { type: String, default: null },
   otpExpires: { type: Date, default: null },
   lastOtpSentAt: { type: Date, default: null },

@@ -3,6 +3,8 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const axios = require("axios");
+const { client_id, client_secret, redirect_uri } = require("../config/google");
 
 exports.sendOtp = async (req, res) => {
   try {
@@ -49,7 +51,7 @@ exports.sendOtp = async (req, res) => {
       from: process.env.SMTP_USER,
       to: user.email,
       subject: "Mã xác thực OTP",
-      text: `Xin chào ${user.fullName},\n\nMã OTP của bạn là: ${otp}\nMã này sẽ hết hạn sau 15 phút.\n\nTrân trọng.`,
+      text: `Xin chào ${user.fullName},\n\nMã OTP của bạn là: ${otp}\nMã này sẽ hết hạn sau 1 phút.\n\nTrân trọng.`,
     });
 
     res.json({ message: "OTP đã được gửi về email của bạn" });
@@ -58,65 +60,6 @@ exports.sendOtp = async (req, res) => {
     res.status(500).json({ error: "Lỗi server khi gửi OTP" });
   }
 };
-
-// exports.verifyOtp = async (req, res) => {
-//   try {
-//     const { email, otp } = req.body;
-
-//     // Validate input
-//     if (!email || !otp) {
-//       return res.status(400).json({
-//         error: "Email và OTP là bắt buộc",
-//       });
-//     }
-
-//     // Tìm user theo email
-//     const user = await User.findOne({ email });
-//     if (!user) {
-//       return res.status(404).json({
-//         error: "Không tìm thấy user",
-//       });
-//     }
-
-//     // Kiểm tra OTP tồn tại
-//     if (!user.otpCode || !user.otpExpires) {
-//       return res.status(400).json({
-//         error: "OTP chưa được tạo",
-//       });
-//     }
-
-//     // Kiểm tra OTP hết hạn
-//     if (new Date() > user.otpExpires) {
-//       return res.status(400).json({
-//         error: "OTP đã hết hạn",
-//       });
-//     }
-
-//     // Kiểm tra OTP đúng hay không
-//     if (user.otpCode !== otp) {
-//       return res.status(400).json({
-//         error: "OTP không đúng",
-//       });
-//     }
-
-//     // Nếu OTP hợp lệ → cập nhật trạng thái user
-//     user.status = "Active";
-//     user.otpCode = null;
-//     user.otpExpires = null;
-//     user.pendingSince = undefined;
-
-//     await user.save();
-
-//     return res.json({
-//       message: "Xác thực thành công, tài khoản đã Active",
-//     });
-//   } catch (error) {
-//     console.error("Verify OTP Error:", error);
-//     return res.status(500).json({
-//       error: "Lỗi server khi xác thực OTP",
-//     });
-//   }
-// };
 
 // Đăng ký
 exports.register = async (req, res) => {
@@ -173,7 +116,14 @@ exports.login = async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) return res.status(401).json({ message: "Sai mật khẩu" });
-
+    if (user.status === "Pending")
+      return res.status(200).json({
+        message: "Tài khoản đang ở trạng thái Pending, cần xác thực OTP",
+        requireOtp: true,
+        user: { id: user._id, email: user.email },
+      });
+    if (user.status !== "Active")
+      return res.status(401).json({ message: "Tài khoản chưa được kích hoạt" });
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
@@ -182,19 +132,17 @@ exports.login = async (req, res) => {
       },
     );
 
-    res
-      .status(200)
-      .json({
-        message: "Đăng nhập thành công",
-        token,
-        user: {
-          id: user._id,
-          fullName: user.fullName,
-          email: user.email,
-          role: user.role,
-          avatarUrl: user.avatarUrl || null,
-        },
-      });
+    res.status(200).json({
+      message: "Đăng nhập thành công",
+      token,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        avatarUrl: user.avatarUrl || null,
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: "Lỗi server", error });
   }
@@ -298,6 +246,9 @@ exports.verifyOtp = async (req, res) => {
     }
 
     if (purpose === "forgotPassword") {
+      if (user.status !== "Active") {
+        return res.status(400).json({ error: "Tài khoản chưa được kích hoạt" });
+      }
       // Trường hợp quên mật khẩu → không đổi status, chỉ cho phép reset
       // Xóa OTP để tránh reuse
       const resetToken = crypto.randomBytes(32).toString("hex");
@@ -383,4 +334,25 @@ exports.resetPassword = async (req, res) => {
     console.error("Reset Password Error:", error);
     return res.status(500).json({ error: "Lỗi server khi đặt lại mật khẩu" });
   }
+};
+
+exports.loginWithGoogle = (req, res) => {
+  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${client_id}&redirect_uri=${redirect_uri}&response_type=code&scope=email profile`;
+  res.redirect(url);
+};
+
+exports.googleCallback = async (req, res) => {
+  const { code } = req.query;
+  const tokenRes = await axios.post("https://oauth2.googleapis.com/token", {
+    code,
+    client_id,
+    client_secret,
+    redirect_uri,
+    grant_type: "authorization_code",
+  });
+  const { access_token } = tokenRes.data;
+  const userRes = await axios.get("https://www.googleapis.com/oauth2/v3/userinfo", {
+    headers: { Authorization: `Bearer ${access_token}` },
+  });
+  res.json(userRes.data);
 };

@@ -2,26 +2,38 @@ import React, { useState, useContext } from "react";
 import { loginUser } from "../services/api.js";
 import { useNavigate } from "react-router-dom";
 import { UserContext } from "../context/UserContext.js";
-
+import { loginWithGoogle } from "../services/api.js";
 function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const {login } = useContext(UserContext);
+  const { login } = useContext(UserContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const result = await loginUser({ email: username, password });
-      login(result.data.user, result.data.token);
-      // console.log("Token nhận được:", result.data.token);
-      alert(result.data.message);
-      navigate("/");
+      if (result.data.requireOtp) {
+        alert(result.data.message);
+        navigate("/otp_verify", {
+          state: { email: username, purpose: "register" },
+        });
+        return;
+      } else {
+        login(result.data.user, result.data.token);
+        alert(result.data.message);
+        navigate("/");
+      }
     } catch (err) {
       alert("Đăng ký thất bại: " + err.message);
     }
   };
+
+  const handleLogin = async(e) => {
+      window.location.href = "http://localhost:9999/login-google";
+  };
+
   return (
     <div>
       <h2>Đăng nhập</h2>
@@ -65,11 +77,11 @@ function Login() {
         Chưa có tài khoản? <a href="/signup">Đăng ký ngay</a>
       </p>
 
-      {/* <div>
-          <p>Hoặc đăng nhập bằng:</p>
-          <button>Google</button>
-          <button>Facebook</button>
-        </div> */}
+      <div>
+        <p>Hoặc đăng nhập bằng:</p>
+        <button onClick={handleLogin}>Sign in with Google</button>
+        <button>Facebook</button>
+      </div>
     </div>
   );
 }
