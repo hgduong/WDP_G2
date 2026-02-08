@@ -11,20 +11,33 @@ const userSchema = new mongoose.Schema({
   },
   fullName: {
     type: String,
-    required: [true, "Họ và tên là bắt buộc"],
+    required: function () {
+      return this.authProvider === "local";
+    },
     minlength: [2, "Tên phải có ít nhất 2 ký tự"],
     maxlength: [50, "Tên không được vượt quá 50 ký tự"],
     trim: true,
-    match: [/^[\p{L}\s]+$/u, "Tên chỉ được chứa chữ cái và khoảng trắng"],
+    validate: {
+      validator(value) {
+        return this.authProvider !== "local" || /^[\p{L}\s]+$/u.test(value);
+      },
+      message: "Tên chỉ được chứa chữ cái và khoảng trắng",
+    },
+
+    // match: [/^[\p{L}\s]+$/u, "Tên chỉ được chứa chữ cái và khoảng trắng"],
   },
   gender: {
     type: String,
     enum: ["Male", "Female", "Other"],
-    required: [true, "Giới tính là bắt buộc"],
+    required: function () {
+      return this.authProvider === "local";
+    },
   },
   passwordHash: {
     type: String,
-    required: [true, "Mật khẩu là bắt buộc"],
+    required: function () {
+      return this.authProvider === "local";
+    },
   },
   dob: {
     type: Date,
@@ -41,10 +54,13 @@ const userSchema = new mongoose.Schema({
   idCard: {
     type: String,
     match: [/^\d{9,12}$/, "Số CMND/CCCD phải từ 9-12 chữ số"],
+    default: null,
   },
   phone: {
     type: String,
-    required: [true, "Số điện thoại là bắt buộc"],
+    required: function () {
+      return this.authProvider === "local";
+    },
     match: [
       /^(0|\+84)(\d{9})$/,
       "Số điện thoại không hợp lệ (VD: 0912345678 hoặc +84912345678)",
@@ -52,7 +68,9 @@ const userSchema = new mongoose.Schema({
   },
   address: {
     type: String,
-    required: [true, "Địa chỉ là bắt buộc"],
+    required: function () {
+      return this.authProvider === "local";
+    },
     minlength: [5, "Địa chỉ phải có ít nhất 5 ký tự"],
     maxlength: [200, "Địa chỉ không được vượt quá 200 ký tự"],
     trim: true,
@@ -67,8 +85,14 @@ const userSchema = new mongoose.Schema({
     enum: ["Active", "Inactive", "Pending", "Banned"],
     default: "Pending",
   },
+  authProvider: {
+    type: String,
+    enum: ["local", "google", "facebook"],
+    default: "local",
+    required: true,
+  },
   avatarUrl: { type: String, default: null },
-  pendingSince: { type: Date, default: Date.now, expires: 60 * 60},
+  pendingSince: { type: Date, default: Date.now, expires: 60 * 60 },
   otpCode: { type: String, default: null },
   otpExpires: { type: Date, default: null },
   lastOtpSentAt: { type: Date, default: null },

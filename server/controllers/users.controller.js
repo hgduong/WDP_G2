@@ -17,6 +17,8 @@ exports.sendOtp = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({ error: "Không tìm thấy user" });
+    } else if (user.authProvider !== "local") {
+      return res.status(400).json({ error: "Tài khoản này không thể gửi OTP" });
     }
 
     if (
@@ -64,33 +66,37 @@ exports.sendOtp = async (req, res) => {
 // Đăng ký
 exports.register = async (req, res) => {
   try {
-    const { email, fullName, gender, password, dob, idCard, phone, address } =
-      req.body;
+    const { email, fullName, gender, password, dob, phone, address } = req.body;
 
     // Kiểm tra email tồn tại
     const existingUser = await User.findOne({ email });
-    if (existingUser)
-      return res.status(400).json({ message: "Email đã tồn tại" });
+    if (!existingUser) {
+      // Hash mật khẩu
+      const passwordHash = await bcrypt.hash(password, 10);
 
-    // Hash mật khẩu
-    const passwordHash = await bcrypt.hash(password, 10);
+      // Tạo user mới
+      const newUser = new User({
+        email,
+        fullName,
+        gender,
+        passwordHash,
+        dob,
+        idCard: null,
+        phone,
+        address,
+        role: "Customer",
+        status: "Pending",
+      });
 
-    // Tạo user mới
-    const newUser = new User({
-      email,
-      fullName,
-      gender,
-      passwordHash,
-      dob,
-      idCard,
-      phone,
-      address,
-      role: "Customer",
-      status: "Pending",
-    });
-
-    await newUser.save();
-    res.status(201).json({ message: "Đăng ký thành công" });
+      await newUser.save();
+      res.status(201).json({ message: "Đăng ký thành công" });
+    } else if (existingUser.authProvider == "local") {
+      return res.status(400).json({ message: "Email đã được đăng ký" });
+    } else {
+      return res.status(400).json({
+        message: `Email đã được đăng ký bằng ${existingUser.authProvider}`,
+      });
+    }
   } catch (error) {
     if (error.name === "ValidationError") {
       console.error("Validation Error:", error.errors);
@@ -111,8 +117,13 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user)
+    if (!user) {
       return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    } else if (user.authProvider !== "local") {
+      return res.status(400).json({
+        message: `Email đã được đăng ký bằng ${user.authProvider}`,
+      });
+    }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) return res.status(401).json({ message: "Sai mật khẩu" });
@@ -351,8 +362,57 @@ exports.googleCallback = async (req, res) => {
     grant_type: "authorization_code",
   });
   const { access_token } = tokenRes.data;
-  const userRes = await axios.get("https://www.googleapis.com/oauth2/v3/userinfo", {
-    headers: { Authorization: `Bearer ${access_token}` },
-  });
-  res.json(userRes.data);
+  const userRes = await axios.get(
+    "https://www.googleapis.com/oauth2/v3/userinfo",
+    {
+      headers: { Authorization: `Bearer ${access_token}` },
+    },
+  );
+  const { email, name, picture } = userRes.data;
+  let user = await User.findOne({ email });
+  if (!user) {
+    user = new User({
+      email,
+      fullName: name,
+      avatarUrl: picture,
+      status: "Active",
+      authProvider: "google",
+    });
+    await user.save();
+    const token = jwt.sign(
+      {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        avatarUrl: user.avatarUrl || null,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1d",
+      },
+    );
+
+    res.redirect(`http://localhost:3000/?token=${token}`);
+  } else if (user.authProvider !== "google") {
+    return res.redirect(
+      `http://localhost:3000/login?error=Email%20đã%20được%20đăng%20ký%20bằng%20phương%20thức%20khác`,
+    );
+  } else if (user.authProvider == "google") {
+    const token = jwt.sign(
+      {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        avatarUrl: user.avatarUrl || null,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1d",
+      },
+    );
+
+    res.redirect(`http://localhost:3000/?token=${token}`);
+  }
 };

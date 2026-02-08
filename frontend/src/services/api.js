@@ -59,3 +59,12 @@ export const resetPassword = async (token, newPassword) => {
     throw error;
   }
 };
+
+// export const loginGoogle = async () => {
+//   try {
+//     const res = await API.post("/login-google");
+//     return res;
+//   } catch (error) {
+//     throw error;
+//   }
+// };
