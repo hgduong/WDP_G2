@@ -2,7 +2,7 @@ import React, { useState, useContext } from "react";
 import { loginUser } from "../services/api.js";
 import { useNavigate } from "react-router-dom";
 import { UserContext } from "../context/UserContext.js";
-import { loginWithGoogle } from "../services/api.js";
+
 function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
