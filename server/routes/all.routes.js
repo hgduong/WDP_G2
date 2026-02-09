@@ -11,5 +11,5 @@ router.post('/check-email-exists', checkEmailExists);
 router.post('/reset-password', resetPassword);
 
 router.get("/login-google", loginWithGoogle); 
-router.get("/callback", googleCallback);
+router.get("/auth/google/callback", googleCallback);
 module.exports =router;
