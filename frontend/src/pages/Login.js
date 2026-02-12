@@ -30,10 +30,14 @@ function Login() {
     }
   };
 
-  const handleLogin = async(e) => {
+  const handleLoginGoogle = async(e) => {
       window.location.href = "http://localhost:9999/login-google";
   };
 
+
+  const handleLoginFacebook = async(e) => {
+      window.location.href = "http://localhost:9999/login/federated/facebook";
+  };
   return (
     <div>
       <h2>Đăng nhập</h2>
@@ -79,8 +83,8 @@ function Login() {
 
       <div>
         <p>Hoặc đăng nhập bằng:</p>
-        <button onClick={handleLogin}>Sign in with Google</button>
-        <button>Facebook</button>
+        <button onClick={handleLoginGoogle}>Sign in with Google</button>
+        <button onClick={handleLoginFacebook}>Sign in with Facebook</button> 
       </div>
     </div>
   );
