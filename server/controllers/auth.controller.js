@@ -3,7 +3,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
-
+const passport = require("passport");
 exports.sendOtp = async (req, res) => {
   try {
     const { email } = req.body;
@@ -106,85 +106,6 @@ exports.register = async (req, res) => {
     // Các lỗi khác
     console.error("Server Error:", error);
     res.status(500).json({ message: "Lỗi server" });
-  }
-};
-
-// Đăng nhập
-exports.login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: "Không tìm thấy người dùng" });
-    } else if (user.authProvider !== "local") {
-      return res.status(400).json({
-        message: `Email đã được đăng ký bằng ${user.authProvider}`,
-      });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!isMatch) return res.status(401).json({ message: "Sai mật khẩu" });
-    if (user.status === "Pending")
-      return res.status(200).json({
-        message: "Tài khoản đang ở trạng thái Pending, cần xác thực OTP",
-        requireOtp: true,
-        user: { id: user._id, email: user.email },
-      });
-    if (user.status !== "Active")
-      return res.status(401).json({ message: "Tài khoản chưa được kích hoạt" });
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "1d",
-      },
-    );
-
-    res.status(200).json({
-      message: "Đăng nhập thành công",
-      token,
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-        avatarUrl: user.avatarUrl || null,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Lỗi server", error });
-  }
-};
-
-// Lấy thông tin người dùng
-exports.getProfile = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.userId).select("-passwordHash");
-    if (!user)
-      return res.status(404).json({ message: "Không tìm thấy người dùng" });
-
-    res.status(200).json(user);
-  } catch (error) {
-    res.status(500).json({ message: "Lỗi server", error });
-  }
-};
-
-// Cập nhật thông tin người dùng
-exports.updateProfile = async (req, res) => {
-  try {
-    const updates = req.body;
-    if (updates.password) {
-      updates.passwordHash = await bcrypt.hash(updates.password, 10);
-      delete updates.password;
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(req.user.userId, updates, {
-      new: true,
-    });
-    res.status(200).json({ message: "Cập nhật thành công", updatedUser });
-  } catch (error) {
-    res.status(500).json({ message: "Lỗi server", error });
   }
 };
 
@@ -345,3 +266,112 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
+// Đăng nhập bằng Local Strategy
+exports.login = (req, res, next) => {
+  passport.authenticate("local", { session: false }, (err, user, info) => {
+    if (err) {
+      return res.status(500).json({ message: "Lỗi server", error: err });
+    }
+    if (!user) {
+      // info chứa message từ strategy (VD: sai mật khẩu, chưa kích hoạt)
+      return res.status(401).json(info);
+    }
+
+    // Nếu xác thực thành công → tạo JWT
+    const token = jwt.sign(
+      {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        avatarUrl: user.avatarUrl || null,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    return res.status(200).json({
+      message: "Đăng nhập thành công",
+      token,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        avatarUrl: user.avatarUrl || null,
+      },
+    });
+  })(req, res, next);
+};
+
+// Đăng nhập bằng Facebook Strategy
+exports.loginWithFacebook = (req, res, next) => {
+  passport.authenticate("facebook", { scope: ["email"] })(req, res, next);
+};
+
+exports.facebookCallback = (req, res, next) => {
+  passport.authenticate("facebook", { session: false }, (err, user, info) => {
+    if (err) return res.status(500).json({ message: "Lỗi server", error: err });
+    if (!user) {
+      return res.redirect(
+        "http://localhost:3000/login?error=Không%20thể%20lấy%20email%20từ%20facebook"
+      );
+    }
+
+    // Tạo JWT
+    const token = jwt.sign(
+      {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        avatarUrl: user.avatarUrl || null,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    // Redirect về frontend kèm token
+    res.redirect(`http://localhost:3000/?token=${token}`);
+  })(req, res, next);
+};
+
+
+// Đăng nhập bằng Google Strategy
+exports.loginWithGoogle = (req, res, next) => {
+  passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
+};
+
+
+exports.googleCallback = (req, res, next) => {
+  passport.authenticate("google", { session: false }, (err, user, info) => {
+    if (err) return res.status(500).json({ message: "Lỗi server", error: err });
+
+    if (!user) {
+      // Nếu strategy trả về message cụ thể
+      if (info && info.message === "Email đã đăng ký bằng phương thức khác") {
+        return res.redirect(
+          "http://localhost:3000/login?error=Email%20đã%20đăng%20ký%20bằng%20phương%20thức%20khác"
+        );
+      }
+      return res.redirect(
+        "http://localhost:3000/login?error=Không%20thể%20lấy%20email%20từ%20google"
+      );
+    }
+
+    // Nếu thành công → tạo JWT
+    const token = jwt.sign(
+      {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        avatarUrl: user.avatarUrl || null,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    res.redirect(`http://localhost:3000/?token=${token}`);
+  })(req, res, next);
+};
