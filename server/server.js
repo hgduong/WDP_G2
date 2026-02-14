@@ -24,8 +24,8 @@ app.get("/", async (req, res) => {
     res.send({ error: error.message });
   }
 });
-const routes = require("./routes/auth.routes");
-app.use(routes);
-app.use(passport.initialize())
+const authRoutes = require("./routes/auth.routes");
+app.use(authRoutes);
+app.use(passport.initialize());
 const PORT = process.env.PORT || 9999;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

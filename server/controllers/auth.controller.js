@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const passport = require("passport");
+
 exports.sendOtp = async (req, res) => {
   try {
     const { email } = req.body;
@@ -336,12 +337,10 @@ exports.facebookCallback = (req, res, next) => {
   })(req, res, next);
 };
 
-
 // Đăng nhập bằng Google Strategy
 exports.loginWithGoogle = (req, res, next) => {
   passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
 };
-
 
 exports.googleCallback = (req, res, next) => {
   passport.authenticate("google", { session: false }, (err, user, info) => {
