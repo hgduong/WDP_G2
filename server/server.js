@@ -25,7 +25,11 @@ app.get("/", async (req, res) => {
   }
 });
 const authRoutes = require("./routes/auth.routes");
+const userRoutes = require("./routes/user.routes");
+
 app.use(authRoutes);
+app.use(userRoutes);
+
 app.use(passport.initialize());
 const PORT = process.env.PORT || 9999;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

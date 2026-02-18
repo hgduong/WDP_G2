@@ -288,7 +288,7 @@ exports.login = (req, res, next) => {
         avatarUrl: user.avatarUrl || null,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1d" },
     );
 
     return res.status(200).json({
@@ -315,7 +315,7 @@ exports.facebookCallback = (req, res, next) => {
     if (err) return res.status(500).json({ message: "Lỗi server", error: err });
     if (!user) {
       return res.redirect(
-        "http://localhost:3000/login?error=Không%20thể%20lấy%20email%20từ%20facebook"
+        "http://localhost:3000/login?error=Không%20thể%20lấy%20email%20từ%20facebook",
       );
     }
 
@@ -329,7 +329,7 @@ exports.facebookCallback = (req, res, next) => {
         avatarUrl: user.avatarUrl || null,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1d" },
     );
 
     // Redirect về frontend kèm token
@@ -339,7 +339,11 @@ exports.facebookCallback = (req, res, next) => {
 
 // Đăng nhập bằng Google Strategy
 exports.loginWithGoogle = (req, res, next) => {
-  passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
+  passport.authenticate("google", { scope: ["profile", "email"] })(
+    req,
+    res,
+    next,
+  );
 };
 
 exports.googleCallback = (req, res, next) => {
@@ -350,11 +354,11 @@ exports.googleCallback = (req, res, next) => {
       // Nếu strategy trả về message cụ thể
       if (info && info.message === "Email đã đăng ký bằng phương thức khác") {
         return res.redirect(
-          "http://localhost:3000/login?error=Email%20đã%20đăng%20ký%20bằng%20phương%20thức%20khác"
+          "http://localhost:3000/login?error=Email%20đã%20đăng%20ký%20bằng%20phương%20thức%20khác",
         );
       }
       return res.redirect(
-        "http://localhost:3000/login?error=Không%20thể%20lấy%20email%20từ%20google"
+        "http://localhost:3000/login?error=Không%20thể%20lấy%20email%20từ%20google",
       );
     }
 
@@ -368,7 +372,7 @@ exports.googleCallback = (req, res, next) => {
         avatarUrl: user.avatarUrl || null,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1d" },
     );
 
     res.redirect(`http://localhost:3000/?token=${token}`);
