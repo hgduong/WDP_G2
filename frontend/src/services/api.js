@@ -59,3 +59,35 @@ export const resetPassword = async (token, newPassword) => {
     throw error;
   }
 };
+
+
+export const getUserInfo = async (token) => {
+  try {
+    const res = await API.get("/profile", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res;
+  } catch (error) {
+    throw error;
+  }
+};
+
+
+
+export const updateUserInfo = async (userData) => {
+  try {
+    const res = await API.put("/profile", userData);
+    return res;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const changePassword = async (currentPassword, newPassword) => {
+  try {
+    const res = await API.post("/change-password", { currentPassword, newPassword });
+    return res;
+  } catch (error) {
+    throw error;
+  }
+};

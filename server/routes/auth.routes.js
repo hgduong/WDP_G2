@@ -1,0 +1,31 @@
+require("../config/passport");
+const express = require("express");
+const router = express.Router();
+const {
+  register,
+  login,
+  sendOtp,
+  verifyOtp,
+  checkEmailExists,
+  resetPassword,
+  loginWithFacebook,
+  facebookCallback,
+  loginWithGoogle,
+  googleCallback,
+} = require("../controllers/auth.controller");
+
+router.post("/send-otp", sendOtp);
+router.post("/verify-otp", verifyOtp);
+router.post("/check-email-exists", checkEmailExists);
+router.post("/reset-password", resetPassword);
+
+router.post("/register", register);
+router.post("/login", login);
+
+router.get("/login-google", loginWithGoogle);
+router.get("/auth/google/callback", googleCallback);
+
+router.get("/login/federated/facebook", loginWithFacebook);
+router.get("/auth/facebook/callback", facebookCallback);
+
+module.exports = router;
