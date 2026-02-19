@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect } from "react";
+import { getUserInfo } from "../services/api";
 
 // Khởi tạo Context
 export const UserContext = createContext();
@@ -9,26 +10,39 @@ export function UserProvider({ children }) {
 
   // Khi app load lại, lấy user từ localStorage
   useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    const fetchUser = async () => {
+      try {
+        const res = await getUserInfo(); // gọi API /profile
+        // axios trả về object, bạn thường cần res.data
+        setUser(res.data.user);
+      } catch (err) {
+        setUser(null); // nếu chưa đăng nhập hoặc token hết hạn
+      }
+    };
+
+    fetchUser();
   }, []);
 
-  
-
-  // Hàm login: lưu user vào state + localStorage
-  const login = (userData, token) => {
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(userData));
-    setUser(userData);
+  // Hàm login: lưu user vào state
+  const login = async () => {
+    try {
+      const res = await getUserInfo(); 
+      setUser(res.data.user);
+    } catch (err) {
+      setUser(null);
+    }
   };
 
-  // Hàm logout: xóa dữ liệu
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setUser(null);
+  const logout = async () => {
+    try {
+      await fetch("http://localhost:9999/logout", {
+        method: "POST",
+        credentials: "include", // để gửi cookie kèm request
+      });
+      setUser(null);
+    } catch (err) {
+      console.error("Logout failed", err);
+    }
   };
 
   return (

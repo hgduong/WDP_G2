@@ -2,6 +2,7 @@ import axios from "axios";
 
 const API = axios.create({
   baseURL: "http://localhost:9999",
+  withCredentials: true
 });
 
 // Hàm gọi API đăng ký
@@ -44,7 +45,7 @@ export const verifyOtp = async (email, otp, purpose) => {
 
 export const checkEmailExists = async (email) => {
   try {
-    const res = await API.post("/check-email-exists", { email});
+    const res = await API.post("/check-email-exists", { email });
     return res;
   } catch (error) {
     throw error;
@@ -60,19 +61,14 @@ export const resetPassword = async (token, newPassword) => {
   }
 };
 
-
-export const getUserInfo = async (token) => {
+export const getUserInfo = async () => {
   try {
-    const res = await API.get("/profile", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await API.get("/user-info");
     return res;
   } catch (error) {
     throw error;
   }
 };
-
-
 
 export const updateUserInfo = async (userData) => {
   try {
@@ -85,9 +81,13 @@ export const updateUserInfo = async (userData) => {
 
 export const changePassword = async (currentPassword, newPassword) => {
   try {
-    const res = await API.post("/change-password", { currentPassword, newPassword });
+    const res = await API.post("/change-password", {
+      currentPassword,
+      newPassword,
+    });
     return res;
   } catch (error) {
     throw error;
   }
 };
+

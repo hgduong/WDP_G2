@@ -4,6 +4,8 @@ const connectDB = require("./config/db");
 const cors = require("cors");
 const passport = require("passport");
 require("./config/passport");
+const cookieParser = require("cookie-parser");
+app.use(cookieParser());
 
 app.use(express.json());
 
