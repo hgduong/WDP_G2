@@ -18,7 +18,29 @@ function ResetPassword() {
     return <p>Token không tồn tại hoặc không hợp lệ.</p>;
   }
 
+  const validatePassword = (password) => {
+    const trimmed = password.trimEnd();
+    if (trimmed.length < 7) {
+      return "Mật khẩu phải dài hơn 6 ký tự";
+    }
+    if (!/[A-Z]/.test(trimmed)) {
+      return "Mật khẩu phải có ít nhất 1 chữ in hoa";
+    }
+    if (!/[0-9]/.test(trimmed)) {
+      return "Mật khẩu phải có ít nhất 1 chữ số";
+    }
+    if (!/[^A-Za-z0-9]/.test(trimmed)) {
+      return "Mật khẩu phải có ít nhất 1 ký tự đặc biệt";
+    }
+    return null;
+  };
+
   const handleResetPassword = async () => {
+    const validationError = validatePassword(newPassword);
+    if (validationError) {
+      setMessage(validationError);
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setMessage("Mật khẩu xác nhận không khớp");
       return;

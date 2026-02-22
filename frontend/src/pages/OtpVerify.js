@@ -98,8 +98,7 @@ function OtpVerify() {
               maxWidth: "300px",
             }}
           >
-            <h3>Xác thực thành công!</h3>
-            {/* <p>Tài khoản của bạn đã được kích hoạt.</p> */}
+            <h3>Xác thực thành công, vui lòng kiểm tra email!</h3>
             <button
               onClick={() => navigate("/login")}
               style={{
@@ -112,7 +111,7 @@ function OtpVerify() {
                 cursor: "pointer",
               }}
             >
-              Quay về đăng nhập
+              Quay về login
             </button>
           </div>
         </div>

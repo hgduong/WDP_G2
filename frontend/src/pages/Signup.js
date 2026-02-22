@@ -111,16 +111,39 @@ function Signup() {
         }
         break;
 
-      case "password":
+        // case "password":
         if (!value) {
           errorMsg = "Mật khẩu là bắt buộc";
         } else if (value.length < 6) {
           errorMsg = "Mật khẩu phải ít nhất 6 ký tự";
         }
         break;
+      case "password":
+        if (!value) {
+          errorMsg = "Mật khẩu là bắt buộc";
+        } else {
+          const trimmedValue = value.trimEnd();
+          if (trimmedValue.length < 7) {
+            errorMsg = "Mật khẩu phải dài hơn 6 ký tự";
+          } else if (!/[A-Z]/.test(trimmedValue)) {
+            errorMsg = "Mật khẩu phải có ít nhất 1 chữ in hoa";
+          } else if (!/[0-9]/.test(trimmedValue)) {
+            errorMsg = "Mật khẩu phải có ít nhất 1 chữ số";
+          } else if (!/[^A-Za-z0-9]/.test(trimmedValue)) {
+            errorMsg = "Mật khẩu phải có ít nhất 1 ký tự đặc biệt";
+          }
+        }
+        break;
 
+      // case "confirmPassword":
+      //   if (value !== formData.password) {
+      //     errorMsg = "Mật khẩu nhập lại không khớp";
+      //   }
+      //   break;
       case "confirmPassword":
-        if (value !== formData.password) {
+        const trimmedConfirm = value.trimEnd();
+        const trimmedPassword = formData.password.trimEnd();
+        if (trimmedConfirm !== trimmedPassword) {
           errorMsg = "Mật khẩu nhập lại không khớp";
         }
         break;
