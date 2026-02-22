@@ -1,5 +1,10 @@
-import React, { useState } from "react";
-import { registerUser } from "../services/api.js";
+import React, { useEffect, useState } from "react";
+import {
+  getProvinces,
+  getDistricts,
+  getWards,
+  registerUser,
+} from "../services/api.js";
 import { useNavigate } from "react-router-dom";
 
 function Signup() {
@@ -11,11 +16,63 @@ function Signup() {
     gender: "",
     dob: "",
     phone: "",
-    address: "",
+    province: "",
+    district: "",
+    ward: "",
+    street: "",
   });
+
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
+  const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [wards, setWards] = useState([]);
+
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      try {
+        const data = await getProvinces();
+        setProvinces(data);
+      } catch (error) {
+        console.error("Lỗi khi lấy danh sách tỉnh/thành phố:", error);
+      }
+    };
+
+    fetchProvinces();
+  }, []);
+
+  const handleProvinceChange = async (e) => {
+    const provinceCode = e.target.value;
+    setFormData({
+      ...formData,
+      province: provinceCode,
+      district: "",
+      ward: "",
+    });
+
+    try {
+      const data = await getDistricts(provinceCode);
+      // API trả về object có field districts
+      setDistricts(data.districts || []);
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách quận/huyện:", error);
+    }
+  };
+
+  const handleDistrictChange = async (e) => {
+    const districtCode = e.target.value;
+    setFormData({ ...formData, district: districtCode, ward: "" });
+
+    try {
+      const data = await getWards(districtCode);
+      // API trả về object có field wards
+      setWards(data.wards || []);
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách phường/xã:", error);
+    }
+  };
+
   const validateField = (name, value) => {
     let errorMsg = "";
 
@@ -134,7 +191,16 @@ function Signup() {
     }
 
     try {
-      const result = await registerUser(formData);
+      const payload = {
+        ...formData,
+        address: {
+          province: formData.province,
+          district: formData.district,
+          ward: formData.ward,
+          street: formData.street,
+        },
+      };
+      const result = await registerUser(payload);
       alert(result.data.message);
       navigate("/otp_verify", {
         state: { email: formData.email, purpose: "register" },
@@ -254,19 +320,65 @@ function Signup() {
         </div>
 
         <div>
-          <label>Địa chỉ</label>
+          <label>Tỉnh/Thành phố</label>
+          <select
+            value={formData.province}
+            onChange={handleProvinceChange}
+            required
+          >
+            <option value="">--Chọn tỉnh/thành phố--</option>
+            {provinces.map((p) => (
+              <option key={p.code} value={p.code}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label>Quận/Huyện</label>
+          <select
+            value={formData.district}
+            onChange={handleDistrictChange}
+            required
+          >
+            <option value="">--Chọn quận/huyện--</option>
+            {districts.map((d) => (
+              <option key={d.code} value={d.code}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label>Phường/Xã</label>
+          <select
+            value={formData.ward}
+            onChange={(e) => setFormData({ ...formData, ward: e.target.value })}
+            required
+          >
+            <option value="">--Chọn phường/xã--</option>
+            {wards.map((w) => (
+              <option key={w.code} value={w.code}>
+                {w.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label>Số nhà/Đường</label>
           <input
             type="text"
-            name="address"
-            value={formData.address}
+            name="street"
+            value={formData.street}
             onChange={handleChange}
-            placeholder="Nhập địa chỉ"
+            placeholder="Nhập số nhà, tên đường"
             required
           />
-          {errors.address && (
-            <span style={{ color: "red" }}>{errors.address}</span>
-          )}
         </div>
+
         <button type="submit">Đăng ký</button>
       </form>
     </div>

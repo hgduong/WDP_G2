@@ -66,15 +66,45 @@ const userSchema = new mongoose.Schema({
       "Số điện thoại không hợp lệ (VD: 0912345678 hoặc +84912345678)",
     ],
   },
+  // address: {
+  //   type: String,
+  //   required: function () {
+  //     return this.authProvider === "local";
+  //   },
+  //   minlength: [5, "Địa chỉ phải có ít nhất 5 ký tự"],
+  //   maxlength: [200, "Địa chỉ không được vượt quá 200 ký tự"],
+  //   trim: true,
+  // },
   address: {
-    type: String,
-    required: function () {
-      return this.authProvider === "local";
+    province: {
+      type: String,
+      required: function () {
+        return this.authProvider === "local";
+      },
     },
-    minlength: [5, "Địa chỉ phải có ít nhất 5 ký tự"],
-    maxlength: [200, "Địa chỉ không được vượt quá 200 ký tự"],
-    trim: true,
+    district: {
+      type: String,
+      required: function () {
+        return this.authProvider === "local";
+      },
+    },
+    ward: {
+      type: String,
+      required: function () {
+        return this.authProvider === "local";
+      },
+    },
+    street: {
+      type: String,
+      required: function () {
+        return this.authProvider === "local";
+      },
+      minlength: [2, "Tên đường/số nhà phải có ít nhất 2 ký tự"],
+      maxlength: [100, "Tên đường/số nhà không được vượt quá 100 ký tự"],
+      trim: true,
+    },
   },
+
   role: {
     type: String,
     enum: ["Customer", "Manager", "Admin"],
@@ -101,5 +131,18 @@ const userSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
+
+// Virtual field: hiển thị địa chỉ đầy đủ
+userSchema.virtual("fullAddress").get(function () {
+  if (!this.address) return "";
+
+  const { street, ward, district, province } = this.address;
+
+  return `${street}, ${ward}, ${district}, ${province}`;
+});
+
+// Cho phép xuất virtual khi convert sang JSON/Object
+userSchema.set("toJSON", { virtuals: true });
+userSchema.set("toObject", { virtuals: true });
 
 module.exports = mongoose.model("User", userSchema);
