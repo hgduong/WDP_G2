@@ -70,11 +70,12 @@ export const getUserInfo = async () => {
   }
 };
 
-export const changePassword = async (currentPassword, newPassword) => {
+export const changePassword = async (currentPassword, newPassword, confirmPassword) => {
   try {
-    const res = await API.post("/change-password", {
+    const res = await API.post("/user/change-password", {
       currentPassword,
       newPassword,
+      confirmPassword
     });
     return res;
   } catch (error) {
@@ -133,3 +134,5 @@ export const updateUserProfile = async (credentials) => {
     throw error;
   }
 };
+
+

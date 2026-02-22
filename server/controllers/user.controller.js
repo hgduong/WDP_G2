@@ -49,7 +49,7 @@ exports.updateUserProfile = async (req, res) => {
           street,
         },
       },
-      { new: true } // trả về document sau khi update
+      { new: true }, // trả về document sau khi update
     );
 
     if (!updatedUser) {
@@ -63,19 +63,34 @@ exports.updateUserProfile = async (req, res) => {
   }
 };
 
-
-// Đổi mật khẩu
 exports.changePassword = async (req, res) => {
   try {
-    const { oldPassword, newPassword } = req.body;
-    const user = await User.findById(req.user.id);
-    const isMatch = await bcrypt.compare(oldPassword, user.passwordHash);
-    if (!isMatch) return res.status(400).json({ message: "Sai mật khẩu cũ" });
+    const { currentPassword, newPassword, confirmPassword } = req.body;
 
-    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({ message: "Thiếu dữ liệu" });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: "Mật khẩu mới không khớp" });
+    }
+
+    const user = await User.findById(req.user.id).select("+passwordHash");
+    if (!user) return res.status(404).json({ message: "Không tìm thấy user" });
+
+    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Mật khẩu hiện tại không đúng" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.passwordHash = await bcrypt.hash(newPassword, salt);
+
     await user.save();
+
     res.json({ message: "Đổi mật khẩu thành công" });
-  } catch (err) {
-    res.status(500).json({ message: "Lỗi server", error: err });
+  } catch (error) {
+    console.error("Lỗi đổi mật khẩu:", error);
+    res.status(500).json({ message: "Có lỗi xảy ra" });
   }
 };
