@@ -32,28 +32,6 @@ router.get("/auth/google/callback", googleCallback);
 router.get("/login/federated/facebook", loginWithFacebook);
 router.get("/auth/facebook/callback", facebookCallback);
 
-//   const token = req.cookies.jwt; // lấy token từ cookie
-
-//   if (!token) {
-//     return res.status(401).json({
-//       message: "Chưa đăng nhập",
-//     });
-//   }
-
-//   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-//     if (err) {
-//       return res.status(403).json({
-//         message: "Token không hợp lệ",
-//       });
-//     }
-
-//     // gắn thông tin user vào request
-//     req.user = user;
-//     next();
-//   });
-// }
-
-// Route /profile
 router.get("/user-info", authenticateToken, (req, res) => {
   res.json({
     message: "Thông tin người dùng",

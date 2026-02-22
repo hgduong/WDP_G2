@@ -2,7 +2,7 @@ import axios from "axios";
 
 const API = axios.create({
   baseURL: "http://localhost:9999",
-  withCredentials: true
+  withCredentials: true,
 });
 
 // Hàm gọi API đăng ký
@@ -70,15 +70,6 @@ export const getUserInfo = async () => {
   }
 };
 
-export const updateUserInfo = async (userData) => {
-  try {
-    const res = await API.put("/profile", userData);
-    return res;
-  } catch (error) {
-    throw error;
-  }
-};
-
 export const changePassword = async (currentPassword, newPassword) => {
   try {
     const res = await API.post("/change-password", {
@@ -91,3 +82,54 @@ export const changePassword = async (currentPassword, newPassword) => {
   }
 };
 
+// Lấy danh sách tỉnh/thành phố
+export const getProvinces = async () => {
+  try {
+    const res = await API.get("/api/provinces");
+    return res.data; // dữ liệu JSON từ backend
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Lấy danh sách quận/huyện theo provinceId
+export const getDistricts = async (provinceCode) => {
+  try {
+    const res = await API.get(`/api/districts/${provinceCode}`);
+    return res.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Lấy danh sách phường/xã theo districtId
+export const getWards = async (districtCode) => {
+  try {
+    const res = await API.get(`/api/wards/${districtCode}`);
+    return res.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Lấy thông tin chi tiết user
+export const getUserProfile = async () => {
+  try {
+    const response = await API.get(`/user/profile`);
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi khi lấy thông tin user profile:", error);
+    throw error;
+  }
+};
+
+// Cập nhật thông tin user
+export const updateUserProfile = async (credentials) => {
+  try {
+    const response = await API.put(`/user/profile`, credentials);
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi khi cập nhật user profile:", error);
+    throw error;
+  }
+};

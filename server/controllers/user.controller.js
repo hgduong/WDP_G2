@@ -4,39 +4,65 @@ const bcrypt = require("bcrypt");
 // Lấy thông tin user
 exports.getUserProfile = async (req, res) => {
   try {
-    // Kiểm tra req.user trước
-    if (!req.user || !req.user.id) {
-      return res
-        .status(401)
-        .json({ message: "Token không hợp lệ hoặc chưa đăng nhập" });
-    }
-
-    const user = await User.findById(req.user.id).select("-passwordHash");
-    if (!user) {
-      return res.status(404).json({ message: "Không tìm thấy user" });
-    }
-
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User không tồn tại" });
     res.json(user);
-  } catch (err) {
-    console.error("Lỗi getUserProfile:", err);
-    res.status(500).json({ message: "Lỗi server", error: err.message });
+  } catch (error) {
+    console.error("Lỗi khi lấy profile:", error);
+    res.status(500).json({ message: "Lỗi server" });
   }
 };
 
 // Cập nhật thông tin user
+
 exports.updateUserProfile = async (req, res) => {
   try {
-    const { fullName, avatarUrl } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { fullName, avatarUrl },
-      { new: true },
-    ).select("-passwordHash");
-    res.json(user);
-  } catch (err) {
-    res.status(500).json({ message: "Lỗi server", error: err });
+    // req.user.id được gắn từ middleware authenticateToken (JWT decode)
+    const userId = req.user.id;
+
+    // Lấy dữ liệu từ body
+    const {
+      fullName,
+      email,
+      gender,
+      dob,
+      phone,
+      province,
+      district,
+      ward,
+      street,
+    } = req.body;
+
+    // Cập nhật user
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        fullName,
+        email,
+        gender,
+        dob,
+        phone,
+        address: {
+          province,
+          district,
+          ward,
+          street,
+        },
+      },
+      { new: true } // trả về document sau khi update
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User không tồn tại" });
+    }
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error("Lỗi khi cập nhật profile:", error);
+    res.status(500).json({ message: "Lỗi server" });
   }
 };
+
 
 // Đổi mật khẩu
 exports.changePassword = async (req, res) => {
