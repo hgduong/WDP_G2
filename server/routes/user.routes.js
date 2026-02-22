@@ -7,17 +7,12 @@ const {
   updateUserProfile,
   changePassword,
 } = require("../controllers/user.controller");
+const {
+  authenticateToken,
+  authorizeRoles,
+} = require("../config/auth.middleware");
 
-// Middleware xác thực bằng JWT (ví dụ dùng passport-jwt)
-// const jwtAuth = passport.authenticate("jwt", { session: false });
-
-// Lấy thông tin user (cần đăng nhập)
-router.get("/profile", getUserProfile);
-
-// Cập nhật thông tin user (cần đăng nhập)
-router.put("/profile", updateUserProfile);
-
-// Đổi mật khẩu (cần đăng nhập)
-router.put("/change-password", changePassword);
+router.get("/user/profile", authenticateToken, getUserProfile);
+router.put("/user/profile", authenticateToken, updateUserProfile);
 
 module.exports = router;

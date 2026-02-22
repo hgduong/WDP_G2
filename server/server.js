@@ -4,6 +4,8 @@ const connectDB = require("./config/db");
 const cors = require("cors");
 const passport = require("passport");
 require("./config/passport");
+const cookieParser = require("cookie-parser");
+app.use(cookieParser());
 
 app.use(express.json());
 
@@ -22,6 +24,47 @@ app.get("/", async (req, res) => {
     res.send({ message: "Welcome to Time Cinemas" });
   } catch (error) {
     res.send({ error: error.message });
+  }
+});
+
+// --- API lấy danh sách tỉnh/thành phố ---
+app.get("/api/provinces", async (req, res) => {
+  try {
+    const response = await fetch("https://provinces.open-api.vn/api/v1/");
+    const data = await response.json();
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+    });
+  }
+});
+
+// --- API lấy danh sách quận/huyện theo province_id ---
+app.get("/api/districts/:provinceCode", async (req, res) => {
+  try {
+    const { provinceCode } = req.params;
+    const response = await fetch(
+      `https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`,
+    );
+    const data = await response.json();
+    res.json(data || []);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+// --- API lấy danh sách phường/xã theo district_id ---
+app.get("/api/wards/:districtCode", async (req, res) => {
+  try {
+    const { districtCode } = req.params;
+    const response = await fetch(
+      `https://provinces.open-api.vn/api/d/${districtCode}?depth=2`,
+    );
+    const data = await response.json();
+    res.json(data|| []);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 const authRoutes = require("./routes/auth.routes");

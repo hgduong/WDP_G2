@@ -291,9 +291,17 @@ exports.login = (req, res, next) => {
       { expiresIn: "1d" },
     );
 
+    // gửi JWT dưới dạng HttpOnly cookie
+
+    res.cookie("jwt", token, {
+      httpOnly: true, // ngăn JS truy cập
+      secure: true, // chỉ gửi qua HTTPS
+      sameSite: "strict", // chống CSRF
+      maxAge: 24 * 60 * 60 * 1000, // 1 ngày
+    });
+
     return res.status(200).json({
       message: "Đăng nhập thành công",
-      token,
       user: {
         id: user._id,
         fullName: user.fullName,
@@ -331,9 +339,14 @@ exports.facebookCallback = (req, res, next) => {
       process.env.JWT_SECRET,
       { expiresIn: "1d" },
     );
-
+    res.cookie("jwt", token, {
+      httpOnly: true, // ngăn JS đọc cookie
+      secure: true, // chỉ gửi qua HTTPS (bỏ khi dev)
+      sameSite: "strict", // chống CSRF
+      maxAge: 24 * 60 * 60 * 1000, // 1 ngày
+    });
     // Redirect về frontend kèm token
-    res.redirect(`http://localhost:3000/?token=${token}`);
+    res.redirect(`http://localhost:3000/`);
   })(req, res, next);
 };
 
@@ -375,6 +388,22 @@ exports.googleCallback = (req, res, next) => {
       { expiresIn: "1d" },
     );
 
-    res.redirect(`http://localhost:3000/?token=${token}`);
+    res.cookie("jwt", token, {
+      httpOnly: true, // ngăn JS đọc cookie
+      secure: true, // chỉ gửi qua HTTPS (bỏ khi dev)
+      sameSite: "strict", // chống CSRF
+      maxAge: 24 * 60 * 60 * 1000, // 1 ngày
+    });
+
+    // Sau đó redirect mà không cần token trên URL
+    res.redirect("http://localhost:3000/");
   })(req, res, next);
 };
+
+// Đăng xuất
+exports.logout = (req, res) => {
+  res.clearCookie("jwt", { httpOnly: true, sameSite: "strict", secure: true });
+  res.status(200).json({ message: "Đăng xuất thành công" });
+};
+
+

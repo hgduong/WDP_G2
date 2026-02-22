@@ -21,7 +21,7 @@ function Login() {
         });
         return;
       } else {
-        login(result.data.user, result.data.token);
+        login(result.data.user);
         alert(result.data.message);
         navigate("/");
       }
