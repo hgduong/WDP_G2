@@ -1,5 +1,5 @@
 import { createContext, useState, useEffect } from "react";
-import { getUserInfo } from "../services/api";
+import { getUserInfo, logoutUser } from "../services/api";
 
 // Khởi tạo Context
 export const UserContext = createContext();
@@ -7,8 +7,9 @@ export const UserContext = createContext();
 // Provider để bọc toàn bộ app
 export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [role, setRole] = useState("Guest");
 
-  // Khi app load lại, lấy user từ localStorage
+  // Khi app load lại, lấy user từ server
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -17,6 +18,7 @@ export function UserProvider({ children }) {
         setUser(res.data.user);
       } catch (err) {
         setUser(null); // nếu chưa đăng nhập hoặc token hết hạn
+        setRole("Guest");
       }
     };
 
@@ -26,8 +28,9 @@ export function UserProvider({ children }) {
   // Hàm login: lưu user vào state
   const login = async () => {
     try {
-      const res = await getUserInfo(); 
+      const res = await getUserInfo();
       setUser(res.data.user);
+      setRole(res.data.user.role);
     } catch (err) {
       setUser(null);
     }
@@ -35,18 +38,16 @@ export function UserProvider({ children }) {
 
   const logout = async () => {
     try {
-      await fetch("http://localhost:9999/logout", {
-        method: "POST",
-        credentials: "include", // để gửi cookie kèm request
-      });
+      await logoutUser();
       setUser(null);
+      setRole("Guest");
     } catch (err) {
       console.error("Logout failed", err);
     }
   };
 
   return (
-    <UserContext.Provider value={{ user, setUser, login, logout }}>
+    <UserContext.Provider value={{ user, setUser, login, logout, role }}>
       {children}
     </UserContext.Provider>
   );
