@@ -69,7 +69,12 @@ passport.use(
           user = await User.create({
             email,
             fullName: profile.displayName,
+            gender: null,
+            dob: null,
+            idCard: null,
             avatarUrl: profile.photos[0].value,
+            phone: null,
+            address: null,
             status: "Active",
             authProvider: "google",
           });
@@ -106,7 +111,12 @@ passport.use(
         user = new User({
           email,
           fullName: name,
+          gender: null,
+          dob: null,
+          idCard: null,
           avatarUrl: picture,
+          phone: null,
+          address: null,
           status: "Active",
           authProvider: "facebook",
         });
