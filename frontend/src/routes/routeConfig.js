@@ -38,15 +38,15 @@ import ResetPassword from "../pages/ResetPassword";
 import Unauthorized from "../pages/Unauthorized";
 
 export const routesConfig = [
-  { path: "/", element: <Home />, allowedRoles: ["User","Admin","Staff","Guest"] },
-  { path: "/movie/:id", element: <MovieDetail />, allowedRoles: ["User","Admin","Staff","Guest"] },
-  { path: "/booking/:id", element: <Booking />, allowedRoles: ["User"] },
-  { path: "/checkout", element: <Checkout />, allowedRoles: ["User"] },
-  { path: "/profile", element: <Profile />, allowedRoles: ["User","Admin"] },
+  { path: "/", element: <Home />, allowedRoles: ["Customer","Admin","Staff","Guest"] },
+  { path: "/movie/:id", element: <MovieDetail />, allowedRoles: ["Customer","Admin","Staff","Guest"] },
+  { path: "/booking/:id", element: <Booking />, allowedRoles: ["Customer"] },
+  { path: "/checkout", element: <Checkout />, allowedRoles: ["Customer"] },
+  { path: "/profile", element: <Profile />, allowedRoles: ["Customer","Admin"] },
   { path: "/login", element: <Login />, allowedRoles: ["Guest"] }, 
   { path: "/signup", element: <Signup />, allowedRoles: ["Guest"] },
   { path: "/otp_verify", element: <OtpVerify />, allowedRoles: ["Guest"] },
   { path: "/forgot_password", element: <ForgotPassword />, allowedRoles: ["Guest"] },
   { path: "/reset_password", element: <ResetPassword />, allowedRoles: ["Guest"] },
-  { path: "/unauthorized", element: <Unauthorized />, allowedRoles: ["Guest","User","Admin","Staff"] },
+  { path: "/unauthorized", element: <Unauthorized />, allowedRoles: ["Guest","Customer","Admin","Staff"] },
 ];

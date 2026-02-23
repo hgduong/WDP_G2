@@ -13,9 +13,12 @@ const {
   loginWithGoogle,
   googleCallback,
   logout,
-  getUserIdentity
+  getUserIdentity,
 } = require("../controllers/auth.controller");
-const {authenticateToken, authorizeRoles} = require("../config/auth.middleware");
+const {
+  authenticateToken,
+  authorizeRoles,
+} = require("../config/auth.middleware");
 
 const jwt = require("jsonwebtoken");
 router.post("/send-otp", sendOtp);
@@ -33,6 +36,11 @@ router.get("/auth/google/callback", googleCallback);
 router.get("/login/federated/facebook", loginWithFacebook);
 router.get("/auth/facebook/callback", facebookCallback);
 
-router.get("/user-info", authenticateToken, getUserIdentity);
+router.get(
+  "/user-info",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff", "Manager"]),
+  getUserIdentity,
+);
 
 module.exports = router;
