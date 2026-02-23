@@ -13,9 +13,9 @@ export function UserProvider({ children }) {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await getUserInfo(); // gọi API /profile
-        // axios trả về object, bạn thường cần res.data
+        const res = await getUserInfo(); 
         setUser(res.data.user);
+        setRole(res.data.user.role);
       } catch (err) {
         setUser(null); // nếu chưa đăng nhập hoặc token hết hạn
         setRole("Guest");
