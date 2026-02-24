@@ -5,6 +5,8 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const passport = require("passport");
 
+const STAFF_ALLOWED_ROLES = ["Staff", "Admin"];
+
 exports.sendOtp = async (req, res) => {
   try {
     const { email } = req.body;
@@ -268,7 +270,9 @@ exports.resetPassword = async (req, res) => {
 };
 
 // Đăng nhập bằng Local Strategy
-exports.login = (req, res, next) => {
+const loginWithLocalStrategy = (req, res, next, options = {}) => {
+  const { staffOnly = false } = options;
+
   passport.authenticate("local", { session: false }, (err, user, info) => {
     if (err) {
       return res.status(500).json({ message: "Lỗi server", error: err });
@@ -276,6 +280,12 @@ exports.login = (req, res, next) => {
     if (!user) {
       // info chứa message từ strategy (VD: sai mật khẩu, chưa kích hoạt)
       return res.status(401).json(info);
+    }
+
+    if (staffOnly && !STAFF_ALLOWED_ROLES.includes(user.role)) {
+      return res.status(403).json({
+        message: "Tài khoản không có quyền truy cập khu vực staff",
+      });
     }
 
     // Nếu xác thực thành công → tạo JWT
@@ -292,7 +302,6 @@ exports.login = (req, res, next) => {
     );
 
     // gửi JWT dưới dạng HttpOnly cookie
-
     res.cookie("jwt", token, {
       httpOnly: true, // ngăn JS truy cập
       secure: true, // chỉ gửi qua HTTPS
@@ -313,6 +322,15 @@ exports.login = (req, res, next) => {
   })(req, res, next);
 };
 
+// Đăng nhập bằng Local Strategy (khách hàng)
+exports.login = (req, res, next) => {
+  return loginWithLocalStrategy(req, res, next);
+};
+
+// Đăng nhập cho khu vực Staff/Admin
+exports.staffLogin = (req, res, next) => {
+  return loginWithLocalStrategy(req, res, next, { staffOnly: true });
+};
 // Đăng nhập bằng Facebook Strategy
 exports.loginWithFacebook = (req, res, next) => {
   passport.authenticate("facebook", { scope: ["email"] })(req, res, next);
@@ -390,7 +408,7 @@ exports.googleCallback = (req, res, next) => {
 
     res.cookie("jwt", token, {
       httpOnly: true, // ngăn JS đọc cookie
-      secure: true, // chỉ gửi qua HTTPS (bỏ khi dev)
+      secure: true, // chỉ gửi qua HTTPS 
       sameSite: "strict", // chống CSRF
       maxAge: 24 * 60 * 60 * 1000, // 1 ngày
     });
@@ -406,4 +424,17 @@ exports.logout = (req, res) => {
   res.status(200).json({ message: "Đăng xuất thành công" });
 };
 
+// Lấy thông tin người dùng từ token
+exports.getUserIdentity = (req, res) => {
+  res.json({
+    message: "Thông tin người dùng",
+    user: {
+      id: req.user.id,
+      fullName: req.user.fullName,
+      email: req.user.email,
+      role: req.user.role,
+      avatarUrl: req.user.avatarUrl || null,
+    },
+  });
+};
 

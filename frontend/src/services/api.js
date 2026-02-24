@@ -25,6 +25,24 @@ export const loginUser = async (credentials) => {
   }
 };
 
+export const staffLogin = async (credentials) => {
+  try {
+    const res = await API.post("/staff/login", credentials);
+    return res;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const logoutUser = async () => {
+  try {
+    const res = await API.post("/logout");
+    return res;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export const sendOtp = async (email) => {
   try {
     const res = await API.post("/send-otp", { email });

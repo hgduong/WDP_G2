@@ -1,7 +1,5 @@
-// require("../config/passport");
 const express = require("express");
 const router = express.Router();
-// const passport = require("passport");
 const {
   getUserProfile,
   updateUserProfile,
@@ -12,7 +10,22 @@ const {
   authorizeRoles,
 } = require("../config/auth.middleware");
 
-router.get("/user/profile", authenticateToken, getUserProfile);
-router.put("/user/profile", authenticateToken, updateUserProfile);
-router.post("/user/change-password", authenticateToken, changePassword);
+router.get(
+  "/user/profile",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff", "Manager"]),
+  getUserProfile,
+);
+router.put(
+  "/user/profile",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff", "Manager"]),
+  updateUserProfile,
+);
+router.post(
+  "/user/change-password",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff", "Manager"]),
+  changePassword,
+);
 module.exports = router;
