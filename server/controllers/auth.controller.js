@@ -408,7 +408,7 @@ exports.googleCallback = (req, res, next) => {
 
     res.cookie("jwt", token, {
       httpOnly: true, // ngăn JS đọc cookie
-      secure: true, // chỉ gửi qua HTTPS (bỏ khi dev)
+      secure: true, // chỉ gửi qua HTTPS 
       sameSite: "strict", // chống CSRF
       maxAge: 24 * 60 * 60 * 1000, // 1 ngày
     });
@@ -422,5 +422,19 @@ exports.googleCallback = (req, res, next) => {
 exports.logout = (req, res) => {
   res.clearCookie("jwt", { httpOnly: true, sameSite: "strict", secure: true });
   res.status(200).json({ message: "Đăng xuất thành công" });
+};
+
+// Lấy thông tin người dùng từ token
+exports.getUserIdentity = (req, res) => {
+  res.json({
+    message: "Thông tin người dùng",
+    user: {
+      id: req.user.id,
+      fullName: req.user.fullName,
+      email: req.user.email,
+      role: req.user.role,
+      avatarUrl: req.user.avatarUrl || null,
+    },
+  });
 };
 
