@@ -67,11 +67,17 @@ app.get("/api/wards/:districtCode", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// upload anh
+const uploadRoutes = require("./routes/upload.route");
+app.use("/api", uploadRoutes);
+app.use("/upload", express.static("public/upload")); // cho phép truy cập ảnh qua URL
+
 const authRoutes = require("./routes/auth.routes");
 const userRoutes = require("./routes/user.routes");
-
+const moviesRoutes = require("./routes/movies.route");
 app.use(authRoutes);
 app.use(userRoutes);
+app.use(moviesRoutes);
 
 app.use(passport.initialize());
 const PORT = process.env.PORT || 9999;

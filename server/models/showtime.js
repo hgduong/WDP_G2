@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 
 const showtimeSchema = new mongoose.Schema({
   movieId: { type: mongoose.Schema.Types.ObjectId, ref: 'Movie', required: true },
-  cinemaId: { type: mongoose.Schema.Types.ObjectId, ref: 'Cinema', required: true },
+  cinemasId: { type: mongoose.Schema.Types.ObjectId, ref: 'Cinema', required: true },
   roomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Room', required: true },
   startTime: { type: Date, required: true },
   seatMap: { type: mongoose.Schema.Types.ObjectId, ref: 'Seatmap' },

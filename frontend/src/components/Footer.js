@@ -5,7 +5,7 @@ export default function Footer() {
   return (
     <footer className="footer">
       <div className="footer-container">
-        <p>&copy; {new Date().getFullYear()} AlphaTickets. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} TimeCinemas. All rights reserved.</p>
         <nav className="footer-nav">
           <a href="/about">Giới thiệu</a>
           <a href="/contact">Liên hệ</a>
