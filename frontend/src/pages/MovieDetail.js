@@ -1,53 +1,85 @@
-// src/pages/MovieDetail.jsx
 import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
 import "../assets/styles/MovieDetail.css";
-import cartmovie from "../assets/images/cartmovie1.png";
-
-// Giả sử bạn có danh sách phim (có thể import từ file hoặc API)
-const movies = [
-  {
-    id: 1,
-    title: "Avengers 5",
-    duration: 120,
-    description: "Một nhóm siêu anh hùng bảo vệ thế giới...",
-    posterUrl: cartmovie,
-    showtimes: ["CGV Hà Nội - 19:00", "Lotte Hà Nội - 20:30"],
-  },
-  {
-    id: 3,
-    title: "Batman",
-    duration: 130,
-    description: "Hiệp sĩ bóng đêm bảo vệ Gotham...",
-    posterUrl: cartmovie,
-    showtimes: ["CGV HCM - 18:00", "Galaxy HCM - 21:00"],
-  },
-];
 
 export default function MovieDetail() {
-  const { id } = useParams(); // lấy id từ URL
-  const movie = movies.find((m) => m.id === Number(id));
+  const { id } = useParams();
+  const [movie, setMovie] = useState(null);
+  const [showtimes, setShowtimes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showBooking, setShowBooking] = useState(false); // trạng thái hiển thị đặt vé
 
-  if (!movie) {
-    return <p>Không tìm thấy phim</p>;
-  }
+  useEffect(() => {
+    // lấy chi tiết phim
+    fetch(`http://localhost:9999/movies/${id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setMovie(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, [id]);
 
-  const poster = movie.posterUrl ? movie.posterUrl : cartmovie;
+  // khi bấm nút đặt vé thì mới gọi API lấy showtimes
+  const handleBookingClick = () => {
+    setShowBooking(true);
+    fetch(`http://localhost:9999/showtimes/${id}`)
+      .then((res) => res.json())
+      .then((data) => setShowtimes(data))
+      .catch((err) => console.error("Lỗi lấy showtimes:", err));
+  };
+
+  if (loading) return <p>Đang tải...</p>;
+  if (error) return <p>Lỗi: {error}</p>;
+  if (!movie) return <p>Không tìm thấy phim</p>;
 
   return (
     <div className="movie-detail">
-      <img src={poster} alt={movie.title} className="poster" />
+      <img
+        src={`http://localhost:9999${movie.posterUrl}`}
+        alt={movie.title}
+        className="poster"
+      />
       <div className="info">
         <h1>{movie.title}</h1>
         <p>Thời lượng: {movie.duration} phút</p>
         <p>{movie.description}</p>
-        <h2>Lịch chiếu</h2>
-        <ul>
-          {movie.showtimes.map((show, index) => (
-            <li key={index}>{show}</li>
-          ))}
-        </ul>
-        <button className="btn">Đặt vé</button>
+        <p>Đạo diễn: {movie.director}</p>
+        <p>Diễn viên: {movie.cast}</p>
+        <p>Rating: {movie.rating}/10</p>
+        <button className="btn" onClick={handleBookingClick}>
+          Đặt vé
+        </button>
       </div>
+
+      {/* Chỉ hiện suất chiếu khi đã bấm nút Đặt vé */}
+      {showBooking && (
+        <div className="showtimes">
+          <h2>Suất chiếu:</h2>
+          {showtimes.length === 0 ? (
+            <p>Chưa có suất chiếu nào.</p>
+          ) : (
+            showtimes.map((s) => (
+              <div key={s._id} className="showtime-item">
+                <span>
+                  {new Date(s.startTime).toLocaleString("vi-VN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    day: "2-digit",
+                    month: "2-digit",
+                  })}
+                </span>
+                <span> - Giá vé: {s.price} VND</span>
+                <span> - Ghế trống: {s.availableSeats}</span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }

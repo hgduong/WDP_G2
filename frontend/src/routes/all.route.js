@@ -11,7 +11,7 @@ import Signup from "../pages/Signup";
 import OtpVerify from "../pages/OtpVerify";
 import ForgotPassword from "../pages/ForgotPassword";
 import ResetPassword from "../pages/ResetPassword";
-
+import NotFound from "../pages/NotFound";
 export const router = createBrowserRouter([
   { path: "/", element: <MainLayout><Home /></MainLayout> },
   { path: "/movie/:id", element: <MainLayout><MovieDetail /></MainLayout> },
@@ -23,4 +23,6 @@ export const router = createBrowserRouter([
   { path: "/otp_verify", element: <MainLayout><OtpVerify /></MainLayout> },
   { path: "/forgot_password", element: <MainLayout><ForgotPassword /></MainLayout> },
   { path: "/reset_password", element: <MainLayout><ResetPassword/></MainLayout> },
+  { path: "*", element: <MainLayout><NotFound /></MainLayout> },
+  
 ]);

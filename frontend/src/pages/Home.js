@@ -6,44 +6,25 @@ import slider1 from "../assets/images/slider1.png";
 import slider2 from "../assets/images/slider2.png";
 import slider3 from "../assets/images/slider3.png";
 import MovieCard from "../components/MovieCard";
-import cartmovie from "../assets/images/cartmovie1.png";
 const slides = [
   { id: 1, title_vi: "Avengers", title_en: "Avengers", image: slider1 },
   { id: 2, title_vi: "Batman", title_en: "Batman", image: slider2 },
   { id: 3, title_vi: "Người Nhện", title_en: "Spiderman", image: slider3 },
 ];
 
-const comingSoonMovies = [
-  {
-    id: 1,
-    title: "Avengers 5",
-    duration: 120,
-    posterUrl: cartmovie,
-    
-  },
-  { id: 2, title: "Thor", duration: 110, posterUrl: cartmovie },
-];
-const nowShowingMovies = [
-  { id: 3, title: "Batman", duration: 130, posterUrl: cartmovie },
-  {
-    id: 4,
-    title: "Spiderman",
-    duration: 125,
-    posterUrl: cartmovie,
-  },
-];
-const specialShowings = [
-  {
-    id: 5,
-    title: "Avatar 2 (Special)",
-    duration: 150,
-    posterUrl: cartmovie,
-  },
-];
 export default function Home() {
   const { lang } = useContext(LanguageContext);
   const [current, setCurrent] = useState(0);
   const [activeTab, setActiveTab] = useState("comingSoon");
+  const [movies,setMovies] = useState([]);
+
+  // GỌi API lấy danh sách phim từ sv
+  useEffect(()=>{
+    fetch("http://localhost:9999/movies/all")
+    .then((res)=> res.json())
+    .then((data)=>(setMovies(data)))
+    .catch((error)=> console.error("Lỗi khi lấy danh sách phim:", error));
+  },[]);
 
   // Tự động chuyển slide sau 3 giây
   useEffect(() => {
@@ -63,11 +44,11 @@ export default function Home() {
   const renderMovies = () => {
     switch (activeTab) {
       case "comingSoon":
-        return comingSoonMovies;
+        return movies.filter((m)=>m.status === "ComingSoon");
       case "nowShowing":
-        return nowShowingMovies;
+        return movies.filter((m)=>m.status === "NowShowing");
       case "special":
-        return specialShowings;
+        return movies.filter((m)=>m.status === "Special");
       default:
         return [];
     }
@@ -133,7 +114,8 @@ export default function Home() {
         {/* Movie grid */}
         <div className="movie-grid">
           {renderMovies().map((movie) => (
-            <MovieCard key={movie.id} movie={movie} />
+            
+            <MovieCard key={movie._id} movie={movie} />
           ))}
         </div>
       </section>
