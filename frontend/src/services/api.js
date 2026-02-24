@@ -25,6 +25,15 @@ export const loginUser = async (credentials) => {
   }
 };
 
+export const staffLogin = async (credentials) => {
+  try {
+    const res = await API.post("/staff/login", credentials);
+    return res;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export const logoutUser = async () => {
   try {
     const res = await API.post("/logout");

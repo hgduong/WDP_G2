@@ -4,6 +4,7 @@ const router = express.Router();
 const {
   register,
   login,
+  staffLogin,
   sendOtp,
   verifyOtp,
   checkEmailExists,
@@ -28,6 +29,7 @@ router.post("/reset-password", resetPassword);
 
 router.post("/register", register);
 router.post("/login", login);
+router.post("/staff/login", staffLogin);
 router.post("/logout", logout);
 
 router.get("/login-google", loginWithGoogle);
@@ -39,7 +41,7 @@ router.get("/auth/facebook/callback", facebookCallback);
 router.get(
   "/user-info",
   authenticateToken,
-  authorizeRoles(["Admin", "Customer", "Staff", "Manager"]),
+  authorizeRoles("Admin", "Customer", "Staff"),
   getUserIdentity,
 );
 
