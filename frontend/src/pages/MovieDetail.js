@@ -26,12 +26,28 @@ export default function MovieDetail() {
 
   // khi bấm nút đặt vé thì mới gọi API lấy showtimes
   const handleBookingClick = () => {
-    setShowBooking(true);
-    fetch(`http://localhost:9999/showtimes/${id}`)
-      .then((res) => res.json())
-      .then((data) => setShowtimes(data))
-      .catch((err) => console.error("Lỗi lấy showtimes:", err));
-  };
+  setShowBooking(true);
+  fetch(`http://localhost:9999/showtimes/${id}`)
+    .then((res) => {
+      if (!res.ok) throw new Error("Lỗi lấy showtimes");
+      return res.json();
+    })
+    .then((data) => {
+      // Validate data is an array
+      if (Array.isArray(data)) {
+        setShowtimes(data);
+      } else {
+        console.error("Dữ liệu showtimes không phải là array:", data);
+        setShowtimes([]);
+        setError("Không thể tải suất chiếu");
+      }
+    })
+    .catch((err) => {
+      console.error("Lỗi lấy showtimes:", err);
+      setShowtimes([]);
+      setError(err.message);
+    });
+};
 
   if (loading) return <p>Đang tải...</p>;
   if (error) return <p>Lỗi: {error}</p>;
