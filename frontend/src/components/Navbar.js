@@ -78,19 +78,6 @@ export default function Navbar() {
               <Link to="/signup">{lang === "vi" ? "Đăng ký" : "Register"}</Link>
             </>
           )}
-          {/* <button className="navbar-lang" onClick={toggleLang}>
-            {lang === "vi" ? (
-              <>
-                <img src={VIE} alt="Vietnamese" width="22" height="18" />
-                <span>VI</span>
-              </>
-            ) : (
-              <>
-                <img src={ENG} alt="English" width="22" height="18" />
-                <span>EN</span>
-              </>
-            )}
-          </button> */}
         </div>
       </div>
     </header>
