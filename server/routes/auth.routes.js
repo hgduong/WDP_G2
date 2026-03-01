@@ -41,7 +41,7 @@ router.get("/auth/facebook/callback", facebookCallback);
 router.get(
   "/user-info",
   authenticateToken,
-  authorizeRoles("Admin", "Customer", "Staff"),
+  authorizeRoles(["Admin", "Customer", "Staff"]),
   getUserIdentity,
 );
 
