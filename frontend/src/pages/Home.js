@@ -16,7 +16,9 @@ export default function Home() {
   const { lang } = useContext(LanguageContext);
   const [current, setCurrent] = useState(0);
   const [activeTab, setActiveTab] = useState("comingSoon");
-  const [movies,setMovies] = useState([]);
+  const [movies, setMovies] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [genreFilter, setGenreFilter] = useState("all");
 
   // GỌi API lấy danh sách phim từ sv
   useEffect(()=>{
@@ -42,16 +44,37 @@ export default function Home() {
     setCurrent((current + 1) % slides.length);
   };
   const renderMovies = () => {
+    let filteredMovies = [];
+    
     switch (activeTab) {
       case "comingSoon":
-        return movies.filter((m)=>m.status === "ComingSoon");
+        filteredMovies = movies.filter((m)=>m.status === "ComingSoon");
+        break;
       case "nowShowing":
-        return movies.filter((m)=>m.status === "NowShowing");
+        filteredMovies = movies.filter((m)=>m.status === "NowShowing");
+        break;
       case "special":
-        return movies.filter((m)=>m.status === "Special");
+        filteredMovies = movies.filter((m)=>m.status === "Special");
+        break;
       default:
-        return [];
+        filteredMovies = [];
     }
+    
+    // Apply search filter
+    if (searchQuery) {
+      filteredMovies = filteredMovies.filter((m) => 
+        (m.title && m.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (m.title_vi && m.title_vi.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (m.title_en && m.title_en.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+    }
+    
+    // Apply genre filter
+    if (genreFilter !== "all") {
+      filteredMovies = filteredMovies.filter((m) => m.genre === genreFilter);
+    }
+    
+    return filteredMovies;
   };
   return (
     <div className="home">
@@ -89,6 +112,36 @@ export default function Home() {
       </section>
 
       <section className="movie-section">
+        {/* Search and Filter bar */}
+        <div className="search-filter-bar">
+          <div className="search-box">
+            <span className="search-icon">🔍</span>
+            <input
+              type="text"
+              placeholder={lang === "vi" ? "Tìm kiếm phim..." : "Search movies..."}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input"
+            />
+          </div>
+          <div className="filter-box">
+            <select
+              value={genreFilter}
+              onChange={(e) => setGenreFilter(e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">{lang === "vi" ? "Tất cả thể loại" : "All Genres"}</option>
+              <option value="Action">{lang === "vi" ? "Hành động" : "Action"}</option>
+              <option value="Comedy">{lang === "vi" ? "Hài hước" : "Comedy"}</option>
+              <option value="Drama">{lang === "vi" ? "Kịch tính" : "Drama"}</option>
+              <option value="Horror">{lang === "vi" ? "Kinh dị" : "Horror"}</option>
+              <option value="Romance">{lang === "vi" ? "Lãng mạn" : "Romance"}</option>
+              <option value="Sci-Fi">{lang === "vi" ? "Khoa học viễn tưởng" : "Sci-Fi"}</option>
+              <option value="Animation">{lang === "vi" ? "Hoạt hình" : "Animation"}</option>
+            </select>
+          </div>
+        </div>
+
         {/* Tab bar */}
         <div className="movie-tabs">
           <h2

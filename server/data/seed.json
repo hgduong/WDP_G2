@@ -1,0 +1,321 @@
+{
+  "cinemas": [
+    {
+      "name": "Time Cinemas Landmark 81",
+      "address": "72 Nguyễn Huệ, Phường Bến Nghé, Quận 1",
+      "city": "TP.HCM",
+      "phone": "028 3822 8888",
+      "email": "landmark81@timecinemas.vn",
+      "description": "Rạp chiếu phim cao cấp tại tòa tháp cao nhất Việt Nam",
+      "status": "Active"
+    },
+    {
+      "name": "Time Cinemas Crescent Mall",
+      "address": "101 Đường Nguyễn Lâm, Phường 6, Quần 10",
+      "city": "TP.HCM",
+      "phone": "028 3823 9999",
+      "email": "crescent@timecinemas.vn",
+      "description": "Rạp chiếu phim hiện đại tại Crescent Mall",
+      "status": "Active"
+    },
+    {
+      "name": "Time Cinemas Vincom Ba Đình",
+      "address": "19 Đường Điện Biên Phủ, Phường Điện Biên, Quận Ba Đình",
+      "city": "Hà Nội",
+      "phone": "024 3822 6666",
+      "email": "vincombadinh@timecinemas.vn",
+      "description": "Rạp chiếu phim tại trung tâm thành phố Hà Nội",
+      "status": "Active"
+    }
+  ],
+  "rooms": [
+    {
+      "cinemaIndex": 0,
+      "name": "Phòng 1 - Standard",
+      "capacity": 100,
+      "type": "Standard",
+      "description": "Phòng chiếu tiêu chuẩn",
+      "status": "Active"
+    },
+    {
+      "cinemaIndex": 0,
+      "name": "Phòng 2 - VIP",
+      "capacity": 50,
+      "type": "VIP",
+      "description": "Phòng chiếu VIP với ghế da cao cấp",
+      "status": "Active"
+    },
+    {
+      "cinemaIndex": 0,
+      "name": "Phòng 3 - IMAX",
+      "capacity": 200,
+      "type": "IMAX",
+      "description": "Phòng chiếu IMAX với màn hình khổng lồ",
+      "status": "Active"
+    },
+    {
+      "cinemaIndex": 1,
+      "name": "Phòng 1 - Standard",
+      "capacity": 80,
+      "type": "Standard",
+      "description": "Phòng chiếu tiêu chuẩn",
+      "status": "Active"
+    },
+    {
+      "cinemaIndex": 1,
+      "name": "Phòng 2 - VIP",
+      "capacity": 40,
+      "type": "VIP",
+      "description": "Phòng chiếu VIP",
+      "status": "Active"
+    },
+    {
+      "cinemaIndex": 2,
+      "name": "Phòng 1 - Standard",
+      "capacity": 90,
+      "type": "Standard",
+      "description": "Phòng chiếu tiêu chuẩn",
+      "status": "Active"
+    },
+    {
+      "cinemaIndex": 2,
+      "name": "Phòng 2 - VIP",
+      "capacity": 45,
+      "type": "VIP",
+      "description": "Phòng chiếu VIP",
+      "status": "Active"
+    }
+  ],
+  "movies": [
+    {
+      "title": "Avatar: The Way of Water",
+      "description": "Jake Sully sống cuộc sống hạnh phúc cùng gia đình trên Pandora. Khi một mối đe dọa cũ quay trở lại, Jake phải làm việc với Neytiri và quân đoàn Na'vi để bảo vệ hành tinh.",
+      "genre": "Sci-Fi",
+      "duration": 192,
+      "releaseDate": "2023-12-16",
+      "endDate": "2024-03-31",
+      "language": "Tiếng Anh",
+      "director": "James Cameron",
+      "cast": "Sam Worthington, Zoe Saldana, Sigourney Weaver, Kate Winslet",
+      "rating": 9.2,
+      "posterUrl": "https://upload.wikimedia.org/wikipedia/en/4/44/Avatar_The_Way_of_Water.jpg",
+      "trailerUrl": "https://www.youtube.com/watch?v=d9MyW72ELq0",
+      "status": "NowShowing"
+    },
+    {
+      "title": "Oppenheimer",
+      "description": "Câu chuyện về J. Robert Oppenheimer, nhà vật lý học người Mỹ gốc Do Thái, được xem là 'cha đẻ của bom nguyên tử'.",
+      "genre": "Drama",
+      "duration": 180,
+      "releaseDate": "2023-07-21",
+      "endDate": "2024-02-28",
+      "language": "Tiếng Anh",
+      "director": "Christopher Nolan",
+      "cast": "Cillian Murphy, Emily Blunt, Matt Damon, Robert Downey Jr.",
+      "rating": 9.1,
+      "posterUrl": "https://upload.wikimedia.org/wikipedia/en/4/4a/Oppenheimer_%28film%29.jpg",
+      "trailerUrl": "https://www.youtube.com/watch?v=uYPbbksJxIg",
+      "status": "NowShowing"
+    },
+    {
+      "title": "Spider-Man: Across the Spider-Verse",
+      "description": "Miles Morales tiếp tục cuộc phiêu lưu xuyên qua đa vũ trụ Spider-Man, đối mặt với Gwen Stacy và một mối đe dọa mới.",
+      "genre": "Animation",
+      "duration": 140,
+      "releaseDate": "2023-06-02",
+      "endDate": "2024-01-31",
+      "language": "Tiếng Anh",
+      "director": "Joaquim Dos Santos, Kemp Powers, Justin K. Thompson",
+      "cast": "Shameik Moore, Hailee Steinfeld, Oscar Isaac, Jake Johnson",
+      "rating": 8.9,
+      "posterUrl": "https://upload.wikimedia.org/wikipedia/en/a/a2/Spider-Man_-_Across_the_Spider-Verse_%282023_film%29.jpg",
+      "trailerUrl": "https://www.youtube.com/watch?v=shW9i6k8cB0",
+      "status": "NowShowing"
+    },
+    {
+      "title": "Dune: Part Two",
+      "description": "Paul Atreides hợp nhất với Chani và người Fremen, bắt đầu cuộc chiến tranh tâm linh và vũ trang chống lại sự hủy diệt.",
+      "genre": "Sci-Fi",
+      "duration": 166,
+      "releaseDate": "2024-03-01",
+      "endDate": "2024-06-30",
+      "language": "Tiếng Anh",
+      "director": "Denis Villeneuve",
+      "cast": "Timothée Chalamet, Zendaya, Rebecca Ferguson, Josh Brolin",
+      "rating": 9.0,
+      "posterUrl": "https://upload.wikimedia.org/wikipedia/en/4/4a/Dune_-_Part_Two.jpg",
+      "trailerUrl": "https://www.youtube.com/watch?v=Way9Dexny3w",
+      "status": "NowShowing"
+    },
+    {
+      "title": "The Marvels",
+      "description": "Carol Danvers, Kamala Khan và Monica Rambeau hợp nhất để đối mặt với một mối đe dọa từ một vũ trụ khác.",
+      "genre": "Action",
+      "duration": 105,
+      "releaseDate": "2024-05-10",
+      "endDate": "2024-08-31",
+      "language": "Tiếng Anh",
+      "director": "Nia DaCosta",
+      "cast": "Brie Larson, Teyonah Parris, Iman Vellani, Samuel L. Jackson",
+      "rating": 7.5,
+      "posterUrl": "https://upload.wikimedia.org/wikipedia/en/8/8c/The_Marvels_%28film%29.jpg",
+      "trailerUrl": "https://www.youtube.com/watch?v=Alv5tZ7Kc",
+      "status": "ComingSoon"
+    },
+    {
+      "title": "Godzilla x Kong: The New Empire",
+      "description": "Kong và Godzilla đối mặt với một mối đe dọa khổng lồ từ bên trong Trái Đất.",
+      "genre": "Action",
+      "duration": 115,
+      "releaseDate": "2024-04-12",
+      "endDate": "2024-07-31",
+      "language": "Tiếng Anh",
+      "director": "Adam Wingard",
+      "cast": "Rebecca Hall, Brian Tyree Henry, Danai Gurira, Jack Chan",
+      "rating": 7.8,
+      "posterUrl": "https://upload.wikimedia.org/wikipedia/en/9/9a/Godzilla_x_Kong_-_The_New_Empire.jpg",
+      "trailerUrl": "https://www.youtube.com/watch?v=qZJW2T4A9aU",
+      "status": "ComingSoon"
+    },
+    {
+      "title": "Deadpool 3",
+      "description": "Wade Wilson (Deadpool) kết hợp với Wolverine trong một cuộc phiêu lưu xuyên thời gian độc đáo.",
+      "genre": "Action",
+      "duration": 130,
+      "releaseDate": "2024-07-26",
+      "endDate": "2024-10-31",
+      "language": "Tiếng Anh",
+      "director": "Shawn Levy",
+      "cast": "Ryan Reynolds, Hugh Jackman, Emma Corrin, Matthew Macfadyen",
+      "rating": 8.5,
+      "posterUrl": "https://upload.wikimedia.org/wikipedia/en/4/4c/Deadpool_%26_Wolverine.jpg",
+      "trailerUrl": "https://www.youtube.com/watch?v=73_1biulkYk",
+      "status": "ComingSoon"
+    },
+    {
+      "title": "Inside Out 3",
+      "description": "Riley đã lớn lên và bây giờ phải đối mặt với những cảm xúc phức tạp hơn của tuổi thiếu niên.",
+      "genre": "Animation",
+      "duration": 100,
+      "releaseDate": "2024-06-14",
+      "endDate": "2024-09-30",
+      "language": "Tiếng Anh",
+      "director": "Kelsey Mann",
+      "cast": "Amy Poehler, Phyllis Smith, Lewis Black, Mindy Kaling",
+      "rating": 8.2,
+      "posterUrl": "https://upload.wikimedia.org/wikipedia/en/8/8a/Inside_Out_3.jpg",
+      "trailerUrl": "https://www.youtube.com/watch?v=SE5HqzT4aT4",
+      "status": "ComingSoon"
+    }
+  ],
+  "showtimes": [
+    {
+      "movieIndex": 0,
+      "cinemaIndex": 0,
+      "roomIndex": 0,
+      "startTime": "2024-03-10T10:00:00",
+      "price": 75000,
+      "language": "Tiếng Anh",
+      "status": "Scheduled"
+    },
+    {
+      "movieIndex": 0,
+      "cinemaIndex": 0,
+      "roomIndex": 1,
+      "startTime": "2024-03-10T13:00:00",
+      "price": 120000,
+      "language": "Tiếng Anh",
+      "status": "Scheduled"
+    },
+    {
+      "movieIndex": 0,
+      "cinemaIndex": 0,
+      "roomIndex": 2,
+      "startTime": "2024-03-10T16:00:00",
+      "price": 150000,
+      "language": "Tiếng Anh",
+      "status": "Scheduled"
+    },
+    {
+      "movieIndex": 1,
+      "cinemaIndex": 0,
+      "roomIndex": 0,
+      "startTime": "2024-03-10T11:00:00",
+      "price": 75000,
+      "language": "Tiếng Anh",
+      "status": "Scheduled"
+    },
+    {
+      "movieIndex": 1,
+      "cinemaIndex": 1,
+      "roomIndex": 3,
+      "startTime": "2024-03-10T14:00:00",
+      "price": 70000,
+      "language": "Tiếng Anh",
+      "status": "Scheduled"
+    },
+    {
+      "movieIndex": 2,
+      "cinemaIndex": 1,
+      "roomIndex": 3,
+      "startTime": "2024-03-10T09:00:00",
+      "price": 70000,
+      "language": "Tiếng Việt",
+      "status": "Scheduled"
+    },
+    {
+      "movieIndex": 2,
+      "cinemaIndex": 1,
+      "roomIndex": 4,
+      "startTime": "2024-03-10T12:00:00",
+      "price": 110000,
+      "language": "Tiếng Việt",
+      "status": "Scheduled"
+    },
+    {
+      "movieIndex": 3,
+      "cinemaIndex": 2,
+      "roomIndex": 5,
+      "startTime": "2024-03-10T10:00:00",
+      "price": 70000,
+      "language": "Tiếng Anh",
+      "status": "Scheduled"
+    },
+    {
+      "movieIndex": 3,
+      "cinemaIndex": 2,
+      "roomIndex": 6,
+      "startTime": "2024-03-10T14:00:00",
+      "price": 115000,
+      "language": "Tiếng Anh",
+      "status": "Scheduled"
+    },
+    {
+      "movieIndex": 4,
+      "cinemaIndex": 0,
+      "roomIndex": 2,
+      "startTime": "2024-03-15T18:00:00",
+      "price": 150000,
+      "language": "Tiếng Anh",
+      "status": "Scheduled"
+    },
+    {
+      "movieIndex": 5,
+      "cinemaIndex": 1,
+      "roomIndex": 4,
+      "startTime": "2024-03-15T19:00:00",
+      "price": 110000,
+      "language": "Tiếng Việt",
+      "status": "Scheduled"
+    }
+  ],
+  "users": [
+    {
+      "email": "admin@timecinemas.vn",
+      "password": "admin123",
+      "fullName": "Admin User",
+      "phone": "0901234567",
+      "role": "Admin"
+    }
+  ]
+}

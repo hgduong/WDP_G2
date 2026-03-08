@@ -21,9 +21,18 @@ function Login() {
         });
         return;
       } else {
-        login(result.data.user);
+        // Set user and role directly from login response
+        const userData = result.data.user;
+        login(userData);
         alert(result.data.message);
-        navigate("/");
+        // Redirect based on user role
+        if (userData.role === "Admin") {
+          navigate("/admin/dashboard");
+        } else if (userData.role === "Staff") {
+          navigate("/admin/dashboard");
+        } else {
+          navigate("/");
+        }
       }
     } catch (err) {
       alert("Đăng ký thất bại: " + err.message);

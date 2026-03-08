@@ -4,9 +4,10 @@ const mongoose = require('mongoose');
 const movieSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String },
-  genre: { type: String },
+  genre: { type: String, enum: ['Action', 'Comedy', 'Drama', 'Horror', 'Thriller', 'Romance', 'Sci-Fi', 'Animation', 'Documentary', 'Fantasy', 'Adventure', 'Crime', 'Mystery', 'Family', 'Musical', 'War', 'Western'] },
   duration: { type: Number }, // phút
   releaseDate: { type: Date },
+  endDate: { type: Date }, // Ngày kết thúc lịch chiếu
   language: { type: String },
   director: { type: String },
   cast: { type: String }, // có thể chuyển thành mảng nếu cần

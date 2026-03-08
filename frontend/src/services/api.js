@@ -153,4 +153,208 @@ export const updateUserProfile = async (credentials) => {
   }
 };
 
+// ==================== ADMIN API ====================
+
+// Movies
+export const getAllMovies = async () => {
+  try {
+    const response = await API.get("/movies/all");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getMovieById = async (id) => {
+  try {
+    const response = await API.get(`/movies/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const createMovie = async (movieData) => {
+  try {
+    const response = await API.post("/movies", movieData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateMovie = async (id, movieData) => {
+  try {
+    const response = await API.put(`/movies/${id}`, movieData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const deleteMovie = async (id) => {
+  try {
+    const response = await API.delete(`/movies/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+// Cinemas
+export const getAllCinemas = async () => {
+  try {
+    const response = await API.get("/cinemas");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getCinemaById = async (id) => {
+  try {
+    const response = await API.get(`/cinemas/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const createCinema = async (cinemaData) => {
+  try {
+    const response = await API.post("/cinemas", cinemaData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateCinema = async (id, cinemaData) => {
+  try {
+    const response = await API.put(`/cinemas/${id}`, cinemaData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const deleteCinema = async (id) => {
+  try {
+    const response = await API.delete(`/cinemas/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+// Rooms
+export const getRoomsByCinema = async (cinemaId) => {
+  try {
+    const response = await API.get(`/cinemas/${cinemaId}/rooms`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getRoomById = async (id) => {
+  try {
+    const response = await API.get(`/rooms/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const createRoom = async (roomData) => {
+  try {
+    const response = await API.post("/rooms", roomData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateRoom = async (id, roomData) => {
+  try {
+    const response = await API.put(`/rooms/${id}`, roomData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const deleteRoom = async (id) => {
+  try {
+    const response = await API.delete(`/rooms/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+// Showtimes
+export const getAllShowtimes = async () => {
+  try {
+    const response = await API.get("/showtimes");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getShowtimeById = async (id) => {
+  try {
+    const response = await API.get(`/showtimes/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getShowtimesByMovie = async (movieId) => {
+  try {
+    const response = await API.get(`/showtimes/movie/${movieId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getShowtimesByCinema = async (cinemaId) => {
+  try {
+    const response = await API.get(`/showtimes/cinema/${cinemaId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const createShowtime = async (showtimeData) => {
+  try {
+    const response = await API.post("/showtimes", showtimeData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateShowtime = async (id, showtimeData) => {
+  try {
+    const response = await API.put(`/showtimes/${id}`, showtimeData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const deleteShowtime = async (id) => {
+  try {
+    const response = await API.delete(`/showtimes/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 

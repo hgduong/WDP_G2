@@ -26,13 +26,20 @@ export function UserProvider({ children }) {
   }, []);
 
   // Hàm login: lưu user vào state
-  const login = async () => {
-    try {
-      const res = await getUserInfo();
-      setUser(res.data.user);
-      setRole(res.data.user.role);
-    } catch (err) {
-      setUser(null);
+  const login = async (userData) => {
+    if (userData) {
+      // Use user data directly from login response
+      setUser(userData);
+      setRole(userData.role);
+    } else {
+      // Fallback: fetch from server
+      try {
+        const res = await getUserInfo();
+        setUser(res.data.user);
+        setRole(res.data.user.role);
+      } catch (err) {
+        setUser(null);
+      }
     }
   };
 

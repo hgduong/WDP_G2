@@ -10,6 +10,12 @@ import ForgotPassword from "../pages/ForgotPassword";
 import ResetPassword from "../pages/ResetPassword";
 import NotFound from "../pages/NotFound";
 
+// Admin pages
+import Dashboard from "../pages/admin/dashboard";
+import MovieManagement from "../pages/admin/MovieManagement";
+import CinemaManagement from "../pages/admin/CinemaManagement";
+import ShowtimeManagement from "../pages/admin/ShowtimeManagement";
+
 export const routesConfig = [
   {
     path: "/",
@@ -41,5 +47,33 @@ export const routesConfig = [
     element: <ResetPassword />,
     allowedRoles: ["Guest"],
   },
+  
+  // Admin routes
+  {
+    path: "/admin",
+    element: <Dashboard />,
+    allowedRoles: ["Admin"],
+  },
+  {
+    path: "/admin/dashboard",
+    element: <Dashboard />,
+    allowedRoles: ["Admin"],
+  },
+  {
+    path: "/admin/movies",
+    element: <MovieManagement />,
+    allowedRoles: ["Admin"],
+  },
+  {
+    path: "/admin/cinemas",
+    element: <CinemaManagement />,
+    allowedRoles: ["Admin"],
+  },
+  {
+    path: "/admin/showtimes",
+    element: <ShowtimeManagement />,
+    allowedRoles: ["Admin"],
+  },
+  
   { path: "*", element: <NotFound /> },
 ];

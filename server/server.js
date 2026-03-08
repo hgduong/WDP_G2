@@ -75,9 +75,11 @@ app.use("/upload", express.static("public/upload")); // cho phép truy cập ả
 const authRoutes = require("./routes/auth.routes");
 const userRoutes = require("./routes/user.routes");
 const moviesRoutes = require("./routes/movies.route");
+const cinemaRoutes = require("./routes/cinema.routes");
 app.use(authRoutes);
 app.use(userRoutes);
 app.use(moviesRoutes);
+app.use(cinemaRoutes);
 
 app.use(passport.initialize());
 const PORT = process.env.PORT || 9999;

@@ -4,6 +4,12 @@ import { UserContext } from "../context/UserContext";
 
 export function ProtectedRoute({ children, allowedRoles }) {
   const { role } = useContext(UserContext);
+  
+  // If no allowedRoles defined, allow access
+  if (!allowedRoles || !Array.isArray(allowedRoles)) {
+    return children;
+  }
+  
   if (!role || !allowedRoles.includes(role)) {
     return <Navigate to="/unauthorized" replace />;
   }
