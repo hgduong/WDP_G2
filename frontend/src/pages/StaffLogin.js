@@ -27,13 +27,10 @@ function StaffLogin() {
         return;
       }
 
-      await login(result?.data?.user);
-      // Redirect based on user role
-      if (result?.data?.user?.role === "Admin") {
+      // Use callback to wait for state update then navigate
+      login(result?.data?.user, () => {
         navigate("/admin/dashboard");
-      } else {
-        navigate("/admin/dashboard");
-      }
+      });
     } catch (err) {
       setError(err?.message || "Dang nhap that bai.");
     } finally {

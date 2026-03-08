@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { logoutUser } from '../../services/api';
+import { UserContext } from '../../context/UserContext';
 import '../../assets/styles/AdminLayout.css';
 
 const AdminLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { logout } = useContext(UserContext);
 
   const menuItems = [
     { path: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
@@ -17,9 +18,7 @@ const AdminLayout = ({ children }) => {
 
   const handleLogout = async () => {
     try {
-      await logoutUser();
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      await logout();
       navigate('/login');
     } catch (error) {
       console.error('Logout failed:', error);

@@ -304,7 +304,7 @@ const loginWithLocalStrategy = (req, res, next, options = {}) => {
     // gửi JWT dưới dạng HttpOnly cookie
     res.cookie("jwt", token, {
       httpOnly: true, // ngăn JS truy cập
-      secure: true, // chỉ gửi qua HTTPS
+      secure: process.env.NODE_ENV === "production", // chỉ bật khi production
       sameSite: "strict", // chống CSRF
       maxAge: 24 * 60 * 60 * 1000, // 1 ngày
     });
@@ -359,7 +359,7 @@ exports.facebookCallback = (req, res, next) => {
     );
     res.cookie("jwt", token, {
       httpOnly: true, // ngăn JS đọc cookie
-      secure: true, // chỉ gửi qua HTTPS (bỏ khi dev)
+      secure: process.env.NODE_ENV === "production", // chỉ bật khi production
       sameSite: "strict", // chống CSRF
       maxAge: 24 * 60 * 60 * 1000, // 1 ngày
     });
@@ -408,7 +408,7 @@ exports.googleCallback = (req, res, next) => {
 
     res.cookie("jwt", token, {
       httpOnly: true, // ngăn JS đọc cookie
-      secure: true, // chỉ gửi qua HTTPS 
+      secure: process.env.NODE_ENV === "production", // chỉ bật khi production
       sameSite: "strict", // chống CSRF
       maxAge: 24 * 60 * 60 * 1000, // 1 ngày
     });
@@ -420,7 +420,7 @@ exports.googleCallback = (req, res, next) => {
 
 // Đăng xuất
 exports.logout = (req, res) => {
-  res.clearCookie("jwt", { httpOnly: true, sameSite: "strict", secure: true });
+  res.clearCookie("jwt", { httpOnly: true, sameSite: "strict", secure: process.env.NODE_ENV === "production" });
   res.status(200).json({ message: "Đăng xuất thành công" });
 };
 

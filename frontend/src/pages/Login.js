@@ -8,7 +8,7 @@ function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const { login } = useContext(UserContext);
+  const { login, role } = useContext(UserContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,16 +23,22 @@ function Login() {
       } else {
         // Set user and role directly from login response
         const userData = result.data.user;
-        login(userData);
         alert(result.data.message);
-        // Redirect based on user role
-        if (userData.role === "Admin") {
-          navigate("/admin/dashboard");
-        } else if (userData.role === "Staff") {
-          navigate("/admin/dashboard");
-        } else {
-          navigate("/");
-        }
+        
+        // First set the user data and role in context
+        login(userData);
+        
+        // Wait for state update then navigate
+        setTimeout(() => {
+          // Redirect based on user role
+          if (userData.role === "Admin") {
+            navigate("/admin/dashboard");
+          } else if (userData.role === "Staff") {
+            navigate("/admin/dashboard");
+          } else {
+            navigate("/");
+          }
+        }, 100);
       }
     } catch (err) {
       alert("Đăng ký thất bại: " + err.message);
