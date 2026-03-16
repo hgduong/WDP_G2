@@ -3,7 +3,7 @@ import { loginUser } from "../services/api.js";
 import { useNavigate } from "react-router-dom";
 import { UserContext } from "../context/UserContext.js";
 import { toast } from "react-toastify";
-import "../layouts/Login.css";
+import "../assets/styles/Login.css";
 
 function Login() {
   const [username, setUsername] = useState("");

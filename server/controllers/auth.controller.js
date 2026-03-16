@@ -175,7 +175,7 @@ exports.verifyOtp = async (req, res) => {
       user.pendingSince = undefined;
       await user.save();
 
-      return res.json({ message: "Xác thực thành công, tài khoản đã Active" });
+      return res.json({ message: "Xác thực thành công, vui lòng đăng nhập" });
     }
 
     if (purpose === "forgotPassword") {
@@ -220,7 +220,7 @@ exports.verifyOtp = async (req, res) => {
   `,
       });
 
-      return res.json({ message: "Xác thực thành công, hãy đặt lại mật khẩu" });
+      return res.json({ message: "Xác thực thành công, hãy kiểm tra email để đặt lại mật khẩu" });
     }
 
     return res.status(400).json({ error: "Purpose không hợp lệ" });

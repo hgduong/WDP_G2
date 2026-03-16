@@ -122,7 +122,7 @@ const userSchema = new mongoose.Schema({
     required: true,
   },
   avatarUrl: { type: String, default: null },
-  pendingSince: { type: Date, default: Date.now, expires: 60 * 60 },
+  pendingSince: { type: Date, default: Date.now, expires: 60 * 10 },
   otpCode: { type: String, default: null },
   otpExpires: { type: Date, default: null },
   lastOtpSentAt: { type: Date, default: null },
