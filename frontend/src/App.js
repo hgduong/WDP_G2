@@ -4,6 +4,8 @@ import { router } from "./routes/all.route";
 import { LanguageProvider } from "./context/LanguageContext";
 import { UserProvider } from "./context/UserContext";
 import { useEffect} from "react";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function AppContent() {
 
@@ -26,6 +28,17 @@ function App() {
     <UserProvider>
       <LanguageProvider>
         <AppContent />
+        <ToastContainer 
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
       </LanguageProvider>
     </UserProvider>
   );
