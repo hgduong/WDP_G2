@@ -6,6 +6,8 @@ import {
   registerUser,
 } from "../services/api.js";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import "../assets/styles/Signup.css";
 
 function Signup() {
   const [formData, setFormData] = useState({
@@ -112,12 +114,12 @@ function Signup() {
         break;
 
         // case "password":
-        if (!value) {
-          errorMsg = "Mật khẩu là bắt buộc";
-        } else if (value.length < 6) {
-          errorMsg = "Mật khẩu phải ít nhất 6 ký tự";
-        }
-        break;
+        // if (!value) {
+        //   errorMsg = "Mật khẩu là bắt buộc";
+        // } else if (value.length < 6) {
+        //   errorMsg = "Mật khẩu phải ít nhất 6 ký tự";
+        // }
+        // break;
       case "password":
         if (!value) {
           errorMsg = "Mật khẩu là bắt buộc";
@@ -209,7 +211,7 @@ function Signup() {
     e.preventDefault();
     const hasError = Object.values(errors).some((err) => err !== "");
     if (hasError) {
-      alert("Vui lòng sửa lỗi trước khi đăng ký");
+      toast.error("Vui lòng sửa lỗi trước khi đăng ký");
       return;
     }
 
@@ -224,26 +226,26 @@ function Signup() {
         },
       };
       const result = await registerUser(payload);
-      alert(result.data.message);
+      toast.success(result.data.message);
       navigate("/otp_verify", {
         state: { email: formData.email, purpose: "register" },
       });
     } catch (err) {
-      alert("Đăng ký thất bại: " + err.message);
+      toast.error("Đăng ký thất bại: " + err.message);
     }
   };
 
   return (
-    <div>
-      <h2>
-        Đăng ký tài khoản{" "}
-        <button type="button" onClick={() => setShowPassword(!showPassword)}>
-          {showPassword ? "🙈" : "👁"}
-        </button>
-      </h2>
+      <div className="signup-wrapper">
+        <h2 className="signup-title">
+          Đăng ký tài khoản{" "}
+          {/* <button type="button" className="toggle-password-btn" onClick={() => setShowPassword(!showPassword)}>
+            {showPassword ? "🙈" : "👁"}
+          </button> */}
+        </h2>
 
-      <form onSubmit={handleSubmit}>
-        <div>
+        <form className="signup-form" onSubmit={handleSubmit}>
+          <div className="form-group">
           <label>Họ và tên</label>
           <input
             type="text"
@@ -255,9 +257,9 @@ function Signup() {
           />
         </div>
         {errors.fullName && (
-          <span style={{ color: "red" }}>{errors.fullName}</span>
+          <span className="error-text">{errors.fullName}</span>
         )}
-        <div>
+        <div className="form-group">
           <label>Email</label>
           <input
             type="email"
@@ -267,10 +269,10 @@ function Signup() {
             placeholder="Nhập email"
             required
           />
-          {errors.email && <span style={{ color: "red" }}>{errors.email}</span>}
+          {errors.email && <span className="error-text">{errors.email}</span>}
         </div>
 
-        <div>
+        <div className="form-group">
           <label>Mật khẩu</label>
           <input
             type={showPassword ? "text" : "password"}
@@ -281,11 +283,11 @@ function Signup() {
             required
           />
           {errors.password && (
-            <span style={{ color: "red" }}>{errors.password}</span>
+            <span className="error-text">{errors.password}</span>
           )}
         </div>
 
-        <div>
+        <div className="form-group">
           <label>Xác nhận mật khẩu</label>
           <input
             type={showPassword ? "text" : "password"}
@@ -296,11 +298,11 @@ function Signup() {
             required
           />
           {errors.confirmPassword && (
-            <span style={{ color: "red" }}>{errors.confirmPassword}</span>
+            <span className="error-text">{errors.confirmPassword}</span>
           )}
         </div>
 
-        <div>
+        <div className="form-group">
           <label>Giới tính</label>
           <select
             name="gender"
@@ -314,11 +316,11 @@ function Signup() {
             <option value="Other">Khác</option>
           </select>
           {errors.gender && (
-            <span style={{ color: "red" }}>{errors.gender}</span>
+            <span className="error-text">{errors.gender}</span>
           )}
         </div>
 
-        <div>
+        <div className="form-group">
           <label>Ngày sinh</label>
           <input
             type="date"
@@ -327,9 +329,9 @@ function Signup() {
             onChange={handleChange}
             required
           />
-          {errors.dob && <span style={{ color: "red" }}>{errors.dob}</span>}
+          {errors.dob && <span className="error-text">{errors.dob}</span>}
         </div>
-        <div>
+        <div className="form-group">
           <label>Số điện thoại</label>
           <input
             type="text"
@@ -339,10 +341,10 @@ function Signup() {
             placeholder="Nhập số điện thoại"
             required
           />
-          {errors.phone && <span style={{ color: "red" }}>{errors.phone}</span>}
+          {errors.phone && <span className="error-text">{errors.phone}</span>}
         </div>
 
-        <div>
+        <div className="form-group">
           <label>Tỉnh/Thành phố</label>
           <select
             value={formData.province}
@@ -358,7 +360,7 @@ function Signup() {
           </select>
         </div>
 
-        <div>
+        <div className="form-group">
           <label>Quận/Huyện</label>
           <select
             value={formData.district}
@@ -374,7 +376,7 @@ function Signup() {
           </select>
         </div>
 
-        <div>
+        <div className="form-group">
           <label>Phường/Xã</label>
           <select
             value={formData.ward}
@@ -390,7 +392,7 @@ function Signup() {
           </select>
         </div>
 
-        <div>
+        <div className="form-group">
           <label>Số nhà/Đường</label>
           <input
             type="text"
@@ -402,9 +404,15 @@ function Signup() {
           />
         </div>
 
-        <button type="submit">Đăng ký</button>
-      </form>
-    </div>
+        <button type="submit" className="signup-btn">Đăng ký</button>
+        </form>
+        <div className="signup-login-link">
+          <p>
+            Đã có tài khoản? <a href="/login">Đăng nhập ngay</a>
+          </p>
+        </div>
+      </div>
+    
   );
 }
 
