@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { checkEmailExists } from "../services/api";
 import { useNavigate } from "react-router-dom";
+import "../assets/styles/ForgotPassword.css";
+import { toast } from "react-toastify";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -9,32 +11,45 @@ function ForgotPassword() {
   const handleSendOtp = async () => {
     try {
       const res = await checkEmailExists(email);
+      if (!res.data.exists) {
+        toast.error(res.data.message);
+        return;
+      }
+      toast.success(res.data.message);
       navigate("/otp_verify", {
         state: { email: res.data.email, purpose: "forgotPassword" },
       });
     } catch (err) {
-      setMessage(err.response?.data?.error || "Có lỗi xảy ra khi gửi OTP");
+      setMessage(
+        err.response?.data?.error || "Có lỗi xảy ra, vui lòng thử lại sau ",
+      );
+      toast.error(
+        err.response?.data?.error || "Có lỗi xảy ra, vui lòng thử lại sau",
+      );
     }
   };
 
   return (
-    <div style={{ maxWidth: "400px", margin: "auto", padding: "20px" }}>
+    <div className="forgot-password-container">
       <h2>Quên mật khẩu</h2>
 
-      <div style={{ marginBottom: "10px" }}>
+      <div className="form-group">
         <label>Nhập Gmail của bạn:</label>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="example@gmail.com"
-          style={{ width: "100%", padding: "8px", marginTop: "5px" }}
+          required
+          pattern="[a-z0-9._%+-]+@gmail\.com$"
         />
       </div>
 
-      <button onClick={handleSendOtp}>Tiếp tục</button>
+      <button className="submit-button" onClick={handleSendOtp}>
+        Tiếp tục
+      </button>
 
-      {message && <p style={{ marginTop: "15px", color: "blue" }}>{message}</p>}
+      {/* {message && <p className="message error">{message}</p>} */}
     </div>
   );
 }
