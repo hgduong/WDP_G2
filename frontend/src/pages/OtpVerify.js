@@ -46,6 +46,7 @@ function OtpVerify() {
   const handleSendOtp = async () => {
     try {
       const res = await sendOtp(email);
+      toast.success(res.data.message);
       setMessage(res.data.message);
       setTimeout(() => {
         setMessage("");
