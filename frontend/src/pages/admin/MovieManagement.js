@@ -13,8 +13,6 @@ const GENRES = [
   'Crime', 'Mystery', 'Family', 'Musical', 'War', 'Western'
 ];
 
-const STATUS_OPTIONS = ['ComingSoon', 'NowShowing', 'Ended'];
-
 const MovieManagement = () => {
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +53,39 @@ const MovieManagement = () => {
     }
   };
 
+  // Tính toán status tự động dựa trên ngày
+  const calculateStatus = () => {
+    const now = new Date();
+    const release = formData.releaseDate ? new Date(formData.releaseDate) : null;
+    const end = formData.endDate ? new Date(formData.endDate) : null;
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    if (!release || !end) return 'ComingSoon';
+    
+    if (end < now) return 'Ended';
+    if (release <= now && end >= now) return 'NowShowing';
+    if (release > now && release <= sevenDaysFromNow) return 'ComingSoon';
+    return 'ComingSoon';
+  };
+
+  const getStatusLabel = (status) => {
+    switch(status) {
+      case 'ComingSoon': return 'Sắp chiếu';
+      case 'NowShowing': return 'Đang chiếu';
+      case 'Ended': return 'Đã kết thúc';
+      default: return 'Sắp chiếu';
+    }
+  };
+
+  const getStatusBadgeStyle = (status) => {
+    switch(status) {
+      case 'ComingSoon': return { background: '#ffc107', color: '#000' };
+      case 'NowShowing': return { background: '#28a745', color: '#fff' };
+      case 'Ended': return { background: '#6c757d', color: '#fff' };
+      default: return { background: '#ffc107', color: '#000' };
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -66,8 +97,12 @@ const MovieManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Sử dụng status tự động tính toán
+      const autoStatus = calculateStatus();
+      
       const movieData = {
         ...formData,
+        status: autoStatus,
         duration: formData.duration ? parseInt(formData.duration) : undefined,
         rating: formData.rating ? parseFloat(formData.rating) : undefined,
       };
@@ -179,6 +214,7 @@ const MovieManagement = () => {
               <th>Thể loại</th>
               <th>Thời lượng</th>
               <th>Ngày chiếu</th>
+              <th>Ngày kết thúc</th>
               <th>Trạng thái</th>
               <th>Thao tác</th>
             </tr>
@@ -203,6 +239,7 @@ const MovieManagement = () => {
                 <td>{movie.genre}</td>
                 <td>{movie.duration ? `${movie.duration} phút` : '-'}</td>
                 <td>{movie.releaseDate ? new Date(movie.releaseDate).toLocaleDateString('vi-VN') : '-'}</td>
+                <td>{movie.endDate ? new Date(movie.endDate).toLocaleDateString('vi-VN') : '-'}</td>
                 <td>{getStatusBadge(movie.status)}</td>
                 <td>
                   <button 
@@ -222,7 +259,7 @@ const MovieManagement = () => {
             ))}
             {movies.length === 0 && (
               <tr>
-                <td colSpan="8" className="no-data">Không có phim nào</td>
+                <td colSpan="9" className="no-data">Không có phim nào</td>
               </tr>
             )}
           </tbody>
@@ -289,6 +326,7 @@ const MovieManagement = () => {
                     value={formData.releaseDate}
                     onChange={handleInputChange}
                   />
+                  <small className="text-muted">Phim sẽ là "Sắp chiếu" khi còn 7 ngày nữa mới chiếu</small>
                 </div>
                 <div className="form-group">
                   <label>Ngày kết thúc</label>
@@ -301,26 +339,33 @@ const MovieManagement = () => {
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Đạo diễn</label>
-                  <input
-                    type="text"
-                    name="director"
-                    value={formData.director}
-                    onChange={handleInputChange}
-                  />
+              {/* Hiển thị trạng thái tự động */}
+              <div className="form-group">
+                <label>Trạng thái (tự động tính theo ngày)</label>
+                <div style={{
+                  padding: '10px 15px',
+                  borderRadius: '5px',
+                  display: 'inline-block',
+                  fontWeight: 'bold',
+                  ...getStatusBadgeStyle(calculateStatus())
+                }}>
+                  {getStatusLabel(calculateStatus())}
                 </div>
-                <div className="form-group">
-                  <label>Trạng thái</label>
-                  <select name="status" value={formData.status} onChange={handleInputChange}>
-                    {STATUS_OPTIONS.map(status => (
-                      <option key={status} value={status}>
-                        {status === 'ComingSoon' ? 'Sắp chiếu' : status === 'NowShowing' ? 'Đang chiếu' : 'Đã kết thúc'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <small className="text-muted" style={{display: 'block', marginTop: '5px'}}>
+                  • ComingSoon: 7 ngày trước ngày chiếu<br/>
+                  • NowShowing: từ ngày chiếu đến ngày kết thúc<br/>
+                  • Ended: sau ngày kết thúc
+                </small>
+              </div>
+
+              <div className="form-group">
+                <label>Đạo diễn</label>
+                <input
+                  type="text"
+                  name="director"
+                  value={formData.director}
+                  onChange={handleInputChange}
+                />
               </div>
 
               <div className="form-group">

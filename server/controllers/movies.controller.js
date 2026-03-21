@@ -2,10 +2,49 @@
 const Movie = require("../models/movie");
 const Showtime = require("../models/showtime");
 const Cinema = require("../models/cinema");
+
+// Hàm tự động cập nhật status phim dựa trên ngày
+const updateMovieStatuses = async () => {
+  try {
+    const now = new Date();
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     
+    // Cập nhật các phim hết hạn -> Ended
+    await Movie.updateMany(
+      { endDate: { $lt: now }, status: { $ne: 'Ended' } },
+      { $set: { status: 'Ended' } }
+    );
+    
+    // Cập nhật các phim đang chiếu -> NowShowing
+    await Movie.updateMany(
+      { 
+        releaseDate: { $lte: now },
+        endDate: { $gte: now },
+        status: { $nin: ['NowShowing', 'Ended'] }
+      },
+      { $set: { status: 'NowShowing' } }
+    );
+    
+    // Cập nhật các phim sắp chiếu (trong vòng 7 ngày tới) -> ComingSoon
+    await Movie.updateMany(
+      { 
+        releaseDate: { $gt: now, $lte: sevenDaysFromNow },
+        status: { $nin: ['ComingSoon', 'NowShowing', 'Ended'] }
+      },
+      { $set: { status: 'ComingSoon' } }
+    );
+    
+    console.log('Movie statuses updated successfully');
+  } catch (error) {
+    console.error('Error updating movie statuses:', error);
+  }
+};
+
 // Lấy danh sách tất cả phim
 exports.getAllMovies = async (req, res) => {
   try {
+    // Tự động cập nhật status trước khi trả về
+    await updateMovieStatuses();
     const movies = await Movie.find().sort({ createdAt: -1 });
     res.json(movies);
   } catch (error) {
@@ -76,6 +115,7 @@ exports.deleteMovie = async (req, res) => {
 // Lấy phim đang chiếu
 exports.getNowShowingMovies = async (req, res) => {
   try {
+    await updateMovieStatuses();
     const movies = await Movie.find({ status: 'NowShowing' }).sort({ releaseDate: -1 });
     res.json(movies);
   } catch (error) {
@@ -86,6 +126,7 @@ exports.getNowShowingMovies = async (req, res) => {
 // Lấy phim sắp chiếu
 exports.getComingSoonMovies = async (req, res) => {
   try {
+    await updateMovieStatuses();
     const movies = await Movie.find({ status: 'ComingSoon' }).sort({ releaseDate: 1 });
     res.json(movies);
   } catch (error) {

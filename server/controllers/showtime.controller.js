@@ -14,7 +14,7 @@ const mongoose = require('mongoose');
 exports.getAllShowtimes = async (req, res) => {
   try {
     const showtimes = await Showtime.find()
-      .populate("movieId", "title posterUrl")
+      .populate("movieId", "title posterUrl duration")
       .populate("cinemasId", "name address city")
       .populate("roomId", "name type")
       .sort({ startTime: 1 });
@@ -28,7 +28,7 @@ exports.getAllShowtimes = async (req, res) => {
 exports.getShowtimeById = async (req, res) => {
   try {
     const showtime = await Showtime.findById(req.params.id)
-      .populate("movieId", "title posterUrl")
+      .populate("movieId", "title posterUrl duration")
       .populate("cinemasId", "name address city")
       .populate("roomId", "name type");
     
@@ -93,7 +93,7 @@ exports.getShowtimesByCinema = async (req, res) => {
     const cinemaId = req.params.cinemaId;
     
     const showtimes = await Showtime.find({ cinemasId: cinemaId })
-      .populate("movieId", "title posterUrl")
+      .populate("movieId", "title posterUrl duration")
       .populate("cinemasId", "name address city")
       .populate("roomId", "name type")
       .sort({ startTime: 1 });
@@ -152,7 +152,7 @@ exports.addShowtime = async (req, res) => {
     });
     
     const populatedShowtime = await Showtime.findById(showtime._id)
-      .populate("movieId", "title posterUrl")
+      .populate("movieId", "title posterUrl duration")
       .populate("cinemasId", "name address city")
       .populate("roomId", "name type");
     
@@ -170,7 +170,7 @@ exports.updateShowtime = async (req, res) => {
       req.body, 
       { new: true }
     )
-      .populate("movieId", "title posterUrl")
+      .populate("movieId", "title posterUrl duration")
       .populate("cinemasId", "name address city")
       .populate("roomId", "name type");
     
