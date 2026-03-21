@@ -10,11 +10,11 @@ const AdminLayout = ({ children }) => {
   const { logout } = useContext(UserContext);
 
   const menuItems = [
-    { path: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
-    { path: '/admin/movies', label: 'Quản lý Phim', icon: '🎬' },
-    { path: '/admin/cinemas', label: 'Quản lý Rạp & Phòng', icon: '🏠' },
-    { path: '/admin/showtimes', label: 'Quản lý Lịch Chiếu', icon: '🕐' },
-    { path: '/admin/staffs', label: 'Quản lý Nhân Viên', icon: '👥' },
+    { path: '/admin/dashboard', label: 'Dashboard' },
+    { path: '/admin/movies', label: 'Quản lý Phim' },
+    { path: '/admin/cinemas', label: 'Quản lý Rạp & Phòng' },
+    { path: '/admin/showtimes', label: 'Quản lý Lịch Chiếu' },
+    { path: '/admin/staffs', label: 'Quản lý Nhân Viên' },
   ];
 
   const handleLogout = async () => {
@@ -33,7 +33,7 @@ const AdminLayout = ({ children }) => {
       <div className={`admin-sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
           <div className="logo">
-            {sidebarOpen ? '🎬 Time Cinemas' : '🎬'}
+            {sidebarOpen ? 'Time Cinemas' : '🎬'}
           </div>
           <button 
             className="toggle-btn"
@@ -69,11 +69,11 @@ const AdminLayout = ({ children }) => {
               navigate('/');
             }}
           >
-            <span className="nav-icon">🏠</span>
+            <span className="nav-icon"></span>
             {sidebarOpen && <span className="nav-label">Về trang chủ</span>}
           </a>
           <button className="logout-btn" onClick={handleLogout}>
-            <span className="nav-icon">🚪</span>
+            <span className="nav-icon"></span>
             {sidebarOpen && <span className="nav-label">Đăng xuất</span>}
           </button>
         </div>

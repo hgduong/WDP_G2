@@ -4,6 +4,7 @@
   display: flex;
   min-height: 100vh;
   background-color: #f5f7fa;
+  overflow-x: hidden;
 }
 
 /* Sidebar */
@@ -50,14 +51,14 @@
 .sidebar-nav {
   flex: 1;
   padding: 20px 10px;
-  overflow-y: auto;
+ 
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  padding: 12px 15px;
-  margin-bottom: 5px;
+  padding: 14px 1px;
+  margin-bottom: 8px;
   border-radius: 8px;
   color: #a0a0a0;
   text-decoration: none;
@@ -67,7 +68,8 @@
   background: none;
   width: 100%;
   text-align: left;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .nav-item:hover {
@@ -81,8 +83,8 @@
 }
 
 .nav-icon {
-  font-size: 18px;
-  min-width: 24px;
+  font-size: 20px;
+  min-width: 28px;
   text-align: center;
 }
 

@@ -68,6 +68,35 @@
   background-color: #c82333;
 }
 
+.btn-time {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.btn-time:hover {
+  background-color: #138496;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+}
+
+.btn-danger:disabled {
+  background-color: #e9ecef;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
 /* Table Styles */
 .table-container {
   overflow-x: auto;
@@ -183,6 +212,20 @@
   width: 90%;
   max-width: 600px;
   max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-large {
+  max-width: 900px;
+}
+
+.modal-small {
+  max-width: 400px;
+}
+
+.modal-body {
+  padding: 20px;
+  max-height: 60vh;
   overflow-y: auto;
 }
 
@@ -409,4 +452,81 @@
   text-align: center;
   padding: 40px;
   color: #666;
+}
+
+/* Time Slots Display */
+.time-slots-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.time-slot-badge {
+  background-color: #17a2b8;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.no-time-slots {
+  color: #999;
+  font-style: italic;
+  font-size: 12px;
+}
+
+.form-hint {
+  display: block;
+  margin-top: 5px;
+  color: #666;
+  font-size: 12px;
+}
+
+.time-slots-preview {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 5px;
+}
+
+.time-slots-preview h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.slots-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.time-slot-badge-large {
+  background-color: #17a2b8;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.no-slots {
+  color: #999;
+  font-style: italic;
+  font-size: 12px;
+}
+
+/* Showtime Time Slots Group */
+.time-slots-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.time-slot-item {
+  background-color: #17a2b8;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  display: inline-block;
 }
