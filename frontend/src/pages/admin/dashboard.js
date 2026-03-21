@@ -65,6 +65,13 @@ const Dashboard = () => {
       icon: '🕐',
       path: '/admin/showtimes',
       color: '#17a2b8'
+    },
+    {
+      title: 'Quản lý Nhân Viên',
+      description: 'Xem và quản lý tài khoản nhân viên',
+      icon: '👥',
+      path: '/admin/staffs',
+      color: '#28a745'
     }
   ];
 

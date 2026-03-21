@@ -14,6 +14,7 @@ const AdminLayout = ({ children }) => {
     { path: '/admin/movies', label: 'Quản lý Phim', icon: '🎬' },
     { path: '/admin/cinemas', label: 'Quản lý Rạp & Phòng', icon: '🏠' },
     { path: '/admin/showtimes', label: 'Quản lý Lịch Chiếu', icon: '🕐' },
+    { path: '/admin/staffs', label: 'Quản lý Nhân Viên', icon: '👥' },
   ];
 
   const handleLogout = async () => {
