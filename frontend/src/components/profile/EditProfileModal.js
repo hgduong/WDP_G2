@@ -49,75 +49,79 @@ export default function EditProfileModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="modal">
-      <h4>Thay đổi thông tin</h4>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Họ và tên</label>
-          <input
-            type="text"
-            name="fullName"
-            value={formData.fullName}
-            onChange={handleChange}
-            required
-          />
-        </div>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h4>Thay đổi thông tin</h4>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Họ và tên</label>
+            <input
+              type="text"
+              name="fullName"
+              value={formData.fullName}
+              onChange={handleChange}
+              required
+            />
+          </div>
 
-        <div>
-          <label>Email</label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            readOnly
-            required
-          />
-        </div>
+          <div className="form-group">
+            <label>Email</label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              readOnly
+              required
+            />
+          </div>
 
-        <div>
-          <label>Giới tính</label>
-          <select
-            name="gender"
-            value={formData.gender}
-            onChange={handleChange}
-            required
-          >
-            <option value="">--Chọn giới tính--</option>
-            <option value="Male">Nam</option>
-            <option value="Female">Nữ</option>
-            <option value="Other">Khác</option>
-          </select>
-        </div>
+          <div className="form-group">
+            <label>Giới tính</label>
+            <select
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              required
+            >
+              <option value="">--Chọn giới tính--</option>
+              <option value="Male">Nam</option>
+              <option value="Female">Nữ</option>
+              <option value="Other">Khác</option>
+            </select>
+          </div>
 
-        <div>
-          <label>Ngày sinh</label>
-          <input
-            type="date"
-            name="dob"
-            value={formData.dob}
-            onChange={handleChange}
-            required
-          />
-        </div>
+          <div className="form-group">
+            <label>Ngày sinh</label>
+            <input
+              type="date"
+              name="dob"
+              value={formData.dob}
+              onChange={handleChange}
+              required
+            />
+          </div>
 
-        <div>
-          <label>Số điện thoại</label>
-          <input
-            type="text"
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        <AddressSelector formData={formData} setFormData={setFormData} />
+          <div className="form-group">
+            <label>Số điện thoại</label>
+            <input
+              type="text"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              required
+            />
+          </div>
+          <AddressSelector formData={formData} setFormData={setFormData} />
 
-        <button type="submit">Lưu</button>
-        <button type="button" onClick={onClose}>
-          Hủy
-        </button>
-      </form>
+          <div className="actions">
+            <button type="submit">Lưu</button>
+            <button type="button" onClick={onClose}>
+              Hủy
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

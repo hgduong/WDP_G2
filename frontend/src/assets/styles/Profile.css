@@ -1,14 +1,596 @@
-/* src/pages/Profile.css */
-.profile {
+/* Profile Page Styles */
+
+/* Profile Container */
+.profile-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.profile-container h1 {
+  font-size: 28px;
+  color: #111;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+
+/* Profile Navigation */
+.profile-nav {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 32px;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 0;
+}
+
+.profile-nav button {
+  padding: 12px 20px;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+
+.profile-nav button:hover {
+  color: #0f5ea8;
+}
+
+.profile-nav button.active {
+  color: #0f5ea8;
+  border-bottom-color: #0f5ea8;
+  font-weight: 600;
+}
+
+/* Profile Section */
+.profile-section {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(17, 31, 44, 0.08);
+}
+
+.profile-section h3 {
+  font-size: 20px;
+  color: #111;
+  font-weight: 600;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Account Actions */
+.account-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.account-actions button {
+  padding: 10px 18px;
+  border: 1px solid #cdd6df;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.account-actions button:hover {
+  border-color: #0f5ea8;
+  background: #f0f7fc;
+  color: #0f5ea8;
+}
+
+.account-actions button.danger {
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+.account-actions button.danger:hover {
+  background: #fef2f2;
+  border-color: #dc2626;
+}
+
+/* Personal Info */
+.personal-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.info-row {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  min-width: 140px;
+}
+
+.info-value {
+  font-size: 14px;
+  color: #111;
+  flex: 1;
+}
+
+/* Transaction History */
+.transaction-history {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.transaction-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+  font-size: 15px;
+}
+
+.transaction-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.transaction-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.transaction-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.transaction-movie {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111;
+}
+
+.transaction-info {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.transaction-status {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.transaction-status.completed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.transaction-status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.transaction-status.cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Rewards Section */
+.rewards-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.rewards-points {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, #0f5ea8 0%, #1e40af 100%);
+  border-radius: 12px;
+  color: #fff;
+}
+
+.rewards-points-icon {
+  font-size: 36px;
+}
+
+.rewards-points-info h4 {
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0.9;
+  margin: 0 0 4px;
+}
+
+.rewards-points-value {
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.rewards-vouchers {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rewards-vouchers h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111;
+  margin: 0;
+}
+
+.voucher-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.voucher-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px dashed #cdd6df;
+}
+
+.voucher-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111;
+}
+
+.voucher-points {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.redeem-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #0f5ea8;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 12px;
+  align-self: flex-start;
+}
+
+.redeem-btn:hover {
+  background: #0d4f8b;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
   padding: 20px;
 }
-.profile h1 {
-  margin-bottom: 10px;
+
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
 }
-.profile ul {
-  margin-top: 10px;
-  padding-left: 20px;
+
+.modal h4 {
+  font-size: 20px;
+  color: #111;
+  font-weight: 600;
+  margin-bottom: 20px;
 }
-.profile li {
-  margin-bottom: 6px;
+
+.modal p {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 16px;
+}
+
+/* Form Styles */
+.modal form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modal label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.modal input,
+.modal select {
+  border: 1px solid #cdd6df;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  outline: none;
+  background-color: #fff;
+  margin-left: 10px;
+}
+
+.modal input:focus,
+.modal select:focus {
+  border-color: #0f5ea8;
+  box-shadow: 0 0 0 3px rgba(15, 94, 168, 0.1);
+}
+
+.modal input::placeholder {
+  color: #9ca3af;
+}
+
+.modal input[readonly] {
+  background: #f3f4f6;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+/* Password Input with Toggle */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  width: 100%;
+  padding-right: 44px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  font-size: 14px;
+  padding: 4px;
+}
+
+.password-toggle:hover {
+  color: #0f5ea8;
+}
+
+/* Error and Success Messages */
+.modal .error-message {
+  background: #fef2f2;
+  color: #dc2626;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  border: 1px solid #fecaca;
+}
+
+.modal .success-message {
+  background: #dcfce7;
+  color: #166534;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  border: 1px solid #bbf7d0;
+}
+
+/* Modal Actions */
+.modal .actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.modal button[type="submit"],
+.modal button.primary-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  background: #0f5ea8;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal button[type="submit"]:hover,
+.modal button.primary-btn:hover {
+  background: #0d4f8b;
+}
+
+.modal button[type="submit"]:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.modal button[type="button"],
+.modal button.secondary-btn {
+  padding: 12px 24px;
+  border: 1px solid #cdd6df;
+  border-radius: 8px;
+  background: #fff;
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal button[type="button"]:hover,
+.modal button.secondary-btn:hover {
+  background: #f3f4f6;
+}
+
+/* Delete Account Modal specific */
+.modal.danger-modal button[type="submit"] {
+  background: #dc2626;
+}
+
+.modal.danger-modal button[type="submit"]:hover {
+  background: #b91c1c;
+}
+
+/* Login prompt */
+.login-prompt {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+  font-size: 15px;
+}
+
+.login-prompt a {
+  color: #0f5ea8;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.login-prompt a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive - Tablet */
+@media (max-width: 768px) {
+  .profile-container {
+    padding: 20px 16px;
+  }
+
+  .profile-container h1 {
+    font-size: 24px;
+  }
+
+  .profile-nav {
+    flex-wrap: wrap;
+  }
+
+  .profile-nav button {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  .account-actions {
+    flex-direction: column;
+  }
+
+  .account-actions button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .info-row {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .info-label {
+    min-width: auto;
+  }
+
+  .transaction-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .rewards-points {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 480px) {
+  .profile-container {
+    padding: 16px 12px;
+  }
+
+  .profile-container h1 {
+    font-size: 22px;
+    margin-bottom: 20px;
+  }
+
+  .profile-nav {
+    gap: 8px;
+  }
+
+  .profile-nav button {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .profile-section {
+    padding: 20px 16px;
+  }
+
+  .profile-section h3 {
+    font-size: 18px;
+  }
+
+  .modal {
+    padding: 20px 16px;
+    border-radius: 10px;
+  }
+
+  .modal h4 {
+    font-size: 18px;
+  }
+
+  .modal .actions {
+    flex-direction: column-reverse;
+  }
+
+  .modal button[type="submit"],
+  .modal button[type="button"] {
+    width: 100%;
+    text-align: center;
+  }
 }

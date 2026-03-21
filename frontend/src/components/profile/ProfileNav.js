@@ -6,12 +6,16 @@ export default function ProfileNav({ activeTab, setActiveTab }) {
     rewards: "Điểm thưởng / Ưu đãi",
   };
   return (
-    <nav>
+    <nav className="profile-nav">
       {tabs.map((tab) => (
-        <button key={tab} onClick={() => setActiveTab(tab)}>
+        <button
+          key={tab}
+          className={activeTab === tab ? "active" : ""}
+          onClick={() => setActiveTab(tab)}
+        >
           {labels[tab]}
         </button>
-      ))}{" "}
+      ))}
     </nav>
   );
 }
