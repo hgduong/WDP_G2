@@ -282,10 +282,18 @@ export default function PersonalInfo() {
   const { user } = useContext(UserContext);
   const [openModal, setOpenModal] = useState(null);
 
-  if (!user) return <p>Vui lòng đăng nhập để xem thông tin cá nhân</p>;
+  if (!user)
+    return (
+      <div className="profile-section">
+        <div className="login-prompt">
+          Vui lòng{" "}
+          <a href="/login">đăng nhập</a> để xem thông tin cá nhân
+        </div>
+      </div>
+    );
 
   return (
-    <section>
+    <section className="profile-section">
       <h3>Thông tin cá nhân</h3>
 
       <AccountActions onOpen={setOpenModal} />

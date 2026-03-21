@@ -26,7 +26,7 @@ export default function AddressSelector({ formData, setFormData }) {
 
   return (
     <>
-      <div>
+      <div >
         <label>Tỉnh/Thành phố</label>
         <select
           value={formData.province}
