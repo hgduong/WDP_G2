@@ -15,6 +15,7 @@ import Dashboard from "../pages/admin/dashboard";
 import MovieManagement from "../pages/admin/MovieManagement";
 import CinemaManagement from "../pages/admin/CinemaManagement";
 import ShowtimeManagement from "../pages/admin/ShowtimeManagement";
+import StaffManagement from "../pages/admin/StaffManagement";
 
 export const routesConfig = [
   {
@@ -72,6 +73,11 @@ export const routesConfig = [
   {
     path: "/admin/showtimes",
     element: <ShowtimeManagement />,
+    allowedRoles: ["Admin"],
+  },
+    {
+    path: "/admin/staffs",
+    element: <StaffManagement />,
     allowedRoles: ["Admin"],
   },
   

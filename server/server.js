@@ -76,10 +76,13 @@ const authRoutes = require("./routes/auth.routes");
 const userRoutes = require("./routes/user.routes");
 const moviesRoutes = require("./routes/movies.route");
 const cinemaRoutes = require("./routes/cinema.routes");
+const staffRoutes = require("./routes/staffs.route");
+
 app.use(authRoutes);
 app.use(userRoutes);
 app.use(moviesRoutes);
 app.use(cinemaRoutes);
+app.use(staffRoutes);
 
 app.use(passport.initialize());
 const PORT = process.env.PORT || 9999;

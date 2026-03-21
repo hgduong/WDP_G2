@@ -357,4 +357,60 @@ export const deleteShowtime = async (id) => {
   }
 };
 
-
+//Staff
+export const getAllStaff = async () => {
+  try {
+    const response = await API.get("/staffs");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};  
+export const getStaffById = async (id) => {
+  try {
+    const response = await API.get(`/staffs/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+export const createStaff = async (staffData) => {
+  try {
+    const response = await API.post("/staffs", staffData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+export const updateStaff = async (id, staffData) => {
+  try {
+    const response = await API.put(`/staffs/${id}`, staffData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+}
+export const deleteStaff = async (id) => {
+  try {
+    const response = await API.delete(`/staffs/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+}
+export const updateStaffStatus = async (id, status) => {
+  try {
+    const response = await API.patch(`/staffs/${id}/status`, { status });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+}
+export const changeStaffPassword = async (id, passwordData) => {
+  try {
+    const response = await API.patch(`/staffs/${id}/password`, passwordData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+}
