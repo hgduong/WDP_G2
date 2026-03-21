@@ -1,0 +1,19 @@
+/* Search input in filter bar */
+.filter-bar .filter-group input[type="text"] {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  min-width: 250px;
+}
+
+/* Change password button */
+.btn-change-password {
+  background-color: #17a2b8;
+  color: white;
+  margin-left: 5px;
+}
+
+/* Password modal */
+.modal-content.password-modal {
+  max-width: 400px;
+}
