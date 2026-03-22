@@ -71,6 +71,10 @@ exports.changePassword = async (req, res) => {
       return res.status(400).json({ message: "Thiếu dữ liệu" });
     }
 
+    if (currentPassword == newPassword) {
+      return res.status(400).json({ message: "Mật khẩu mới không được trùng với mật khẩu hiện tại" });
+    }
+
     if (newPassword !== confirmPassword) {
       return res.status(400).json({ message: "Mật khẩu mới không khớp" });
     }
@@ -94,4 +98,3 @@ exports.changePassword = async (req, res) => {
     res.status(500).json({ message: "Có lỗi xảy ra" });
   }
 };
-
