@@ -66,8 +66,9 @@ function Login() {
 
   const handleSignup = (e) => {
     e.preventDefault();
-    navigate("/signup", { replace: true });
+    navigate("/signup");
   };
+
   return (
     <div className="login-container">
       <div className="login-wrapper">

@@ -113,13 +113,13 @@ function Signup() {
         }
         break;
 
-        // case "password":
-        // if (!value) {
-        //   errorMsg = "Mật khẩu là bắt buộc";
-        // } else if (value.length < 6) {
-        //   errorMsg = "Mật khẩu phải ít nhất 6 ký tự";
-        // }
-        // break;
+      // case "password":
+      // if (!value) {
+      //   errorMsg = "Mật khẩu là bắt buộc";
+      // } else if (value.length < 6) {
+      //   errorMsg = "Mật khẩu phải ít nhất 6 ký tự";
+      // }
+      // break;
       case "password":
         if (!value) {
           errorMsg = "Mật khẩu là bắt buộc";
@@ -227,25 +227,29 @@ function Signup() {
       };
       const result = await registerUser(payload);
       toast.success(result.data.message);
-      navigate("/otp_verify", {
-        state: { email: formData.email, purpose: "register" },
-      });
+      navigate(
+        "/otp_verify",
+        { replace: true },
+        {
+          state: { email: formData.email, purpose: "register" },
+        },
+      );
     } catch (err) {
       toast.error("Đăng ký thất bại: " + err.message);
     }
   };
 
   return (
-      <div className="signup-wrapper">
-        <h2 className="signup-title">
-          Đăng ký tài khoản{" "}
-          {/* <button type="button" className="toggle-password-btn" onClick={() => setShowPassword(!showPassword)}>
+    <div className="signup-wrapper">
+      <h2 className="signup-title">
+        Đăng ký tài khoản{" "}
+        {/* <button type="button" className="toggle-password-btn" onClick={() => setShowPassword(!showPassword)}>
             {showPassword ? "🙈" : "👁"}
           </button> */}
-        </h2>
+      </h2>
 
-        <form className="signup-form" onSubmit={handleSubmit}>
-          <div className="form-group">
+      <form className="signup-form" onSubmit={handleSubmit}>
+        <div className="form-group">
           <label>Họ và tên</label>
           <input
             type="text"
@@ -315,9 +319,7 @@ function Signup() {
             <option value="Female">Nữ</option>
             <option value="Other">Khác</option>
           </select>
-          {errors.gender && (
-            <span className="error-text">{errors.gender}</span>
-          )}
+          {errors.gender && <span className="error-text">{errors.gender}</span>}
         </div>
 
         <div className="form-group">
@@ -404,15 +406,16 @@ function Signup() {
           />
         </div>
 
-        <button type="submit" className="signup-btn">Đăng ký</button>
-        </form>
-        <div className="signup-login-link">
-          <p>
-            Đã có tài khoản? <a href="/login">Đăng nhập ngay</a>
-          </p>
-        </div>
+        <button type="submit" className="signup-btn">
+          Đăng ký
+        </button>
+      </form>
+      <div className="signup-login-link">
+        <p>
+          Đã có tài khoản? <a href="/login">Đăng nhập ngay</a>
+        </p>
       </div>
-    
+    </div>
   );
 }
 
