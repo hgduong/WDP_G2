@@ -42,7 +42,7 @@ export function UserProvider({ children }) {
         }
       } catch (err) {
         // Nếu lỗi, giữ nguyên user từ localStorage nếu có
-        console.log("Không lấy được user từ server, dùng localStorage:", err.message);
+        console.log("Không lấy được user từ server:", err.message);
       }
     };
 

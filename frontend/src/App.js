@@ -14,7 +14,6 @@ function AppContent() {
     const error = params.get("error");
 
     if (error && typeof error === "string") {
-      // alert(error);
       toast.error(error);
       setTimeout(() => {
         window.history.replaceState({}, document.title, "/login");

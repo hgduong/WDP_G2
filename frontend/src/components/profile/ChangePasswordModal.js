@@ -43,7 +43,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
 
     setLoading(true);
     try {
-      await changePassword(currentPassword, newPassword);
+      await changePassword(currentPassword, newPassword, confirmPassword);
       setSuccess("Đổi mật khẩu thành công!");
       setForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       setTimeout(onClose, 1500);
