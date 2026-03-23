@@ -4,6 +4,7 @@ import Booking from "../pages/Booking";
 import Checkout from "../pages/Checkout";
 import Profile from "../pages/Profile";
 import Login from "../pages/Login";
+import StaffLogin from "../pages/staff/StaffLogin";
 import Signup from "../pages/Signup";
 import OtpVerify from "../pages/OtpVerify";
 import ForgotPassword from "../pages/ForgotPassword";
@@ -36,6 +37,7 @@ export const routesConfig = [
     allowedRoles: ["Customer", "Admin"],
   },
   { path: "/login", element: <Login />, allowedRoles: ["Guest"] },
+  { path: "/staff-login", element: <StaffLogin />, allowedRoles: ["Guest"] },
   { path: "/signup", element: <Signup />, allowedRoles: ["Guest"] },
   { path: "/otp_verify", element: <OtpVerify />, allowedRoles: ["Guest"] },
   {
@@ -53,12 +55,12 @@ export const routesConfig = [
   {
     path: "/admin",
     element: <Dashboard />,
-    allowedRoles: ["Admin"],
+    allowedRoles: ["Admin", "Staff"],
   },
   {
     path: "/admin/dashboard",
     element: <Dashboard />,
-    allowedRoles: ["Admin"],
+    allowedRoles: ["Admin", "Staff"],
   },
   {
     path: "/admin/movies",
