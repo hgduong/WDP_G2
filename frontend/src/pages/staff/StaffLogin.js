@@ -84,6 +84,10 @@ function StaffLogin() {
         </form>
 
         <div className="staff-login-footer">
+          <Link to="/staff-register">Dang ky staff</Link>
+        </div>
+
+        <div className="staff-login-footer">
           <Link to="/login">Dang nhap khach hang</Link>
         </div>
       </div>
@@ -92,4 +96,3 @@ function StaffLogin() {
 }
 
 export default StaffLogin;
-

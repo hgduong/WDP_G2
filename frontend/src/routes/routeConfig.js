@@ -6,17 +6,21 @@ import Profile from "../pages/Profile";
 import Login from "../pages/Login";
 import StaffDashboard from "../pages/staff/StaffDashboard";
 import StaffLogin from "../pages/staff/StaffLogin";
+import StaffRegister from "../pages/staff/StaffRegister";
 import Signup from "../pages/Signup";
 import OtpVerify from "../pages/OtpVerify";
 import ForgotPassword from "../pages/ForgotPassword";
 import ResetPassword from "../pages/ResetPassword";
 import NotFound from "../pages/NotFound";
 
+//Staff pages
+
 // Admin pages
 import Dashboard from "../pages/admin/dashboard";
 import MovieManagement from "../pages/admin/MovieManagement";
 import CinemaManagement from "../pages/admin/CinemaManagement";
 import ShowtimeManagement from "../pages/admin/ShowtimeManagement";
+import StaffRegistration from "../pages/admin/StaffRegistration";
 import StaffManagement from "../pages/admin/StaffManagement";
 
 export const routesConfig = [
@@ -39,6 +43,7 @@ export const routesConfig = [
   },
   { path: "/login", element: <Login />, allowedRoles: ["Guest"] },
   { path: "/staff-login", element: <StaffLogin />, allowedRoles: ["Guest"] },
+  { path: "/staff-register", element: <StaffRegister />, allowedRoles: ["Guest"] },
   {
     path: "/staff/dashboard",
     element: <StaffDashboard />,
@@ -83,9 +88,14 @@ export const routesConfig = [
     element: <ShowtimeManagement />,
     allowedRoles: ["Admin"],
   },
-    {
+  {
     path: "/admin/staffs",
     element: <StaffManagement />,
+    allowedRoles: ["Admin"],
+  },
+  {
+    path: "/admin/staff-register",
+    element: <StaffRegistration />,
     allowedRoles: ["Admin"],
   },
   

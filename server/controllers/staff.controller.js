@@ -17,6 +17,67 @@ const sanitizeStaff = (staff) => {
   return staffObject;
 };
 
+const createStaffRecord = async (payload = {}, options = {}) => {
+  const {
+    email,
+    fullName,
+    gender,
+    password,
+    phone,
+    dob,
+    idCard,
+    address,
+    status,
+  } = payload;
+  const { defaultStatus = "Active" } = options;
+
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    const error = new Error("Email da duoc su dung");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!password) {
+    const error = new Error("Mat khau la bat buoc");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  const passwordHash = await bcrypt.hash(password, salt);
+
+  const newStaff = new User({
+    email,
+    fullName,
+    gender,
+    passwordHash,
+    phone,
+    dob,
+    idCard,
+    address,
+    role: "Staff",
+    status: status || defaultStatus,
+    authProvider: "local",
+  });
+
+  await newStaff.save();
+  return newStaff;
+};
+
+exports.registerStaff = async (req, res) => {
+  try {
+    const newStaff = await createStaffRecord(req.body, { defaultStatus: "Pending" });
+    res.status(201).json({
+      message: "Dang ky staff thanh cong. Vui long cho admin kich hoat tai khoan.",
+      staff: sanitizeStaff(newStaff),
+    });
+  } catch (error) {
+    console.error("Loi khi dang ky staff:", error);
+    res.status(error.statusCode || 400).json({ message: error.message });
+  }
+};
+
 exports.getAllStaff = async (req, res) => {
   try {
     const staff = await User.find({ role: "Staff" }).sort({ createdAt: -1 });
@@ -44,50 +105,11 @@ exports.getStaffById = async (req, res) => {
 
 exports.createStaff = async (req, res) => {
   try {
-    const {
-      email,
-      fullName,
-      gender,
-      password,
-      phone,
-      dob,
-      idCard,
-      address,
-      status,
-    } = req.body;
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: "Email da duoc su dung" });
-    }
-
-    if (!password) {
-      return res.status(400).json({ message: "Mat khau la bat buoc" });
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
-    const newStaff = new User({
-      email,
-      fullName,
-      gender,
-      passwordHash,
-      phone,
-      dob,
-      idCard,
-      address,
-      role: "Staff",
-      status: status || "Active",
-      authProvider: "local",
-    });
-
-    await newStaff.save();
-
+    const newStaff = await createStaffRecord(req.body, { defaultStatus: "Active" });
     res.status(201).json(sanitizeStaff(newStaff));
   } catch (error) {
     console.error("Loi khi tao nhan vien:", error);
-    res.status(400).json({ message: error.message });
+    res.status(error.statusCode || 400).json({ message: error.message });
   }
 };
 
