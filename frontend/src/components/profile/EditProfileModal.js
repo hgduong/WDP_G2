@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getUserProfile, updateUserProfile } from "../../services/api";
 import AddressSelector from "./AddressSelector";
+import { toast } from "react-toastify";
 
 export default function EditProfileModal({ isOpen, onClose }) {
   const [formData, setFormData] = useState({
@@ -41,9 +42,11 @@ export default function EditProfileModal({ isOpen, onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await updateUserProfile(formData);
-    alert("Cập nhật thành công!");
-    onClose();
+    await updateUserProfile(formData);   
+    // alert("Cập nhật thành công!");
+    // onClose();
+    toast.success("Cập nhật thành công!");
+    window.location.reload();
   };
 
   if (!isOpen) return null;

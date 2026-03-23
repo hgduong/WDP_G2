@@ -20,8 +20,13 @@ export default function Navbar() {
   }, [user]);
 
   const handleLogout = () => {
+    setShowDropdown(false);
     logout();
     navigate("/");
+  };
+
+  const handleDropdownLinkClick = () => {
+    setShowDropdown(false);
   };
 
   return (
@@ -55,16 +60,13 @@ export default function Navbar() {
                 src={user.avatarUrl || ava}
                 alt="avatar"
                 className="navbar-avatar"
-                onClick={() => setShowDropdown(prev => !prev)}
+                onClick={() => setShowDropdown((prev) => !prev)}
               />
               {showDropdown && (
                 <ul className="navbar-dropdown">
                   <li className="dropdown-header">{user.fullName}</li>
                   <li>
-                    <Link to="/profile"> Trang cá nhân</Link>
-                  </li>
-                  <li>
-                    <Link to="/settings"> Cài đặt</Link>
+                    <Link to="/profile" onClick={handleDropdownLinkClick}> Trang cá nhân</Link>
                   </li>
                   <li>
                     <button onClick={handleLogout}> Đăng xuất</button>
