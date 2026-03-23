@@ -4,6 +4,7 @@ import Booking from "../pages/Booking";
 import Checkout from "../pages/Checkout";
 import Profile from "../pages/Profile";
 import Login from "../pages/Login";
+import StaffDashboard from "../pages/staff/StaffDashboard";
 import StaffLogin from "../pages/staff/StaffLogin";
 import Signup from "../pages/Signup";
 import OtpVerify from "../pages/OtpVerify";
@@ -38,6 +39,11 @@ export const routesConfig = [
   },
   { path: "/login", element: <Login />, allowedRoles: ["Guest"] },
   { path: "/staff-login", element: <StaffLogin />, allowedRoles: ["Guest"] },
+  {
+    path: "/staff/dashboard",
+    element: <StaffDashboard />,
+    allowedRoles: ["Staff", "Admin"],
+  },
   { path: "/signup", element: <Signup />, allowedRoles: ["Guest"] },
   { path: "/otp_verify", element: <OtpVerify />, allowedRoles: ["Guest"] },
   {
@@ -55,12 +61,12 @@ export const routesConfig = [
   {
     path: "/admin",
     element: <Dashboard />,
-    allowedRoles: ["Admin", "Staff"],
+    allowedRoles: ["Admin"],
   },
   {
     path: "/admin/dashboard",
     element: <Dashboard />,
-    allowedRoles: ["Admin", "Staff"],
+    allowedRoles: ["Admin"],
   },
   {
     path: "/admin/movies",

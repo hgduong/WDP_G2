@@ -1,4 +1,3 @@
-// src/components/Navbar.jsx
 import { useContext, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "../assets/styles/Navbar.css";
@@ -14,6 +13,12 @@ export default function Navbar() {
   const [showDropdown, setShowDropdown] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useContext(UserContext);
+  const dashboardPath =
+    user?.role === "Admin"
+      ? "/admin/dashboard"
+      : user?.role === "Staff"
+        ? "/staff/dashboard"
+        : null;
 
   useEffect(() => {
     setShowDropdown(false);
@@ -39,18 +44,18 @@ export default function Navbar() {
 
         <nav className="navbar-menu">
           <Link to="/showtimes">
-            {lang === "vi" ? "LỊCH CHIẾU THEO RẠP" : "SHOWTIMES"}
+            {lang === "vi" ? "LICH CHIEU THEO RAP" : "SHOWTIMES"}
           </Link>
           <Link to="/movies">{lang === "vi" ? "PHIM" : "MOVIES"}</Link>
-          <Link to="/cinemas">{lang === "vi" ? "RẠP" : "CINEMAS"}</Link>
-          <Link to="/prices">{lang === "vi" ? "GIÁ VÉ" : "PRICES"}</Link>
+          <Link to="/cinemas">{lang === "vi" ? "RAP" : "CINEMAS"}</Link>
+          <Link to="/prices">{lang === "vi" ? "GIA VE" : "PRICES"}</Link>
           <Link to="/news">
-            {lang === "vi" ? "TIN MỚI & ƯU ĐÃI" : "NEWS & OFFERS"}
+            {lang === "vi" ? "TIN MOI & UU DAI" : "NEWS & OFFERS"}
           </Link>
           <Link to="/franchise">
-            {lang === "vi" ? "NHƯỢNG QUYỀN" : "FRANCHISE"}
+            {lang === "vi" ? "NHUONG QUYEN" : "FRANCHISE"}
           </Link>
-          <Link to="/members">{lang === "vi" ? "THÀNH VIÊN" : "MEMBERS"}</Link>
+          <Link to="/members">{lang === "vi" ? "THANH VIEN" : "MEMBERS"}</Link>
         </nav>
 
         <div className="navbar-right">
@@ -65,19 +70,30 @@ export default function Navbar() {
               {showDropdown && (
                 <ul className="navbar-dropdown">
                   <li className="dropdown-header">{user.fullName}</li>
+                  {dashboardPath ? (
+                    <li>
+                      <Link to={dashboardPath} onClick={handleDropdownLinkClick}>
+                        {user.role === "Admin" ? "Trang quan tri" : "Trang staff"}
+                      </Link>
+                    </li>
+                  ) : null}
                   <li>
-                    <Link to="/profile" onClick={handleDropdownLinkClick}> Trang cá nhân</Link>
+                    <Link to="/profile" onClick={handleDropdownLinkClick}>
+                      Trang ca nhan
+                    </Link>
                   </li>
                   <li>
-                    <button onClick={handleLogout}> Đăng xuất</button>
+                    <button onClick={handleLogout}>Dang xuat</button>
                   </li>
                 </ul>
               )}
             </div>
           ) : (
             <>
-              <Link to="/login">{lang === "vi" ? "Đăng nhập" : "Login"}</Link>
-              <Link to="/signup">{lang === "vi" ? "Đăng ký" : "Register"}</Link>
+              <Link to="/login">{lang === "vi" ? "Dang nhap" : "Login"}</Link>
+              <Link to="/signup">
+                {lang === "vi" ? "Dang ky" : "Register"}
+              </Link>
             </>
           )}
         </div>

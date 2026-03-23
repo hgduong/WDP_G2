@@ -10,7 +10,7 @@ function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const { login, role } = useContext(UserContext);
+  const { login } = useContext(UserContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,7 +37,7 @@ function Login() {
           if (userData.role === "Admin") {
             navigate("/admin/dashboard");
           } else if (userData.role === "Staff") {
-            navigate("/admin/dashboard");
+            navigate("/staff/dashboard");
           } else {
             navigate("/");
           }

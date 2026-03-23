@@ -22,14 +22,16 @@ function StaffLogin() {
 
     try {
       const result = await staffLogin({ email, password });
-      if (!STAFF_ROLES.includes(result?.data?.user?.role)) {
+      const userRole = result?.data?.user?.role;
+
+      if (!STAFF_ROLES.includes(userRole)) {
         setError("Tai khoan khong thuoc nhom staff.");
         return;
       }
 
       // Use callback to wait for state update then navigate
       login(result?.data?.user, () => {
-        navigate("/admin/dashboard");
+        navigate(userRole === "Admin" ? "/admin/dashboard" : "/staff/dashboard");
       });
     } catch (err) {
       setError(err?.message || "Dang nhap that bai.");
@@ -90,5 +92,4 @@ function StaffLogin() {
 }
 
 export default StaffLogin;
-
 
