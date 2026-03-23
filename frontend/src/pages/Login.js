@@ -18,13 +18,10 @@ function Login() {
       const result = await loginUser({ email: username, password });
       if (result.data.requireOtp) {
         toast.info(result.data.message);
-        navigate(
-          "/otp_verify",
-          { replace: true },
-          {
-            state: { email: username, purpose: "register" },
-          },
-        );
+        navigate("/otp_verify", {
+          replace: true,
+          state: { email: username, purpose: "register" },
+        });
         return;
       } else {
         // Set user and role directly from login response
@@ -123,7 +120,11 @@ function Login() {
         <div className="login-links">
           <p>
             Quên mật khẩu?{" "}
-            <button type="button" className="link-btn" onClick={handleForgotPassword}>
+            <button
+              type="button"
+              className="link-btn"
+              onClick={handleForgotPassword}
+            >
               Quên mật khẩu
             </button>
           </p>

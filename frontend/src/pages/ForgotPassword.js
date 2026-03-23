@@ -18,8 +18,8 @@ function ForgotPassword() {
       toast.success(res.data.message);
       navigate(
         "/otp_verify",
-        { replace: true },
         {
+          replace: true,
           state: { email: res.data.email, purpose: "forgotPassword" },
         },
       );
