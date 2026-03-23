@@ -2,7 +2,7 @@ import React, { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { staffLogin } from "../../services/api";
 import { UserContext } from "../../context/UserContext";
-import "../assets/styles/StaffLogin.css";
+import "../../assets/styles/StaffLogin.css";
 
 const STAFF_ROLES = ["Staff", "Admin"];
 

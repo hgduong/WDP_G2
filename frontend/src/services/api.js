@@ -408,7 +408,7 @@ export const updateStaffStatus = async (id, status) => {
 }
 export const changeStaffPassword = async (id, passwordData) => {
   try {
-    const response = await API.patch(`/staffs/${id}/password`, passwordData);
+    const response = await API.post(`/staffs/${id}/change-password`, passwordData);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
