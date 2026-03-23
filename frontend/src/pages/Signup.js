@@ -239,10 +239,7 @@ function Signup() {
   return (
     <div className="signup-wrapper">
       <h2 className="signup-title">
-        Đăng ký tài khoản{" "}
-        {/* <button type="button" className="toggle-password-btn" onClick={() => setShowPassword(!showPassword)}>
-            {showPassword ? "🙈" : "👁"}
-          </button> */}
+        Đăng ký tài khoản
       </h2>
 
       <form className="signup-form" onSubmit={handleSubmit}>

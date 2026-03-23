@@ -1,6 +1,6 @@
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
-
+const jwt = require("jsonwebtoken");
 // Lấy thông tin user
 exports.getUserProfile = async (req, res) => {
   try {
@@ -56,7 +56,20 @@ exports.updateUserProfile = async (req, res) => {
       return res.status(404).json({ message: "User không tồn tại" });
     }
 
-    res.json(updatedUser);
+    // res.json(updatedUser);
+    const newToken = jwt.sign(
+      {
+        id: updatedUser._id,
+        fullName: updatedUser.fullName,
+        email: updatedUser.email,
+        role: updatedUser.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" },
+    );
+
+    res.cookie("jwt", newToken, { httpOnly: true, secure: true });
+    res.json({ user: updatedUser, token: newToken });
   } catch (error) {
     console.error("Lỗi khi cập nhật profile:", error);
     res.status(500).json({ message: "Lỗi server" });
@@ -72,7 +85,11 @@ exports.changePassword = async (req, res) => {
     }
 
     if (currentPassword == newPassword) {
-      return res.status(400).json({ message: "Mật khẩu mới không được trùng với mật khẩu hiện tại" });
+      return res
+        .status(400)
+        .json({
+          message: "Mật khẩu mới không được trùng với mật khẩu hiện tại",
+        });
     }
 
     if (newPassword !== confirmPassword) {

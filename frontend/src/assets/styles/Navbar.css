@@ -100,6 +100,10 @@
   background-color: #ddd;
 }
 
+.navbar-avatar-link {
+  display: inline-block;
+}
+
 .navbar-dropdown {
   position: absolute;
   top: 50px;
