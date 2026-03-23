@@ -1,6 +1,6 @@
 const express = require("express");
-const router = express.Router();
 const {
+  registerStaff,
   getAllStaff,
   getStaffById,
   createStaff,
@@ -14,16 +14,27 @@ const {
   authorizeRoles,
 } = require("../config/auth.middleware");
 
-router.use(authenticateToken);
-router.use(authorizeRoles(["Admin"]));
+const router = express.Router();
+const adminStaffRouter = express.Router();
 
-router.get("/staffs", getAllStaff);
-router.get("/staffs/:id", getStaffById);
-router.post("/staffs", createStaff);
-router.put("/staffs/:id", updateStaff);
-router.delete("/staffs/:id", deleteStaff);
-router.patch("/staffs/:id/status", updateStaffStatus);
-router.post("/staffs/:id/change-password", changeStaffPassword);
-router.patch("/staffs/:id/password", changeStaffPassword);
+// Public staff registration
+router.post("/staff/register", registerStaff);
+
+// Admin-only staff management
+adminStaffRouter.use(authenticateToken);
+adminStaffRouter.use(authorizeRoles(["Admin"]));
+
+adminStaffRouter.get("/staffs", getAllStaff);
+adminStaffRouter.get("/staffs/:id", getStaffById);
+adminStaffRouter.post("/staffs", createStaff);
+adminStaffRouter.put("/staffs/:id", updateStaff);
+adminStaffRouter.delete("/staffs/:id", deleteStaff);
+adminStaffRouter.patch("/staffs/:id/status", updateStaffStatus);
+adminStaffRouter.post("/staffs/:id/change-password", changeStaffPassword);
+
+// Backward-compatible alias for older frontend calls
+adminStaffRouter.patch("/staffs/:id/password", changeStaffPassword);
+
+router.use(adminStaffRouter);
 
 module.exports = router;

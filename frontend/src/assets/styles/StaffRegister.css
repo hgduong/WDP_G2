@@ -1,0 +1,135 @@
+.staff-register-page {
+  min-height: 100vh;
+  padding: 40px 16px 64px;
+  background:
+    radial-gradient(circle at top left, rgba(252, 211, 77, 0.22), transparent 25%),
+    radial-gradient(circle at top right, rgba(14, 116, 144, 0.2), transparent 22%),
+    linear-gradient(180deg, #f6f1e8 0%, #efe7dc 100%);
+}
+
+.staff-register-card {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 32px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 24px 56px rgba(28, 35, 45, 0.12);
+}
+
+.staff-register-head {
+  margin-bottom: 24px;
+}
+
+.staff-register-kicker {
+  display: inline-block;
+  margin-bottom: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fff3d8;
+  color: #895b00;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.staff-register-head h1 {
+  margin: 0 0 12px;
+  color: #1b2430;
+}
+
+.staff-register-head p {
+  margin: 0;
+  color: #576171;
+  line-height: 1.7;
+}
+
+.staff-register-alert {
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  font-weight: 500;
+}
+
+.staff-register-alert.success {
+  background: #d9f7e6;
+  color: #15623a;
+}
+
+.staff-register-alert.error {
+  background: #fce1e1;
+  color: #8a2222;
+}
+
+.staff-register-form {
+  display: grid;
+  gap: 16px;
+}
+
+.staff-register-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.staff-register-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.staff-register-form label {
+  display: grid;
+  gap: 8px;
+  color: #26303d;
+  font-weight: 600;
+}
+
+.staff-register-form input,
+.staff-register-form select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #d7dce3;
+  border-radius: 14px;
+  font-size: 0.95rem;
+}
+
+.staff-register-form input:focus,
+.staff-register-form select:focus {
+  outline: none;
+  border-color: #c57d16;
+  box-shadow: 0 0 0 4px rgba(197, 125, 22, 0.12);
+}
+
+.staff-register-form button {
+  margin-top: 8px;
+  padding: 14px 18px;
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #c57d16 0%, #ef9f22 100%);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.staff-register-form button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.staff-register-footer {
+  margin-top: 18px;
+}
+
+.staff-register-footer a {
+  color: #0f5b73;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+@media (max-width: 720px) {
+  .staff-register-card {
+    padding: 24px;
+  }
+
+  .staff-register-grid.two {
+    grid-template-columns: 1fr;
+  }
+}

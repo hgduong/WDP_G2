@@ -2,11 +2,9 @@
   "email": "staff@timecinemas.vn",
   "fullName": "Staff User",
   "gender": "Male",
-  "passwordHash": "$2b$10$jpxYA.FmRkWt5jUAIhOGWeOcVecauyha7sRQdDovNcIybrVSYu1ke",
-  "dob": {
-    "$date": "1995-01-01T00:00:00.000Z"
-  },
-  "idCard": null,
+  "password": "staff123",
+  "dob": "1995-01-01T00:00:00.000Z",
+  "idCard": "012345678901",
   "phone": "0901234568",
   "address": {
     "province": "1",
@@ -17,16 +15,5 @@
   "role": "Staff",
   "status": "Active",
   "authProvider": "local",
-  "avatarUrl": null,
-  "otpCode": null,
-  "otpExpires": null,
-  "lastOtpSentAt": null,
-  "resetToken": null,
-  "resetExpires": null,
-  "createdAt": {
-    "$date": "2024-01-01T00:00:00.000Z"
-  },
-  "updatedAt": {
-    "$date": "2024-01-01T00:00:00.000Z"
-  }
+  "avatarUrl": null
 }

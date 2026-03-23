@@ -14,6 +14,7 @@ const AdminLayout = ({ children }) => {
     { path: "/admin/movies", label: "Quan ly Phim" },
     { path: "/admin/cinemas", label: "Quan ly Rap & Phong" },
     { path: "/admin/showtimes", label: "Quan ly Lich Chieu" },
+    { path: "/admin/staff-register", label: "Dang ky Staff" },
     { path: "/admin/staffs", label: "Quan ly Nhan Vien" },
   ];
 
