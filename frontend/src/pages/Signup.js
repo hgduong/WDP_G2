@@ -227,13 +227,10 @@ function Signup() {
       };
       const result = await registerUser(payload);
       toast.success(result.data.message);
-      navigate(
-        "/otp_verify",
-        { replace: true },
-        {
-          state: { email: formData.email, purpose: "register" },
-        },
-      );
+      navigate("/otp_verify", {
+        replace: true,
+        state: { email: formData.email, purpose: "register" },
+      });
     } catch (err) {
       toast.error("Đăng ký thất bại: " + err.message);
     }
