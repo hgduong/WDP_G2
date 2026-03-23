@@ -2,14 +2,12 @@ import { useContext, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "../assets/styles/Navbar.css";
 import logo from "../assets/images/logo.png";
-import VIE from "../assets/images/VIE.png";
-import ENG from "../assets/images/ENG.png";
 import ava from "../assets/images/person.png";
 import { LanguageContext } from "../context/LanguageContext";
 import { UserContext } from "../context/UserContext.js";
 
 export default function Navbar() {
-  const { lang, toggleLang } = useContext(LanguageContext);
+  const { lang } = useContext(LanguageContext);
   const [showDropdown, setShowDropdown] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useContext(UserContext);
