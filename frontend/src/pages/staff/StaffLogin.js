@@ -29,9 +29,9 @@ function StaffLogin() {
     try {
       const result = await requestStaffLoginOtp({ email, password });
       setOtpRequested(true);
-      setMessage(result?.message || "Ma OTP dang nhap da duoc gui qua Gmail.");
+      setMessage(result?.message || "Mã OTP đăng nhập đã được gửi qua Gmail.");
     } catch (err) {
-      setError(err?.message || "Khong gui duoc OTP.");
+      setError(err?.message || "Không gửi được OTP.");
     } finally {
       setLoading(false);
     }
@@ -48,7 +48,7 @@ function StaffLogin() {
       const userRole = result?.data?.user?.role;
 
       if (!STAFF_ROLES.includes(userRole)) {
-        setError("Tai khoan khong thuoc nhom staff.");
+        setError("Tài khoản không thuộc nhóm staff.");
         return;
       }
 
@@ -56,7 +56,7 @@ function StaffLogin() {
         navigate(userRole === "Admin" ? "/admin/dashboard" : "/staff/dashboard");
       });
     } catch (err) {
-      setError(err?.message || "Xac thuc OTP that bai.");
+      setError(err?.message || "Xác thực OTP thất bại.");
     } finally {
       setLoading(false);
     }
@@ -65,10 +65,10 @@ function StaffLogin() {
   return (
     <div className="staff-login-page">
       <div className="staff-login-card">
-        <h1>Staff Login</h1>
+        <h1>Đăng nhập staff</h1>
         <p>
-          Staff moi dang ky can duoc admin duyet. Sau do moi lan dang nhap se
-          dung email, mat khau va OTP xac nhan.
+          Staff mới đăng ký cần được admin duyệt. Sau đó mỗi lần đăng nhập sẽ
+          dùng email, mật khẩu và OTP xác nhận.
         </p>
 
         <form
@@ -88,13 +88,13 @@ function StaffLogin() {
 
           {!otpRequested ? (
             <>
-              <label htmlFor="staff-password">Mat khau</label>
+              <label htmlFor="staff-password">Mật khẩu</label>
               <input
                 id="staff-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Nhap mat khau"
+                placeholder="Nhập mật khẩu"
                 required
               />
             </>
@@ -102,13 +102,13 @@ function StaffLogin() {
 
           {otpRequested ? (
             <>
-              <label htmlFor="staff-otp">Ma OTP</label>
+              <label htmlFor="staff-otp">Mã OTP</label>
               <input
                 id="staff-otp"
                 type="text"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
-                placeholder="Nhap 6 chu so"
+                placeholder="Nhập 6 chữ số"
                 maxLength="6"
                 required
               />
@@ -120,10 +120,10 @@ function StaffLogin() {
 
           <button type="submit" disabled={loading}>
             {loading
-              ? "Dang xu ly..."
+              ? "Đang xử lý..."
               : otpRequested
-                ? "Xac nhan OTP"
-                : "Gui ma OTP"}
+                ? "Xác nhận OTP"
+                : "Gửi mã OTP"}
           </button>
 
           {otpRequested ? (
@@ -137,17 +137,17 @@ function StaffLogin() {
                 setMessage("");
               }}
             >
-              Doi email khac
+              Đổi email khác
             </button>
           ) : null}
         </form>
 
         <div className="staff-login-footer">
-          <Link to="/staff-register">Dang ky staff</Link>
+          <Link to="/staff-register">Đăng ký staff</Link>
         </div>
 
         <div className="staff-login-footer">
-          <Link to="/login">Dang nhap khach hang</Link>
+          <Link to="/login">Đăng nhập khách hàng</Link>
         </div>
       </div>
     </div>

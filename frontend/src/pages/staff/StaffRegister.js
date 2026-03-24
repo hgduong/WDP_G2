@@ -122,13 +122,13 @@ function StaffRegister() {
       const result = await registerStaffAccount(formData);
       setSuccessMessage(
         result?.message ||
-          "Dang ky thanh cong. Vui long cho admin kich hoat tai khoan staff.",
+          "Đăng ký thành công. Vui lòng chờ admin kích hoạt tài khoản staff.",
       );
       setFormData(defaultFormData);
       setDistricts([]);
       setWards([]);
     } catch (err) {
-      setError(err?.message || "Dang ky staff that bai.");
+      setError(err?.message || "Đăng ký staff thất bại.");
     } finally {
       setLoading(false);
     }
@@ -138,11 +138,11 @@ function StaffRegister() {
     <div className="staff-register-page">
       <div className="staff-register-card">
         <div className="staff-register-head">
-          <span className="staff-register-kicker">Staff Access</span>
-          <h1>Dang ky Staff</h1>
+          <span className="staff-register-kicker">Truy cập staff</span>
+          <h1>Đăng ký staff</h1>
           <p>
-            Dien day du thong tin de gui yeu cau tao tai khoan staff. Tai khoan
-            moi se o trang thai cho duyet cho den khi admin kich hoat.
+            Điền đầy đủ thông tin để gửi yêu cầu tạo tài khoản staff. Tài khoản
+            mới sẽ ở trạng thái chờ duyệt cho đến khi admin kích hoạt.
           </p>
         </div>
 
@@ -154,7 +154,7 @@ function StaffRegister() {
         <form onSubmit={handleSubmit} className="staff-register-form">
           <div className="staff-register-grid two">
             <label>
-              Ho ten
+              Họ tên
               <input
                 type="text"
                 name="fullName"
@@ -177,7 +177,7 @@ function StaffRegister() {
 
           <div className="staff-register-grid two">
             <label>
-              Mat khau
+              Mật khẩu
               <input
                 type="password"
                 name="password"
@@ -188,7 +188,7 @@ function StaffRegister() {
               />
             </label>
             <label>
-              So dien thoai
+              Số điện thoại
               <input
                 type="text"
                 name="phone"
@@ -201,19 +201,19 @@ function StaffRegister() {
 
           <div className="staff-register-grid two">
             <label>
-              Gioi tinh
+              Giới tính
               <select
                 name="gender"
                 value={formData.gender}
                 onChange={handleInputChange}
               >
                 <option value="Male">Nam</option>
-                <option value="Female">Nu</option>
-                <option value="Other">Khac</option>
+                <option value="Female">Nữ</option>
+                <option value="Other">Khác</option>
               </select>
             </label>
             <label>
-              Ngay sinh
+              Ngày sinh
               <input
                 type="date"
                 name="dob"
@@ -234,14 +234,14 @@ function StaffRegister() {
           </label>
 
           <label>
-            Tinh/Thanh pho
+            Tỉnh/Thành phố
             <select
               name="address.province"
               value={formData.address.province}
               onChange={handleProvinceChange}
               required
             >
-              <option value="">--Chon tinh/thanh pho--</option>
+              <option value="">--Chọn tỉnh/thành phố--</option>
               {provinces.map((province) => (
                 <option key={province.code} value={province.code}>
                   {province.name}
@@ -252,7 +252,7 @@ function StaffRegister() {
 
           <div className="staff-register-grid two">
             <label>
-              Quan/Huyen
+              Quận/Huyện
               <select
                 name="address.district"
                 value={formData.address.district}
@@ -260,7 +260,7 @@ function StaffRegister() {
                 disabled={!formData.address.province}
                 required
               >
-                <option value="">--Chon quan/huyen--</option>
+                <option value="">--Chọn quận/huyện--</option>
                 {districts.map((district) => (
                   <option key={district.code} value={district.code}>
                     {district.name}
@@ -269,7 +269,7 @@ function StaffRegister() {
               </select>
             </label>
             <label>
-              Phuong/Xa
+              Phường/Xã
               <select
                 name="address.ward"
                 value={formData.address.ward}
@@ -277,7 +277,7 @@ function StaffRegister() {
                 disabled={!formData.address.district}
                 required
               >
-                <option value="">--Chon phuong/xa--</option>
+                <option value="">--Chọn phường/xã--</option>
                 {wards.map((ward) => (
                   <option key={ward.code} value={ward.code}>
                     {ward.name}
@@ -288,7 +288,7 @@ function StaffRegister() {
           </div>
 
           <label>
-            So nha/Duong
+            Số nhà/Đường
             <input
               type="text"
               name="address.street"
@@ -299,12 +299,12 @@ function StaffRegister() {
           </label>
 
           <button type="submit" disabled={loading}>
-            {loading ? "Dang gui..." : "Gui yeu cau dang ky"}
+            {loading ? "Đang gửi..." : "Gửi yêu cầu đăng ký"}
           </button>
         </form>
 
         <div className="staff-register-footer">
-          <Link to="/staff-login">Da co tai khoan? Dang nhap staff</Link>
+          <Link to="/staff-login">Đã có tài khoản? Đăng nhập staff</Link>
         </div>
       </div>
     </div>

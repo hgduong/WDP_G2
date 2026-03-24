@@ -8,6 +8,9 @@ const {
   deleteStaff,
   updateStaffStatus,
   changeStaffPassword,
+  getStaffBookingShowtimes,
+  getSeatMapForStaffBooking,
+  createStaffBooking,
 } = require("../controllers/staff.controller");
 const {
   authenticateToken,
@@ -16,6 +19,7 @@ const {
 
 const router = express.Router();
 const adminStaffRouter = express.Router();
+const staffBookingRouter = express.Router();
 
 // Public staff registration
 router.post("/staff/register", registerStaff);
@@ -23,6 +27,9 @@ router.post("/staff/register", registerStaff);
 // Admin-only staff management
 adminStaffRouter.use(authenticateToken);
 adminStaffRouter.use(authorizeRoles(["Admin"]));
+
+staffBookingRouter.use(authenticateToken);
+staffBookingRouter.use(authorizeRoles(["Admin", "Staff"]));
 
 adminStaffRouter.get("/staffs", getAllStaff);
 adminStaffRouter.get("/staffs/:id", getStaffById);
@@ -32,9 +39,14 @@ adminStaffRouter.delete("/staffs/:id", deleteStaff);
 adminStaffRouter.patch("/staffs/:id/status", updateStaffStatus);
 adminStaffRouter.post("/staffs/:id/change-password", changeStaffPassword);
 
+staffBookingRouter.get("/staff/bookings/showtimes", getStaffBookingShowtimes);
+staffBookingRouter.get("/staff/bookings/showtimes/:showtimeId/seats", getSeatMapForStaffBooking);
+staffBookingRouter.post("/staff/bookings", createStaffBooking);
+
 // Backward-compatible alias for older frontend calls
 adminStaffRouter.patch("/staffs/:id/password", changeStaffPassword);
 
 router.use(adminStaffRouter);
+router.use(staffBookingRouter);
 
 module.exports = router;
