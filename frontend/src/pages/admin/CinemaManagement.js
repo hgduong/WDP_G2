@@ -117,12 +117,35 @@ const CinemaManagement = () => {
     }
   };
 
-  // Lấy phim đang chiếu trong phòng
-  const getMovieForRoom = (roomId) => {
-    const activeShowtime = cinemaShowtimes.find(st => 
-      st.roomId?._id === roomId || st.roomId === roomId
-    );
-    return activeShowtime?.movieId || null;
+  // Lấy danh sách movieId đã được chọn bởi các phòng khác
+  const getAssignedMovieIds = (currentRoomId) => {
+    const assignedIds = [];
+    cinemaRooms.forEach(room => {
+      // Khi thêm mới (currentRoomId là null/undefined), lấy tất cả các phòng có movie
+      // Khi sửa, bỏ qua phòng hiện tại
+      if (currentRoomId === null || currentRoomId === undefined) {
+        if (room.movieId) {
+          assignedIds.push(room.movieId);
+        }
+      } else if (room._id !== currentRoomId && room.movieId) {
+        assignedIds.push(room.movieId);
+      }
+    });
+    return assignedIds;
+  };
+
+  // Lọc movies để loại trừ phim đã được chọn bởi phòng khác
+  const getAvailableMovies = (currentRoomId) => {
+    const assignedIds = getAssignedMovieIds(currentRoomId);
+    return movies.filter(movie => !assignedIds.includes(movie._id));
+  };
+
+  // Lấy phim đang chiếu trong phòng - từ movieId trong room
+  const getMovieForRoom = (room) => {
+    const movieId = room.movieId;
+    if (!movieId) return null;
+    if (typeof movieId === 'object') return movieId;
+    return movies.find(m => m._id === movieId) || null;
   };
 
   const handleCinemaInputChange = (e) => {
@@ -227,7 +250,11 @@ const CinemaManagement = () => {
         type: roomFormData.type,
         timeSlots: roomFormData.timeSlots || [],
         description: roomFormData.description,
-        status: roomFormData.status
+        status: roomFormData.status,
+        // Lưu thông tin phim đang chiếu trực tiếp vào room
+        movieId: roomFormData.movieId || null,
+        startTime: roomFormData.startTime || null,
+        price: roomFormData.price ? parseInt(roomFormData.price) : null
       };
       
       let savedRoom;
@@ -239,20 +266,7 @@ const CinemaManagement = () => {
         toast.success('Thêm phòng chiếu mới thành công!');
       }
       
-      // Tạo showtime nếu có chọn phim
-      if (roomFormData.movieId && roomFormData.startTime && roomFormData.price) {
-        const showtimeData = {
-          movieId: roomFormData.movieId,
-          cinemasId: roomFormData.cinemaId,
-          roomId: savedRoom._id,
-          startTime: roomFormData.startTime,
-          price: parseInt(roomFormData.price),
-          language: 'Tiếng Việt'
-        };
-        await createShowtime(showtimeData);
-        toast.success('Tạo lịch chiếu thành công!');
-      }
-      
+      // Refresh rooms to show updated data
       await fetchRooms(roomFormData.cinemaId);
       closeRoomModal();
     } catch (err) {
@@ -276,16 +290,15 @@ const CinemaManagement = () => {
   };
 
   const handleEditRoom = (room) => {
-    const currentMovie = getMovieForRoom(room._id);
     setEditingRoom(room);
     setRoomFormData({
       cinemaId: room.cinemaId || selectedCinema._id,
       name: room.name || '',
       capacity: room.capacity || '',
       type: room.type || 'Standard',
-      movieId: currentMovie?._id || '',
-      startTime: '',
-      price: '',
+      movieId: room.movieId || '',
+      startTime: room.startTime || '',
+      price: room.price || '',
       timeSlots: room.timeSlots || [],
       description: room.description || '',
       status: room.status || 'Active'
@@ -412,7 +425,6 @@ const CinemaManagement = () => {
                   <th>Tên phòng</th>
                   <th>Loại phòng</th>
                   <th>Số ghế</th>
-                  <th>Khung giờ</th>
                   <th>Phim đang chiếu</th>
                   <th>Trạng thái</th>
                   <th>Thao tác</th>
@@ -420,7 +432,7 @@ const CinemaManagement = () => {
               </thead>
               <tbody>
                 {cinemaRooms.map((room, index) => {
-                  const movie = getMovieForRoom(room._id);
+                  const movie = getMovieForRoom(room);
                   return (
                   <tr key={room._id}>
                     <td>{index + 1}</td>
@@ -428,32 +440,16 @@ const CinemaManagement = () => {
                     <td>{getRoomTypeBadge(room.type)}</td>
                     <td>{room.capacity}</td>
                     <td>
-                      <div className="time-slots-display">
-                        {room.timeSlots && room.timeSlots.length > 0 ? (
-                          room.timeSlots.map((slot, idx) => (
-                            <span key={idx} className="time-slot-badge">{slot}</span>
-                          ))
-                        ) : (
-                          <span className="no-time-slots">Chưa set</span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
                       {movie ? (
-                        <span className="movie-playing">{movie.title}</span>
+                        <span className="movie-playing">
+                          {typeof movie === 'object' && movie.title ? movie.title : 'Phim đã xóa'}
+                        </span>
                       ) : (
                         <span className="no-movie">Chưa có phim</span>
                       )}
                     </td>
                     <td>{getStatusBadge(room.status)}</td>
                     <td>
-                      <button 
-                        className="btn btn-sm btn-time"
-                        onClick={() => handleEditTimeSlots(room)}
-                        title="Quản lý khung giờ"
-                      >
-                        Giờ
-                      </button>
                       <button 
                         className="btn btn-sm btn-edit"
                         onClick={() => handleEditRoom(room)}
@@ -471,7 +467,7 @@ const CinemaManagement = () => {
                 )})}
                 {cinemaRooms.length === 0 && (
                   <tr>
-                    <td colSpan="8" className="no-data">Không có phòng nào</td>
+                    <td colSpan="7" className="no-data">Không có phòng nào</td>
                   </tr>
                 )}
               </tbody>
@@ -622,33 +618,12 @@ const CinemaManagement = () => {
                 <div className="form-group">
                   <label>Chọn phim</label>
                   <select name="movieId" value={roomFormData.movieId} onChange={handleRoomInputChange}>
-                    <option value="">-- Không có phim --</option>
-                    {movies.map(movie => (
+                    <option value="">-- Chưa có phim --</option>
+                    {getAvailableMovies(editingRoom ? editingRoom._id : null).map(movie => (
                       <option key={movie._id} value={movie._id}>{movie.title}</option>
                     ))}
                   </select>
                 </div>
-                <div className="form-group">
-                  <label>Giờ chiếu</label>
-                  <input
-                    type="datetime-local"
-                    name="startTime"
-                    value={roomFormData.startTime}
-                    onChange={handleRoomInputChange}
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Giá vé (VNĐ)</label>
-                <input
-                  type="number"
-                  name="price"
-                  value={roomFormData.price}
-                  onChange={handleRoomInputChange}
-                  placeholder="VD: 75000"
-                  min="0"
-                />
               </div>
 
               <div className="form-group">
