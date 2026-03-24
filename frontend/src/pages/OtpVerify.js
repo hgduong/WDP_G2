@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { sendOtp, verifyOtp } from "../services/api";
 import { toast } from "react-toastify";
+import { UserContext } from "../context/UserContext";
 import "../assets/styles/OtpVerify.css";
 
 function OtpVerify() {
@@ -11,6 +12,7 @@ function OtpVerify() {
   const [otpError, setOtpError] = useState("");
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const userContext = React.useContext(UserContext);
   
   // Ưu tiên lấy từ state, nếu không có thì lấy từ query params
   const email = location.state?.email || searchParams.get("email");
@@ -86,10 +88,26 @@ function OtpVerify() {
       toast.success(res.data.message);
       setMessage(res.data.message);
       setOtpError("");
-      // Redirect to login after 2 seconds
-      setTimeout(() => {
-        navigate("/login", { replace: true });
-      }, 1000);
+      
+      // Nếu là adminLogin, chuyển hướng đến admin dashboard
+      if (purpose === "adminLogin") {
+        // Lưu user vào context nếu có và chuyển hướng
+        if (res.data.user && userContext) {
+          userContext.login(res.data.user, () => {
+            navigate("/admin/dashboard", { replace: true });
+          });
+        } else {
+          // Nếu không có context, vẫn chuyển hướng (JWT đã được set trong cookie)
+          setTimeout(() => {
+            navigate("/admin/dashboard", { replace: true });
+          }, 1000);
+        }
+      } else {
+        // Redirect to login after 2 seconds
+        setTimeout(() => {
+          navigate("/login", { replace: true });
+        }, 1000);
+      }
     } catch (err) {
       setOtpError(
         err.response?.data?.error || "OTP không đúng hoặc đã hết hạn",

@@ -257,6 +257,50 @@ exports.verifyOtp = async (req, res) => {
       return res.json({ message: "Xác thực thành công, hãy kiểm tra email để đặt lại mật khẩu" });
     }
 
+    if (purpose === "adminLogin") {
+      // Trường hợp admin đăng nhập → xác thực OTP và tạo JWT
+      if (user.role !== "Admin") {
+        return res.status(403).json({ error: "Tài khoản không phải Admin" });
+      }
+
+      // Xóa OTP sau khi xác thực thành công
+      user.otpCode = null;
+      user.otpExpires = null;
+      await user.save();
+
+      // Tạo JWT cho admin
+      const token = jwt.sign(
+        {
+          id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role,
+          avatarUrl: user.avatarUrl || null,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "1d" },
+      );
+
+      // Gửi JWT dưới dạng HttpOnly cookie
+      res.cookie("jwt", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 24 * 60 * 60 * 1000, // 1 ngày
+      });
+
+      return res.status(200).json({
+        message: "Đăng nhập Admin thành công",
+        user: {
+          id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role,
+          avatarUrl: user.avatarUrl || null,
+        },
+      });
+    }
+
     return res.status(400).json({ error: "Purpose không hợp lệ" });
   } catch (error) {
     console.error("Verify OTP Error:", error);
@@ -425,10 +469,48 @@ exports.resetPassword = async (req, res) => {
 const loginWithLocalStrategy = (req, res, next, options = {}) => {
   const { staffOnly = false } = options;
 
-  passport.authenticate("local", { session: false }, (err, user, info) => {
+  passport.authenticate("local", { session: false }, async (err, user, info) => {
     if (err) {
       return res.status(500).json({ message: "Lỗi server", error: err });
     }
+    
+    // Nếu info có requireOtp (ví dụ: Admin cần xác thực OTP)
+    if (!user && info?.requireOtp) {
+      const { email } = req.body;
+      
+      // Tìm user để gửi OTP
+      const foundUser = await User.findOne({ email });
+      if (foundUser) {
+        // Kiểm tra thời gian gửi OTP gần nhất
+        if (
+          foundUser.lastOtpSentAt &&
+          Date.now() - foundUser.lastOtpSentAt.getTime() < 60 * 1000
+        ) {
+          return res.status(400).json({ 
+            message: "Bạn chỉ có thể gửi lại OTP sau 60 giây" 
+          });
+        }
+        
+        // Sinh OTP mới
+        const otp = generateOTP();
+        foundUser.otpCode = otp;
+        foundUser.otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 phút
+        foundUser.lastOtpSentAt = new Date();
+        await foundUser.save();
+        
+        // Gửi email OTP
+        const transporter = createSmtpTransporter();
+        await transporter.sendMail({
+          from: process.env.SMTP_USER,
+          to: foundUser.email,
+          subject: "Mã xác thực OTP đăng nhập Admin",
+          text: `Xin chào ${foundUser.fullName},\n\nMã OTP đăng nhập Admin của bạn là: ${otp}\nMã này sẽ hết hạn sau 5 phút.\n\nTrân trọng.`,
+        });
+      }
+      
+      return res.status(401).json(info);
+    }
+    
     if (!user) {
       // info chứa message từ strategy (VD: sai mật khẩu, chưa kích hoạt)
       return res.status(401).json(info);
