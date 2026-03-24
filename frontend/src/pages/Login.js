@@ -44,7 +44,19 @@ function Login() {
         }, 100);
       }
     } catch (err) {
-      toast.error("Đăng nhập thất bại: " + err.message);
+      // Xử lý error từ api.js (có thể là response data hoặc full axios error)
+      const errorData = err.response?.data || err;
+      const errorMessage = errorData?.message || err.message || "Đăng nhập thất bại";
+      
+      // Nếu requireOtp = true, chuyển hướng đến trang xác thực OTP
+      if (errorData?.requireOtp) {
+        toast.info(errorMessage);
+        // Chuyển hướng ngay lập tức
+        window.location.href = "/otp_verify?email=" + encodeURIComponent(username) + "&purpose=register";
+        return;
+      }
+      
+      toast.error(errorMessage);
     }
   };
 

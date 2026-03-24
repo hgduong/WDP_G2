@@ -6,6 +6,7 @@ import {
   deleteMovie 
 } from '../../services/api';
 import { getImageUrl } from '../../utils/imageUtils';
+import { toast } from 'react-toastify';
 import './AdminManagement.css';
 
 const GENRES = [
@@ -14,11 +15,24 @@ const GENRES = [
   'Crime', 'Mystery', 'Family', 'Musical', 'War', 'Western'
 ];
 
+// Format date as dd/mm/yyyy
+const formatDate = (date) => {
+  if (!date) return '';
+  const d = new Date(date);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
 const MovieManagement = () => {
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingMovieId, setDeletingMovieId] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editingMovie, setEditingMovie] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
@@ -109,10 +123,24 @@ const MovieManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate endDate must be after releaseDate
+    if (formData.releaseDate && formData.endDate) {
+      const release = new Date(formData.releaseDate);
+      const end = new Date(formData.endDate);
+      
+      if (end < release) {
+        const releaseStr = formatDate(formData.releaseDate);
+        const endStr = formatDate(formData.endDate);
+        toast.error(`Ngày kết thúc (${endStr}) phải sau ngày khởi chiếu (${releaseStr})`);
+        return;
+      }
+    }
+    
     try {
       // Sử dụng status tự động tính toán
       const autoStatus = calculateStatus();
-      
+       
       const movieData = {
         ...formData,
         status: autoStatus,
@@ -122,14 +150,17 @@ const MovieManagement = () => {
 
       if (editingMovie) {
         await updateMovie(editingMovie._id, movieData);
+        toast.success('Cập nhật phim thành công!');
       } else {
         await createMovie(movieData);
+        toast.success('Thêm phim mới thành công!');
       }
       
       await fetchMovies();
       closeModal();
     } catch (err) {
-      setError(err.message || 'Failed to save movie');
+      const errorMsg = err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi lưu phim';
+      toast.error(errorMsg);
     }
   };
 
@@ -153,15 +184,33 @@ const MovieManagement = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this movie?')) return;
+  const handleDeleteClick = (id) => {
+    setDeletingMovieId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingMovieId || isDeleting) return;
+    
+    setIsDeleting(true);
     
     try {
-      await deleteMovie(id);
+      await deleteMovie(deletingMovieId);
       await fetchMovies();
+      toast.success('Xóa phim thành công!');
     } catch (err) {
-      setError(err.message || 'Failed to delete movie');
+      const errorMsg = err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi xóa phim';
+      toast.error(errorMsg);
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeletingMovieId(null);
+      setIsDeleting(false);
     }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setDeletingMovieId(null);
   };
 
   const openAddModal = () => {
@@ -263,7 +312,7 @@ const MovieManagement = () => {
                   </button>
                   <button 
                     className="btn btn-sm btn-delete"
-                    onClick={() => handleDelete(movie._id)}
+                    onClick={() => handleDeleteClick(movie._id)}
                   >
                     Xóa
                   </button>
@@ -451,6 +500,42 @@ const MovieManagement = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={isDeleting ? undefined : cancelDelete}>
+          <div 
+            className={`modal-content modal-small ${isDeleting ? 'deleting' : ''}`} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3>Xác nhận xóa</h3>
+              <button className="modal-close" onClick={cancelDelete}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p>Bạn có chắc chắn muốn xóa phim này không?</p>
+              <p className="text-muted">Hành động này không thể hoàn tác.</p>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={cancelDelete}>
+                Hủy
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-danger" 
+                onClick={confirmDelete} 
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <span>
+                    <span className="spinner"></span> Đang xóa...
+                  </span>
+                ) : 'Xóa'}
+              </button>
+            </div>
           </div>
         </div>
       )}

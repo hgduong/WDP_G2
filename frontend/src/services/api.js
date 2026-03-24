@@ -21,7 +21,7 @@ export const loginUser = async (credentials) => {
     const res = await API.post("/login", credentials);
     return res;
   } catch (error) {
-    throw error.response?.data || error;
+    throw error; // Throw full error để Access all properties
   }
 };
 

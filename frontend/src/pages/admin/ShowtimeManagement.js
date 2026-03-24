@@ -7,6 +7,7 @@ import {
   getAllMovies,
   getRoomsByCinema
 } from '../../services/api';
+import { toast } from 'react-toastify';
 import './AdminManagement.css';
 
 // ID của rạp Time Cinemas
@@ -24,7 +25,6 @@ const ShowtimeManagement = () => {
   const [editingGroup, setEditingGroup] = useState(null);
   const [existingShowtimes, setExistingShowtimes] = useState([]);
   const [editSelectedSlots, setEditSelectedSlots] = useState([]);
-  const [editDate, setEditDate] = useState('');
   const [editGeneratedSlots, setEditGeneratedSlots] = useState([]);
   const [editFormData, setEditFormData] = useState({
     movieId: '',
@@ -35,12 +35,65 @@ const ShowtimeManagement = () => {
   });
   const [filterMovie, setFilterMovie] = useState('');
   
+  // Delete confirmation modal states
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingShowtimeId, setDeletingShowtimeId] = useState(null);
+  const [deletingShowtimeIds, setDeletingShowtimeIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Handle actual delete after confirmation
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      for (const id of deletingShowtimeIds) {
+        await deleteShowtime(id);
+      }
+      await fetchData();
+      toast.success('Xóa suất chiếu thành công!');
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete showtime');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+      setDeletingShowtimeId(null);
+      setDeletingShowtimeIds([]);
+    }
+  };
+
+  const closeDeleteConfirm = () => {
+    setShowDeleteConfirm(false);
+    setDeletingShowtimeId(null);
+    setDeletingShowtimeIds([]);
+  };
+  
   // State for multi-showtime creation
   const [selectedMovie, setSelectedMovie] = useState('');
   const [selectedRoom, setSelectedRoom] = useState('');
-  const [selectedDate, setSelectedDate] = useState('');
   const [generatedSlots, setGeneratedSlots] = useState([]);
   const [selectedSlots, setSelectedSlots] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Get movies that already have showtimes created
+  const getMoviesWithShowtimes = () => {
+    const movieIds = new Set();
+    showtimes.forEach(showtime => {
+      const movieId = showtime.movieId?._id || showtime.movieId;
+      if (movieId) movieIds.add(movieId);
+    });
+    return movieIds;
+  };
+
+  // Filter movies that don't have showtimes yet
+  const getAvailableMovies = () => {
+    const moviesWithShowtimes = getMoviesWithShowtimes();
+    return movies.filter(movie => !moviesWithShowtimes.has(movie._id));
+  };
+
+  // Get rooms that have the selected movie assigned (from CinemaManagement)
+  const getRoomsWithMovie = (movieId) => {
+    return rooms.filter(room => room.movieId === movieId);
+  };
 
   useEffect(() => {
     fetchData();
@@ -68,29 +121,31 @@ const ShowtimeManagement = () => {
 
   // Generate time slots based on movie duration
   const generateTimeSlots = () => {
-    if (!selectedMovie || !selectedDate) {
-      alert('Vui lòng chọn phim và ngày chiếu');
+    if (!selectedMovie || !selectedRoom) {
+      toast.warning('Vui lòng chọn phim và phòng');
       return;
     }
 
     const movie = movies.find(m => m._id === selectedMovie);
     if (!movie?.duration) {
-      alert('Phim không có thời lượng');
+      toast.warning('Phim không có thời lượng. Vui lòng cập nhật thời lượng phim trong Quản lý Phim');
       return;
     }
 
-    const duration = movie.duration; // minutes
-    const dateObj = new Date(selectedDate);
+    const duration = movie.duration;
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+
     const slots = [];
-    
-    // Start from 7:00 AM (opening time)
-    let currentHour = 7;
+    let currentHour = 7; // Start from 7:00 AM
     let currentMinute = 0;
     let showCount = 0;
 
-    // Generate slots throughout the day until 22:00
+    // Generate slots until 22:00
     while (currentHour < 22) {
-      // Round current minute to nearest 5
       const roundedMinute = Math.round(currentMinute / 5) * 5;
       let adjustedHour = currentHour;
       let adjustedMinute = roundedMinute;
@@ -98,15 +153,15 @@ const ShowtimeManagement = () => {
         adjustedHour += 1;
         adjustedMinute -= 60;
       }
-      
-      const slotTime = new Date(dateObj);
+
+      const slotTime = new Date(dateStr);
       slotTime.setHours(adjustedHour, adjustedMinute, 0, 0);
-      
-      // Calculate end time
+
+      // Calculate break time: 45 min after odd shows, 15 min otherwise
       const breakTime = (showCount > 0 && showCount % 2 === 1) ? 45 : 15;
       const endTime = new Date(slotTime.getTime() + (duration + breakTime) * 60000);
-      
-      // Only add if end time is before 23:00
+
+      // Only add if end time before 23:00
       if (endTime.getHours() < 23 || (endTime.getHours() === 23 && endTime.getMinutes() === 0)) {
         slots.push({
           startTime: slotTime.toISOString(),
@@ -116,7 +171,7 @@ const ShowtimeManagement = () => {
         });
         showCount++;
       }
-      
+
       // Move to next slot
       currentMinute += duration + breakTime;
       while (currentMinute >= 60) {
@@ -140,9 +195,13 @@ const ShowtimeManagement = () => {
 
   const handleSaveShowtimes = async () => {
     if (!selectedMovie || !selectedRoom || selectedSlots.length === 0) {
-      alert('Vui lòng chọn phim, phòng và ít nhất 1 khung giờ');
+      toast.warning('Vui lòng chọn phim, phòng và ít nhất 1 khung giờ');
       return;
     }
+
+    // Prevent multiple clicks
+    if (isSaving) return;
+    setIsSaving(true);
 
     try {
       // Create showtime for each selected slot
@@ -160,21 +219,18 @@ const ShowtimeManagement = () => {
       
       await fetchData();
       closeModal();
-      alert(`Đã thêm ${selectedSlots.length} suất chiếu thành công!`);
+      toast.success(`Đã thêm ${selectedSlots.length} suất chiếu thành công!`);
     } catch (err) {
-      setError(err.message || 'Failed to save showtimes');
+      toast.error(err.message || 'Failed to save showtimes');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Bạn có chắc muốn xóa suất chiếu này?')) return;
-    
-    try {
-      await deleteShowtime(id);
-      await fetchData();
-    } catch (err) {
-      setError(err.message || 'Failed to delete showtime');
-    }
+    setDeletingShowtimeId(id);
+    setDeletingShowtimeIds([id]);
+    setShowDeleteConfirm(true);
   };
 
   const closeModal = () => {
@@ -182,9 +238,9 @@ const ShowtimeManagement = () => {
     setEditingShowtime(null);
     setSelectedMovie('');
     setSelectedRoom('');
-    setSelectedDate('');
     setGeneratedSlots([]);
     setSelectedSlots([]);
+    setIsSaving(false);
   };
 
   const filteredShowtimes = showtimes.filter(showtime => {
@@ -219,16 +275,9 @@ const ShowtimeManagement = () => {
   };
 
   const handleDeleteGroup = async (showtimesToDelete) => {
-    if (!window.confirm(`Bạn có chắc muốn xóa ${showtimesToDelete.length} suất chiếu này?`)) return;
-    
-    try {
-      for (const showtime of showtimesToDelete) {
-        await deleteShowtime(showtime._id);
-      }
-      await fetchData();
-    } catch (err) {
-      setError(err.message || 'Failed to delete showtimes');
-    }
+    setDeletingShowtimeIds(showtimesToDelete.map(s => s._id));
+    setDeletingShowtimeId(null);
+    setShowDeleteConfirm(true);
   };
 
   const handleEdit = (group) => {
@@ -237,11 +286,6 @@ const ShowtimeManagement = () => {
     setExistingShowtimes(group.showtimes);
     setEditSelectedSlots(group.showtimes.map(s => ({ startTime: s.startTime, _id: s._id })));
     
-    // Set date to the first showtime's date
-    const firstShowtimeDate = group.showtimes[0]?.startTime 
-      ? new Date(group.showtimes[0].startTime).toISOString().split('T')[0]
-      : '';
-    setEditDate(firstShowtimeDate);
     setEditGeneratedSlots([]);
     
     setEditFormData({
@@ -254,28 +298,32 @@ const ShowtimeManagement = () => {
     setShowEditModal(true);
   };
 
-  // Generate time slots for edit modal
+  // Generate time slots based on movie duration for edit modal
   const generateEditTimeSlots = () => {
-    if (!editFormData.movieId || !editDate) {
-      alert('Vui lòng chọn phim và ngày chiếu');
+    if (!editFormData.movieId || !editFormData.roomId) {
+      toast.warning('Vui lòng chọn phim và phòng');
       return;
     }
 
     const movie = movies.find(m => m._id === editFormData.movieId);
     if (!movie?.duration) {
-      alert('Phim không có thời lượng');
+      toast.warning('Phim không có thời lượng');
       return;
     }
 
     const duration = movie.duration;
-    const dateObj = new Date(editDate);
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+
     const slots = [];
     let currentHour = 7;
     let currentMinute = 0;
     let showCount = 0;
 
     while (currentHour < 22) {
-      // Round current minute to nearest 5
       const roundedMinute = Math.round(currentMinute / 5) * 5;
       let adjustedHour = currentHour;
       let adjustedMinute = roundedMinute;
@@ -283,26 +331,22 @@ const ShowtimeManagement = () => {
         adjustedHour += 1;
         adjustedMinute -= 60;
       }
-      
-      const slotTime = new Date(dateObj);
+
+      const slotTime = new Date(dateStr);
       slotTime.setHours(adjustedHour, adjustedMinute, 0, 0);
 
-      const endTime = new Date(slotTime);
-      endTime.setMinutes(endTime.getMinutes() + duration);
+      const breakTime = (showCount > 0 && showCount % 2 === 1) ? 45 : 15;
+      const endTime = new Date(slotTime.getTime() + (duration + breakTime) * 60000);
 
-      // Calculate break time based on show count
-      let breakTime = 15;
-      if (showCount >= 2) {
-        breakTime = 45;
+      if (endTime.getHours() < 23 || (endTime.getHours() === 23 && endTime.getMinutes() === 0)) {
+        slots.push({
+          startTime: slotTime.toISOString(),
+          endTime: endTime.toISOString(),
+          movieDuration: duration,
+          breakTime: breakTime
+        });
+        showCount++;
       }
-
-      slots.push({
-        startTime: slotTime.toISOString(),
-        endTime: endTime.toISOString(),
-        movieDuration: duration,
-        breakTime: breakTime
-      });
-      showCount++;
 
       currentMinute += duration + breakTime;
       while (currentMinute >= 60) {
@@ -333,6 +377,11 @@ const ShowtimeManagement = () => {
 
   const handleUpdateShowtime = async (e) => {
     e.preventDefault();
+    
+    // Prevent multiple clicks
+    if (isUpdating) return;
+    setIsUpdating(true);
+    
     try {
       // Find showtimes to delete (existing ones not in selectedSlots)
       const existingIds = existingShowtimes.map(s => s._id);
@@ -377,23 +426,18 @@ const ShowtimeManagement = () => {
       setEditingGroup(null);
       setExistingShowtimes([]);
       setEditSelectedSlots([]);
+      toast.success('Cập nhật lịch chiếu thành công!');
     } catch (err) {
-      setError(err.message || 'Failed to update showtimes');
+      toast.error(err.message || 'Failed to update showtimes');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
   const handleDeleteAllEdit = async () => {
-    if (!window.confirm(`Bạn có chắc muốn xóa tất cả suất chiếu của ${editingGroup?.movieId?.title}?`)) return;
-    try {
-      for (const showtime of existingShowtimes) {
-        await deleteShowtime(showtime._id);
-      }
-      await fetchData();
-      setShowEditModal(false);
-      setEditingGroup(null);
-    } catch (err) {
-      setError(err.message || 'Failed to delete showtimes');
-    }
+    setDeletingShowtimeIds(existingShowtimes.map(s => s._id));
+    setDeletingShowtimeId(null);
+    setShowDeleteConfirm(true);
   };
 
   const closeEditModal = () => {
@@ -401,8 +445,8 @@ const ShowtimeManagement = () => {
     setEditingGroup(null);
     setExistingShowtimes([]);
     setEditSelectedSlots([]);
-    setEditDate('');
     setEditGeneratedSlots([]);
+    setIsUpdating(false);
   };
 
   const getStatusBadge = (status) => {
@@ -563,59 +607,111 @@ const ShowtimeManagement = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label>Chọn phim *</label>
-                  <select
-                    value={selectedMovie}
-                    onChange={(e) => {
-                      setSelectedMovie(e.target.value);
-                      setGeneratedSlots([]);
-                      setSelectedSlots([]);
-                    }}
-                    required
-                  >
-                    <option value="">Chọn phim</option>
-                    {movies.map(movie => (
-                      <option key={movie._id} value={movie._id}>
-                        {movie.title} {movie.duration ? `(${movie.duration} phút)` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Chọn phòng *</label>
-                  <select
-                    value={selectedRoom}
-                    onChange={(e) => {
-                      setSelectedRoom(e.target.value);
-                      setGeneratedSlots([]);
-                      setSelectedSlots([]);
-                    }}
-                    required
-                  >
-                    <option value="">Chọn phòng</option>
-                    {rooms.map(room => (
-                      <option key={room._id} value={room._id}>
-                        {room.name} ({room.type} - {room.capacity} ghế)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Ngày chiếu *</label>
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => {
-                      setSelectedDate(e.target.value);
-                      setGeneratedSlots([]);
-                      setSelectedSlots([]);
-                    }}
-                    required
-                  />
+                  {getAvailableMovies().length === 0 ? (
+                    <div style={{
+                      padding: '15px',
+                      background: '#fff3cd',
+                      border: '1px solid #ffc107',
+                      borderRadius: '8px',
+                      color: '#856404'
+                    }}>
+                      ⚠️ Tất cả các phim đã có suất chiếu. Vui lòng xóa suất chiếu cũ nếu muốn tạo mới.
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedMovie}
+                      onChange={(e) => {
+                        setSelectedMovie(e.target.value);
+                        setSelectedRoom('');
+                        setGeneratedSlots([]);
+                        setSelectedSlots([]);
+                      }}
+                      required
+                    >
+                      <option value="">Chọn phim</option>
+                      {getAvailableMovies().map(movie => (
+                        <option key={movie._id} value={movie._id}>
+                          {movie.title} {movie.duration ? `(${movie.duration} phút)` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 
+              {/* Show rooms as clickable cards */}
+              {selectedMovie && getAvailableMovies().length > 0 && (
+                <div className="rooms-display">
+                  <label style={{display: 'block', marginBottom: '10px', fontWeight: '500'}}>
+                    Chọn phòng chiếu:
+                  </label>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                    gap: '15px',
+                    marginBottom: '15px'
+                  }}>
+                    {getRoomsWithMovie(selectedMovie).map(room => (
+                      <div
+                        key={room._id}
+                        onClick={() => {
+                          setSelectedRoom(room._id);
+                          setGeneratedSlots([]);
+                          setSelectedSlots([]);
+                        }}
+                        style={{
+                          padding: '15px',
+                          border: selectedRoom === room._id ? '3px solid #28a745' : '1px solid #dee2e6',
+                          borderRadius: '8px',
+                          background: selectedRoom === room._id ? '#d4edda' : '#fff',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{fontWeight: 'bold', fontSize: '16px'}}>{room.name}</div>
+                        <div style={{color: '#666', fontSize: '13px'}}>{room.type} - {room.capacity} ghế</div>
+                      </div>
+                    ))}
+                    {getRoomsWithMovie(selectedMovie).length === 0 && (
+                      <div style={{
+                        gridColumn: '1 / -1',
+                        padding: '20px',
+                        textAlign: 'center',
+                        color: '#dc3545',
+                        background: '#fff5f5',
+                        borderRadius: '8px',
+                        border: '1px solid #dc3545'
+                      }}>
+                        ⚠️ Chưa có phòng nào được gán cho phim này.
+                        <br/>
+                        Vui lòng gán phim trong "Quản lý Rạp & Phòng Chiếu"
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Show selected movie and room */}
+              {selectedMovie && getAvailableMovies().length > 0 && (
+                <div className="selected-info" style={{
+                  background: '#e7f3ff',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  marginBottom: '15px',
+                  border: '1px solid #b3d7ff'
+                }}>
+                  <p style={{margin: 0, color: '#0056b3'}}>
+                    <strong>Phim:</strong> {movies.find(m => m._id === selectedMovie)?.title}
+                    {selectedRoom && <span> | <strong>Phòng chiếu:</strong> {rooms.find(r => r._id === selectedRoom)?.name}</span>}
+                    {!selectedRoom && getRoomsWithMovie(selectedMovie).length === 0 && 
+                      <span style={{color: '#dc3545'}}> | Chưa có phòng được gán cho phim này</span>}
+                  </p>
+                </div>
+              )}
+
               {/* Step 2: Generate and select time slots */}
-              {selectedMovie && selectedRoom && selectedDate && (
+              {selectedMovie && selectedRoom && getAvailableMovies().length > 0 && (
                 <div className="slots-section">
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
                     <h4>Chọn khung giờ chiếu</h4>
@@ -691,9 +787,9 @@ const ShowtimeManagement = () => {
                 type="button" 
                 className="btn btn-primary"
                 onClick={handleSaveShowtimes}
-                disabled={selectedSlots.length === 0}
+                disabled={selectedSlots.length === 0 || isSaving}
               >
-                Lưu ({selectedSlots.length}) suất chiếu
+                {isSaving ? 'Đang lưu...' : `Lưu (${selectedSlots.length}) suất chiếu`}
               </button>
             </div>
           </div>
@@ -747,22 +843,15 @@ const ShowtimeManagement = () => {
 
               {/* Thêm giờ mới */}
               <div className="form-group" style={{marginTop: '20px'}}>
-                <label>Thêm giờ chiếu mới:</label>
-                <div style={{display: 'flex', gap: '10px', marginTop: '10px'}}>
-                  <input
-                    type="date"
-                    value={editDate}
-                    onChange={(e) => setEditDate(e.target.value)}
-                    style={{padding: '8px', borderRadius: '5px', border: '1px solid #ddd'}}
-                  />
-                  <button 
-                    type="button" 
-                    className="btn btn-primary"
-                    onClick={generateEditTimeSlots}
-                  >
-                    🔄 Tạo khung giờ
-                  </button>
-                </div>
+                <label>Thêm giờ chiếu mới (từ khung giờ phòng):</label>
+                <button 
+                  type="button" 
+                  className="btn btn-primary"
+                  onClick={generateEditTimeSlots}
+                  style={{marginTop: '10px'}}
+                >
+                  🔄 Lấy khung giờ phòng
+                </button>
 
                 {editGeneratedSlots.length > 0 && (
                   <div className="slots-grid" style={{
@@ -833,7 +922,7 @@ const ShowtimeManagement = () => {
                     required
                   >
                     <option value="">-- Chọn phòng --</option>
-                    {rooms.map(room => (
+                    {getRoomsWithMovie(editFormData.movieId).map(room => (
                       <option key={room._id} value={room._id}>{room.name}</option>
                     ))}
                   </select>
@@ -893,12 +982,48 @@ const ShowtimeManagement = () => {
                     type="button" 
                     className="btn btn-primary"
                     onClick={handleUpdateShowtime}
-                    disabled={editSelectedSlots.length === 0}
+                    disabled={editSelectedSlots.length === 0 || isUpdating}
                   >
-                    Lưu ({editSelectedSlots.length})
+                    {isUpdating ? 'Đang lưu...' : `Lưu (${editSelectedSlots.length})`}
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={closeDeleteConfirm}>
+          <div className="modal-content delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Xác nhận xóa</h3>
+              <button className="modal-close" onClick={closeDeleteConfirm}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p>Bạn có chắc muốn xóa {deletingShowtimeIds.length} suất chiếu này?</p>
+              <p className="delete-warning">Lưu ý: Hành động này không thể hoàn tác!</p>
+            </div>
+            <div className="modal-actions">
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={closeDeleteConfirm}
+                disabled={isDeleting}
+              >
+                Hủy
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-danger" 
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <span className="delete-spinner"></span>
+                ) : 'Xóa'}
+              </button>
             </div>
           </div>
         </div>
