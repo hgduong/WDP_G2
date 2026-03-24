@@ -42,14 +42,14 @@ const Dashboard = () => {
 
   const menuItems = [
     {
-      title: "Quản lý Phim",
+      title: "Quản lý phim",
       description: "Thêm mới, cập nhật và xóa phim trong hệ thống.",
       icon: "PM",
       path: "/admin/movies",
       color: "#e50914",
     },
     {
-      title: "Quản lý Rạp & Phòng",
+      title: "Quản lý rạp và phòng",
       description: "Theo dõi rạp chiếu, phòng chiếu và cấu hình sử dụng.",
       icon: "RP",
       path: "/admin/cinemas",
@@ -70,7 +70,7 @@ const Dashboard = () => {
       color: "#6f42c1",
     },
     {
-      title: "Quản lý Nhân Viên",
+      title: "Quản lý nhân viên",
       description: "Xem danh sách, cập nhật trạng thái và đổi mật khẩu staff.",
       icon: "NV",
       path: "/admin/staffs",
@@ -150,13 +150,13 @@ const Dashboard = () => {
 
       <div className="info-section">
         <div className="info-card">
-          <h4>Goi y su dung</h4>
+          <h4>Gợi ý sử dụng</h4>
           <ul>
             <li>
-              <strong>Đăng ký Staff:</strong> ạo nhanh tài khoản staff mới từ form riêng.
+              <strong>Đăng ký staff:</strong> Tạo nhanh tài khoản staff mới từ form riêng.
             </li>
             <li>
-              <strong>Quản lý Nhân Viên:</strong> Xem danh sách, sửa thông tin và đổi mật khẩu.
+              <strong>Quản lý nhân viên:</strong> Xem danh sách, sửa thông tin và đổi mật khẩu.
             </li>
             <li>
               <strong>Lịch chiếu:</strong> Theo dõi suất chiếu và phối hợp với rạp.

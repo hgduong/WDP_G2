@@ -257,6 +257,50 @@ exports.verifyOtp = async (req, res) => {
       return res.json({ message: "Xác thực thành công, hãy kiểm tra email để đặt lại mật khẩu" });
     }
 
+    if (purpose === "adminLogin") {
+      // Trường hợp admin đăng nhập → xác thực OTP và tạo JWT
+      if (user.role !== "Admin") {
+        return res.status(403).json({ error: "Tài khoản không phải Admin" });
+      }
+
+      // Xóa OTP sau khi xác thực thành công
+      user.otpCode = null;
+      user.otpExpires = null;
+      await user.save();
+
+      // Tạo JWT cho admin
+      const token = jwt.sign(
+        {
+          id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role,
+          avatarUrl: user.avatarUrl || null,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "1d" },
+      );
+
+      // Gửi JWT dưới dạng HttpOnly cookie
+      res.cookie("jwt", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 24 * 60 * 60 * 1000, // 1 ngày
+      });
+
+      return res.status(200).json({
+        message: "Đăng nhập Admin thành công",
+        user: {
+          id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role,
+          avatarUrl: user.avatarUrl || null,
+        },
+      });
+    }
+
     return res.status(400).json({ error: "Purpose không hợp lệ" });
   } catch (error) {
     console.error("Verify OTP Error:", error);
@@ -269,38 +313,38 @@ exports.requestStaffLoginOtp = async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ message: "Email va mat khau la bat buoc" });
+      return res.status(400).json({ message: "Email và mật khẩu là bắt buộc" });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
     const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
-      return res.status(404).json({ message: "Khong tim thay tai khoan" });
+      return res.status(404).json({ message: "Không tìm thấy tài khoản" });
     }
 
     if (!STAFF_ALLOWED_ROLES.includes(user.role)) {
-      return res.status(403).json({ message: "Tai khoan khong thuoc khu vuc staff" });
+      return res.status(403).json({ message: "Tài khoản không thuộc khu vực staff" });
     }
 
     if (user.authProvider !== "local") {
-      return res.status(400).json({ message: "Tai khoan nay khong ho tro dang nhap OTP" });
+      return res.status(400).json({ message: "Tài khoản này không hỗ trợ đăng nhập OTP" });
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-      return res.status(401).json({ message: "Sai mat khau" });
+      return res.status(401).json({ message: "Sai mật khẩu" });
     }
 
     if (user.status !== "Active") {
-      return res.status(403).json({ message: "Tai khoan staff dang cho admin xac nhan" });
+      return res.status(403).json({ message: "Tài khoản staff đang chờ admin xác nhận" });
     }
 
     if (
       user.lastOtpSentAt &&
       Date.now() - user.lastOtpSentAt.getTime() < 60 * 1000
     ) {
-      return res.status(400).json({ message: "Ban chi co the gui lai OTP sau 60 giay" });
+      return res.status(400).json({ message: "Bạn chỉ có thể gửi lại OTP sau 60 giây" });
     }
 
     const otp = generateOTP();
@@ -313,20 +357,20 @@ exports.requestStaffLoginOtp = async (req, res) => {
     await transporter.sendMail({
       from: process.env.SMTP_USER,
       to: user.email,
-      subject: "Ma OTP dang nhap Staff",
+      subject: "Mã OTP đăng nhập staff",
       text:
-        `Xin chao ${user.fullName},\n\n` +
-        `Ma OTP dang nhap cua ban la: ${otp}\n` +
-        "Ma nay se het han sau 5 phut.\n",
+        `Xin chào ${user.fullName},\n\n` +
+        `Mã OTP đăng nhập của bạn là: ${otp}\n` +
+        "Mã này sẽ hết hạn sau 5 phút.\n",
     });
 
     return res.json({
-      message: "Ma OTP dang nhap da duoc gui qua Gmail",
+      message: "Mã OTP đăng nhập đã được gửi qua Gmail",
       email: user.email,
     });
   } catch (error) {
     console.error("Staff OTP Request Error:", error);
-    return res.status(500).json({ message: "Loi server khi gui OTP dang nhap" });
+    return res.status(500).json({ message: "Lỗi server khi gửi OTP đăng nhập" });
   }
 };
 
@@ -335,34 +379,34 @@ exports.verifyStaffLoginOtp = async (req, res) => {
     const { email, otp } = req.body;
 
     if (!email || !otp) {
-      return res.status(400).json({ message: "Email va OTP la bat buoc" });
+      return res.status(400).json({ message: "Email và OTP là bắt buộc" });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
     const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
-      return res.status(404).json({ message: "Khong tim thay tai khoan" });
+      return res.status(404).json({ message: "Không tìm thấy tài khoản" });
     }
 
     if (!STAFF_ALLOWED_ROLES.includes(user.role)) {
-      return res.status(403).json({ message: "Tai khoan khong thuoc khu vuc staff" });
+      return res.status(403).json({ message: "Tài khoản không thuộc khu vực staff" });
     }
 
     if (user.status !== "Active") {
-      return res.status(403).json({ message: "Tai khoan staff dang cho admin xac nhan" });
+      return res.status(403).json({ message: "Tài khoản staff đang chờ admin xác nhận" });
     }
 
     if (!user.otpCode || !user.otpExpires) {
-      return res.status(400).json({ message: "OTP chua duoc tao" });
+      return res.status(400).json({ message: "OTP chưa được tạo" });
     }
 
     if (new Date() > user.otpExpires) {
-      return res.status(400).json({ message: "OTP da het han" });
+      return res.status(400).json({ message: "OTP đã hết hạn" });
     }
 
     if (user.otpCode !== otp.trim()) {
-      return res.status(400).json({ message: "OTP khong dung" });
+      return res.status(400).json({ message: "OTP không đúng" });
     }
 
     user.otpCode = null;
@@ -373,12 +417,12 @@ exports.verifyStaffLoginOtp = async (req, res) => {
     issueAuthCookie(res, user);
 
     return res.status(200).json({
-      message: "Dang nhap thanh cong",
+      message: "Đăng nhập thành công",
       user: buildAuthPayload(user),
     });
   } catch (error) {
     console.error("Staff OTP Verify Error:", error);
-    return res.status(500).json({ message: "Loi server khi xac thuc OTP dang nhap" });
+    return res.status(500).json({ message: "Lỗi server khi xác thực OTP đăng nhập" });
   }
 };
 
@@ -425,10 +469,48 @@ exports.resetPassword = async (req, res) => {
 const loginWithLocalStrategy = (req, res, next, options = {}) => {
   const { staffOnly = false } = options;
 
-  passport.authenticate("local", { session: false }, (err, user, info) => {
+  passport.authenticate("local", { session: false }, async (err, user, info) => {
     if (err) {
       return res.status(500).json({ message: "Lỗi server", error: err });
     }
+    
+    // Nếu info có requireOtp (ví dụ: Admin cần xác thực OTP)
+    if (!user && info?.requireOtp) {
+      const { email } = req.body;
+      
+      // Tìm user để gửi OTP
+      const foundUser = await User.findOne({ email });
+      if (foundUser) {
+        // Kiểm tra thời gian gửi OTP gần nhất
+        if (
+          foundUser.lastOtpSentAt &&
+          Date.now() - foundUser.lastOtpSentAt.getTime() < 60 * 1000
+        ) {
+          return res.status(400).json({ 
+            message: "Bạn chỉ có thể gửi lại OTP sau 60 giây" 
+          });
+        }
+        
+        // Sinh OTP mới
+        const otp = generateOTP();
+        foundUser.otpCode = otp;
+        foundUser.otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 phút
+        foundUser.lastOtpSentAt = new Date();
+        await foundUser.save();
+        
+        // Gửi email OTP
+        const transporter = createSmtpTransporter();
+        await transporter.sendMail({
+          from: process.env.SMTP_USER,
+          to: foundUser.email,
+          subject: "Mã xác thực OTP đăng nhập Admin",
+          text: `Xin chào ${foundUser.fullName},\n\nMã OTP đăng nhập Admin của bạn là: ${otp}\nMã này sẽ hết hạn sau 5 phút.\n\nTrân trọng.`,
+        });
+      }
+      
+      return res.status(401).json(info);
+    }
+    
     if (!user) {
       // info chứa message từ strategy (VD: sai mật khẩu, chưa kích hoạt)
       return res.status(401).json(info);

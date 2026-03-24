@@ -68,7 +68,7 @@ const StaffManagement = () => {
       setStaffList(Array.isArray(data) ? data : []);
       setError("");
     } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to load staff"));
+      setError(getApiErrorMessage(err, "Không thể tải danh sách staff"));
     } finally {
       setLoading(false);
     }
@@ -243,12 +243,12 @@ const StaffManagement = () => {
       await fetchStaff();
       closeModal();
     } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to save staff"));
+      setError(getApiErrorMessage(err, "Không thể lưu staff"));
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Ban co chac muon vo hieu hoa nhan vien nay?")) {
+    if (!window.confirm("Bạn có chắc muốn vô hiệu hóa nhân viên này?")) {
       return;
     }
 
@@ -256,7 +256,7 @@ const StaffManagement = () => {
       await deleteStaff(id);
       await fetchStaff();
     } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to disable staff"));
+      setError(getApiErrorMessage(err, "Không thể vô hiệu hóa staff"));
     }
   };
 
@@ -267,7 +267,7 @@ const StaffManagement = () => {
       await updateStaffStatus(id, newStatus);
       await fetchStaff();
     } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to update status"));
+      setError(getApiErrorMessage(err, "Không thể cập nhật trạng thái"));
     }
   };
 
@@ -276,7 +276,7 @@ const StaffManagement = () => {
       await updateStaffStatus(id, "Active");
       await fetchStaff();
     } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to approve staff"));
+      setError(getApiErrorMessage(err, "Không thể duyệt staff"));
     }
   };
 
@@ -285,7 +285,7 @@ const StaffManagement = () => {
       await updateStaffStatus(id, "Inactive");
       await fetchStaff();
     } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to reject staff"));
+      setError(getApiErrorMessage(err, "Không thể từ chối staff"));
     }
   };
 
@@ -293,7 +293,7 @@ const StaffManagement = () => {
     e.preventDefault();
 
     if (passwordFormData.newPassword !== passwordFormData.confirmPassword) {
-      setError("Mat khau moi khong khop");
+      setError("Mật khẩu mới không khớp");
       return;
     }
 
@@ -302,9 +302,9 @@ const StaffManagement = () => {
         newPassword: passwordFormData.newPassword,
       });
       closePasswordModal();
-      window.alert("Doi mat khau thanh cong");
+      window.alert("Đổi mật khẩu thành công");
     } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to change password"));
+      setError(getApiErrorMessage(err, "Không thể đổi mật khẩu"));
     }
   };
 
@@ -317,10 +317,10 @@ const StaffManagement = () => {
     };
 
     const statusLabels = {
-      Active: "Hoat dong",
-      Inactive: "Ngung hoat dong",
-      Pending: "Cho duyet",
-      Banned: "Bi cam",
+      Active: "Hoạt động",
+      Inactive: "Ngừng hoạt động",
+      Pending: "Chờ duyệt",
+      Banned: "Bị cấm",
     };
 
     return (
@@ -342,36 +342,36 @@ const StaffManagement = () => {
   });
 
   if (loading) {
-    return <div className="loading">Loading...</div>;
+    return <div className="loading">Đang tải...</div>;
   }
 
   return (
     <div className="admin-management">
       <div className="management-header">
-        <h2>Quan ly Nhan vien</h2>
+        <h2>Quản lý nhân viên</h2>
       </div>
 
       <div className="filter-bar">
         <div className="filter-group">
-          <label>Tim kiem:</label>
+          <label>Tìm kiếm:</label>
           <input
             type="text"
-            placeholder="Ten, email, so dien thoai..."
+            placeholder="Tên, email, số điện thoại..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <div className="filter-group">
-          <label>Trang thai:</label>
+          <label>Trạng thái:</label>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
-            <option value="">Tat ca</option>
-            <option value="Active">Hoat dong</option>
-            <option value="Inactive">Ngung hoat dong</option>
-            <option value="Pending">Cho duyet</option>
-            <option value="Banned">Bi cam</option>
+            <option value="">Tất cả</option>
+            <option value="Active">Hoạt động</option>
+            <option value="Inactive">Ngừng hoạt động</option>
+            <option value="Pending">Chờ duyệt</option>
+            <option value="Banned">Bị cấm</option>
           </select>
         </div>
       </div>
@@ -379,9 +379,9 @@ const StaffManagement = () => {
       {error && <div className="alert alert-danger">{error}</div>}
 
       <div className="section-header">
-        <h3>Danh sach Nhan vien ({filteredStaff.length})</h3>
+        <h3>Danh sách nhân viên ({filteredStaff.length})</h3>
         <button className="btn btn-primary" onClick={openAddModal}>
-          + Them Nhan vien Moi
+          + Thêm nhân viên mới
         </button>
       </div>
 
@@ -390,13 +390,13 @@ const StaffManagement = () => {
           <thead>
             <tr>
               <th>STT</th>
-              <th>Ho ten</th>
+              <th>Họ tên</th>
               <th>Email</th>
-              <th>So dien thoai</th>
-              <th>Gioi tinh</th>
-              <th>Ngay sinh</th>
-              <th>Trang thai</th>
-              <th>Thao tac</th>
+              <th>Số điện thoại</th>
+              <th>Giới tính</th>
+              <th>Ngày sinh</th>
+              <th>Trạng thái</th>
+              <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
@@ -410,8 +410,8 @@ const StaffManagement = () => {
                   {staff.gender === "Male"
                     ? "Nam"
                     : staff.gender === "Female"
-                      ? "Nu"
-                      : "Khac"}
+                      ? "Nữ"
+                      : "Khác"}
                 </td>
                 <td>
                   {staff.dob
@@ -426,13 +426,13 @@ const StaffManagement = () => {
                         className="btn btn-sm btn-primary"
                         onClick={() => handleApprove(staff._id)}
                       >
-                        Duyet
+                        Duyệt
                       </button>
                       <button
                         className="btn btn-sm btn-delete"
                         onClick={() => handleReject(staff._id)}
                       >
-                        Tu choi
+                        Từ chối
                       </button>
                     </>
                   ) : null}
@@ -440,25 +440,25 @@ const StaffManagement = () => {
                     className="btn btn-sm btn-edit"
                     onClick={() => openEditModal(staff)}
                   >
-                    Sua
+                    Sửa
                   </button>
                   <button
                     className="btn btn-sm btn-delete"
                     onClick={() => handleDelete(staff._id)}
                   >
-                    Vo hieu hoa
+                    Vô hiệu hóa
                   </button>
                   <button
                     className="btn btn-sm btn-change-password"
                     onClick={() => openPasswordModal(staff)}
                   >
-                    Doi MK
+                    Đổi MK
                   </button>
                   <button
                     className="btn btn-sm btn-secondary"
                     onClick={() => handleStatusChange(staff._id, staff.status)}
                   >
-                    {staff.status === "Active" ? "Tat" : "Bat"}
+                    {staff.status === "Active" ? "Tắt" : "Bật"}
                   </button>
                 </td>
               </tr>
@@ -466,7 +466,7 @@ const StaffManagement = () => {
             {filteredStaff.length === 0 && (
               <tr>
                 <td colSpan="8" className="no-data">
-                  Khong co nhan vien nao
+                  Không có nhân viên nào
                 </td>
               </tr>
             )}
@@ -480,8 +480,8 @@ const StaffManagement = () => {
             <div className="modal-header">
               <h3>
                 {editingStaff
-                  ? "Sua Thong tin Nhan vien"
-                  : "Them Nhan vien Moi"}
+                  ? "Sửa thông tin nhân viên"
+                  : "Thêm nhân viên mới"}
               </h3>
               <button className="modal-close" onClick={closeModal}>
                 &times;
@@ -489,7 +489,7 @@ const StaffManagement = () => {
             </div>
             <form onSubmit={handleSubmit} className="modal-form">
               <div className="form-group">
-                <label>Ho ten *</label>
+                <label>Họ tên *</label>
                 <input
                   type="text"
                   name="fullName"
@@ -513,7 +513,7 @@ const StaffManagement = () => {
 
               {!editingStaff && (
                 <div className="form-group">
-                  <label>Mat khau *</label>
+                  <label>Mật khẩu *</label>
                   <input
                     type="password"
                     name="password"
@@ -527,7 +527,7 @@ const StaffManagement = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>So dien thoai *</label>
+                  <label>Số điện thoại *</label>
                   <input
                     type="text"
                     name="phone"
@@ -537,22 +537,22 @@ const StaffManagement = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Gioi tinh</label>
+                  <label>Giới tính</label>
                   <select
                     name="gender"
                     value={staffFormData.gender}
                     onChange={handleInputChange}
                   >
                     <option value="Male">Nam</option>
-                    <option value="Female">Nu</option>
-                    <option value="Other">Khac</option>
+                    <option value="Female">Nữ</option>
+                    <option value="Other">Khác</option>
                   </select>
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Ngay sinh</label>
+                  <label>Ngày sinh</label>
                   <input
                     type="date"
                     name="dob"
@@ -572,14 +572,14 @@ const StaffManagement = () => {
               </div>
 
               <div className="form-group">
-                <label>Tinh/Thanh pho *</label>
+                <label>Tỉnh/Thành phố *</label>
                 <select
                   name="address.province"
                   value={staffFormData.address.province}
                   onChange={handleProvinceChange}
                   required
                 >
-                  <option value="">--Chon tinh/thanh pho--</option>
+                  <option value="">--Chọn tỉnh/thành phố--</option>
                   {provinces.map((province) => (
                     <option key={province.code} value={province.code}>
                       {province.name}
@@ -589,7 +589,7 @@ const StaffManagement = () => {
               </div>
 
               <div className="form-group">
-                <label>Quan/Huyen *</label>
+                <label>Quận/Huyện *</label>
                 <select
                   name="address.district"
                   value={staffFormData.address.district}
@@ -597,7 +597,7 @@ const StaffManagement = () => {
                   required
                   disabled={!staffFormData.address.province}
                 >
-                  <option value="">--Chon quan/huyen--</option>
+                  <option value="">--Chọn quận/huyện--</option>
                   {districts.map((district) => (
                     <option key={district.code} value={district.code}>
                       {district.name}
@@ -607,7 +607,7 @@ const StaffManagement = () => {
               </div>
 
               <div className="form-group">
-                <label>Phuong/Xa *</label>
+                <label>Phường/Xã *</label>
                 <select
                   name="address.ward"
                   value={staffFormData.address.ward}
@@ -615,7 +615,7 @@ const StaffManagement = () => {
                   required
                   disabled={!staffFormData.address.district}
                 >
-                  <option value="">--Chon phuong/xa--</option>
+                  <option value="">--Chọn phường/xã--</option>
                   {wards.map((ward) => (
                     <option key={ward.code} value={ward.code}>
                       {ward.name}
@@ -625,29 +625,29 @@ const StaffManagement = () => {
               </div>
 
               <div className="form-group">
-                <label>So nha/Duong *</label>
+                <label>Số nhà/Đường *</label>
                 <input
                   type="text"
                   name="address.street"
                   value={staffFormData.address.street}
                   onChange={handleInputChange}
-                  placeholder="Nhap so nha, ten duong"
+                  placeholder="Nhập số nhà, tên đường"
                   required
                   minLength="2"
                 />
               </div>
 
               <div className="form-group">
-                <label>Trang thai</label>
+                <label>Trạng thái</label>
                 <select
                   name="status"
                   value={staffFormData.status}
                   onChange={handleInputChange}
                 >
-                  <option value="Active">Hoat dong</option>
-                  <option value="Inactive">Ngung hoat dong</option>
-                  <option value="Pending">Cho duyet</option>
-                  <option value="Banned">Bi cam</option>
+                  <option value="Active">Hoạt động</option>
+                  <option value="Inactive">Ngừng hoạt động</option>
+                  <option value="Pending">Chờ duyệt</option>
+                  <option value="Banned">Bị cấm</option>
                 </select>
               </div>
 
@@ -657,10 +657,10 @@ const StaffManagement = () => {
                   className="btn btn-secondary"
                   onClick={closeModal}
                 >
-                  Huy
+                  Hủy
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  {editingStaff ? "Cap nhat" : "Them moi"}
+                  {editingStaff ? "Cập nhật" : "Thêm mới"}
                 </button>
               </div>
             </form>
@@ -675,14 +675,14 @@ const StaffManagement = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
-              <h3>Doi mat khau - {selectedStaff?.fullName}</h3>
+              <h3>Đổi mật khẩu - {selectedStaff?.fullName}</h3>
               <button className="modal-close" onClick={closePasswordModal}>
                 &times;
               </button>
             </div>
             <form onSubmit={handlePasswordSubmit} className="modal-form">
               <div className="form-group">
-                <label>Mat khau moi *</label>
+                <label>Mật khẩu mới *</label>
                 <input
                   type="password"
                   name="newPassword"
@@ -694,7 +694,7 @@ const StaffManagement = () => {
               </div>
 
               <div className="form-group">
-                <label>Nhap lai mat khau *</label>
+                <label>Nhập lại mật khẩu *</label>
                 <input
                   type="password"
                   name="confirmPassword"
@@ -711,10 +711,10 @@ const StaffManagement = () => {
                   className="btn btn-secondary"
                   onClick={closePasswordModal}
                 >
-                  Huy
+                  Hủy
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Doi mat khau
+                  Đổi mật khẩu
                 </button>
               </div>
             </form>

@@ -5,6 +5,7 @@ import Checkout from "../pages/Checkout";
 import Profile from "../pages/Profile";
 import Login from "../pages/Login";
 import StaffDashboard from "../pages/staff/StaffDashboard";
+import StaffBooking from "../pages/staff/StaffBooking";
 import StaffLogin from "../pages/staff/StaffLogin";
 import StaffRegister from "../pages/staff/StaffRegister";
 import Signup from "../pages/Signup";
@@ -12,6 +13,7 @@ import OtpVerify from "../pages/OtpVerify";
 import ForgotPassword from "../pages/ForgotPassword";
 import ResetPassword from "../pages/ResetPassword";
 import NotFound from "../pages/NotFound";
+import Unauthorized from "../pages/Unauthorized";
 import ShowtimesByCinema from "../pages/ShowtimesByCinema";
 import MoviesAll from "../pages/MoviesAll";
 import CinemasOverview from "../pages/CinemasOverview";
@@ -27,6 +29,7 @@ import CinemaManagement from "../pages/admin/CinemaManagement";
 import ShowtimeManagement from "../pages/admin/ShowtimeManagement";
 import StaffRegistration from "../pages/admin/StaffRegistration";
 import StaffManagement from "../pages/admin/StaffManagement";
+import VoucherManagement from "../pages/admin/VoucherManagement";
 
 export const routesConfig = [
   {
@@ -44,7 +47,7 @@ export const routesConfig = [
   {
     path: "/profile",
     element: <Profile />,
-    allowedRoles: ["Customer", "Admin"],
+    allowedRoles: ["Customer", "Admin", "Staff"],
   },
   { path: "/login", element: <Login />, allowedRoles: ["Guest"] },
   { path: "/staff-login", element: <StaffLogin />, allowedRoles: ["Guest"] },
@@ -52,6 +55,11 @@ export const routesConfig = [
   {
     path: "/staff/dashboard",
     element: <StaffDashboard />,
+    allowedRoles: ["Staff", "Admin"],
+  },
+  {
+    path: "/staff/bookings",
+    element: <StaffBooking />,
     allowedRoles: ["Staff", "Admin"],
   },
   { path: "/signup", element: <Signup />, allowedRoles: ["Guest"] },
@@ -65,6 +73,11 @@ export const routesConfig = [
     path: "/reset_password",
     element: <ResetPassword />,
     allowedRoles: ["Guest"],
+  },
+  {
+    path: "/unauthorized",
+    element: <Unauthorized />,
+    allowedRoles: ["Customer", "Admin", "Staff", "Guest"],
   },
   {
     path: "/showtimes",
@@ -126,6 +139,11 @@ export const routesConfig = [
   {
     path: "/admin/staff-register",
     element: <StaffRegistration />,
+    allowedRoles: ["Admin"],
+  },
+  {
+    path: "/admin/voucher",
+    element: <VoucherManagement />,
     allowedRoles: ["Admin"],
   },
   

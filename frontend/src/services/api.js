@@ -398,6 +398,33 @@ export const deleteShowtime = async (id) => {
   }
 };
 
+export const getStaffBookingShowtimes = async (params = {}) => {
+  try {
+    const response = await API.get("/staff/bookings/showtimes", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getStaffBookingSeatMap = async (showtimeId) => {
+  try {
+    const response = await API.get(`/staff/bookings/showtimes/${showtimeId}/seats`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const createStaffBookingOrder = async (payload) => {
+  try {
+    const response = await API.post("/staff/bookings", payload);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 //Staff
 export const getAllStaff = async () => {
   try {
@@ -453,6 +480,61 @@ export const changeStaffPassword = async (id, passwordData) => {
       `/staffs/${id}/change-password`,
       passwordData,
     );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+// Vouchers
+export const getAllVouchers = async () => {
+  try {
+    const response = await API.get("/vouchers");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getVoucherById = async (id) => {
+  try {
+    const response = await API.get(`/vouchers/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const createVoucher = async (voucherData) => {
+  try {
+    const response = await API.post("/vouchers", voucherData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateVoucher = async (id, voucherData) => {
+  try {
+    const response = await API.put(`/vouchers/${id}`, voucherData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const deleteVoucher = async (id) => {
+  try {
+    const response = await API.delete(`/vouchers/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const applyVoucher = async (code, orderValue, userId) => {
+  try {
+    const response = await API.post("/vouchers/apply", { code, orderValue, userId });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
