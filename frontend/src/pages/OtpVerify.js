@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { sendOtp, verifyOtp } from "../services/api";
 import { toast } from "react-toastify";
 import "../assets/styles/OtpVerify.css";
@@ -10,8 +10,11 @@ function OtpVerify() {
   const [message, setMessage] = useState("");
   const [otpError, setOtpError] = useState("");
   const location = useLocation();
-  const email = location.state?.email;
-  const purpose = location.state?.purpose;
+  const [searchParams] = useSearchParams();
+  
+  // Ưu tiên lấy từ state, nếu không có thì lấy từ query params
+  const email = location.state?.email || searchParams.get("email");
+  const purpose = location.state?.purpose || searchParams.get("purpose");
   const [isDisabled, setIsDisabled] = useState(false);
   const [remainingTime, setRemainingTime] = useState(0);
 
