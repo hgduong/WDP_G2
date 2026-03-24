@@ -1,5 +1,5 @@
 import { useContext, useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import "../assets/styles/Navbar.css";
 import logo from "../assets/images/logo.png";
 import ava from "../assets/images/person.png";
@@ -41,19 +41,62 @@ export default function Navbar() {
         </Link>
 
         <nav className="navbar-menu">
-          <Link to="/showtimes">
-            {lang === "vi" ? "LICH CHIEU THEO RAP" : "SHOWTIMES"}
-          </Link>
-          <Link to="/movies">{lang === "vi" ? "PHIM" : "MOVIES"}</Link>
-          <Link to="/cinemas">{lang === "vi" ? "RAP" : "CINEMAS"}</Link>
-          <Link to="/prices">{lang === "vi" ? "GIA VE" : "PRICES"}</Link>
-          <Link to="/news">
-            {lang === "vi" ? "TIN MOI & UU DAI" : "NEWS & OFFERS"}
-          </Link>
-          <Link to="/franchise">
-            {lang === "vi" ? "NHUONG QUYEN" : "FRANCHISE"}
-          </Link>
-          <Link to="/members">{lang === "vi" ? "THANH VIEN" : "MEMBERS"}</Link>
+          <NavLink
+            to="/showtimes"
+            className={({ isActive }) =>
+              isActive ? "navbar-link navbar-link--active" : "navbar-link"
+            }
+          >
+            {lang === "vi" ? "LỊCH CHIẾU THEO RẠP" : "SHOWTIMES"}
+          </NavLink>
+          <NavLink
+            to="/movies"
+            className={({ isActive }) =>
+              isActive ? "navbar-link navbar-link--active" : "navbar-link"
+            }
+          >
+            {lang === "vi" ? "PHIM" : "MOVIES"}
+          </NavLink>
+          <NavLink
+            to="/cinemas"
+            className={({ isActive }) =>
+              isActive ? "navbar-link navbar-link--active" : "navbar-link"
+            }
+          >
+            {lang === "vi" ? "RẠP" : "CINEMAS"}
+          </NavLink>
+          <NavLink
+            to="/prices"
+            className={({ isActive }) =>
+              isActive ? "navbar-link navbar-link--active" : "navbar-link"
+            }
+          >
+            {lang === "vi" ? "GIÁ VÉ" : "PRICES"}
+          </NavLink>
+          <NavLink
+            to="/news"
+            className={({ isActive }) =>
+              isActive ? "navbar-link navbar-link--active" : "navbar-link"
+            }
+          >
+            {lang === "vi" ? "TIN MỚI & ƯU ĐÃI" : "NEWS & OFFERS"}
+          </NavLink>
+          <NavLink
+            to="/franchise"
+            className={({ isActive }) =>
+              isActive ? "navbar-link navbar-link--active" : "navbar-link"
+            }
+          >
+            {lang === "vi" ? "NHƯỢNG QUYỀN" : "FRANCHISE"}
+          </NavLink>
+          <NavLink
+            to="/members"
+            className={({ isActive }) =>
+              isActive ? "navbar-link navbar-link--active" : "navbar-link"
+            }
+          >
+            {lang === "vi" ? "THÀNH VIÊN" : "MEMBERS"}
+          </NavLink>
         </nav>
 
         <div className="navbar-right">
