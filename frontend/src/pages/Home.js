@@ -60,18 +60,30 @@ export default function Home() {
         filteredMovies = [];
     }
     
-    // Apply search filter
+    // Apply search filter - tìm kiếm theo tên phim và thể loại
     if (searchQuery) {
-      filteredMovies = filteredMovies.filter((m) => 
-        (m.title && m.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (m.title_vi && m.title_vi.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (m.title_en && m.title_en.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
+      const query = searchQuery.toLowerCase();
+      filteredMovies = filteredMovies.filter((m) => {
+        // Tìm theo tên phim
+        const titleMatch = m.title && m.title.toLowerCase().includes(query);
+        // Tìm theo thể loại (cả string và array)
+        let genreMatch = false;
+        if (m.genre) {
+          if (Array.isArray(m.genre)) {
+            genreMatch = m.genre.some(g => g.toLowerCase().includes(query));
+          } else {
+            genreMatch = m.genre.toLowerCase().includes(query);
+          }
+        }
+        return titleMatch || genreMatch;
+      });
     }
     
     // Apply genre filter
     if (genreFilter !== "all") {
-      filteredMovies = filteredMovies.filter((m) => m.genre === genreFilter);
+      filteredMovies = filteredMovies.filter((m) => 
+        m.genre && (Array.isArray(m.genre) ? m.genre.includes(genreFilter) : m.genre === genreFilter)
+      );
     }
     
     return filteredMovies;
@@ -138,6 +150,13 @@ export default function Home() {
               <option value="Romance">{lang === "vi" ? "Lãng mạn" : "Romance"}</option>
               <option value="Sci-Fi">{lang === "vi" ? "Khoa học viễn tưởng" : "Sci-Fi"}</option>
               <option value="Animation">{lang === "vi" ? "Hoạt hình" : "Animation"}</option>
+              <option value="Thriller">{lang === "vi" ? "Gay cấn" : "Thriller"}</option>
+              <option value="Fantasy">{lang === "vi" ? "Giả tưởng" : "Fantasy"}</option>
+              <option value="Adventure">{lang === "vi" ? "Phiêu lưu" : "Adventure"}</option>
+              <option value="Crime">{lang === "vi" ? "Tội phạm" : "Crime"}</option>
+              <option value="Mystery">{lang === "vi" ? "Bí ẩn" : "Mystery"}</option>
+              <option value="Family">{lang === "vi" ? "Gia đình" : "Family"}</option>
+              <option value="Documentary">{lang === "vi" ? "Tài liệu" : "Documentary"}</option>
             </select>
           </div>
         </div>
