@@ -138,3 +138,48 @@ exports.changePassword = async (req, res) => {
     res.status(500).json({ message: "Có lỗi xảy ra" });
   }
 };
+
+// Xóa tài khoản (đổi trạng thái thành Inactive)
+exports.deleteAccount = async (req, res) => {
+  try {
+    const { password } = req.body;
+    const userId = req.user.id;
+
+    if (!password) {
+      return res.status(400).json({ message: "Vui lòng nhập mật khẩu xác nhận" });
+    }
+
+    const user = await User.findById(userId).select("+passwordHash");
+    if (!user) {
+      return res.status(404).json({ message: "User không tồn tại" });
+    }
+
+    // Kiểm tra nếu tài khoản đã bị vô hiệu hóa
+    if (user.status === "Inactive") {
+      return res.status(400).json({ message: "Tài khoản đã bị vô hiệu hóa trước đó" });
+    }
+
+    // So sánh mật khẩu với database
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Mật khẩu xác nhận không đúng" });
+    }
+
+    // Cập nhật trạng thái thành Inactive
+    user.status = "Inactive";
+    await user.save();
+
+    // Xóa cookie JWT
+    res.clearCookie("jwt", {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    res.json({ message: "Tài khoản đã được vô hiệu hóa thành công" });
+  } catch (error) {
+    console.error("Lỗi khi xóa tài khoản:", error);
+    res.status(500).json({ message: "Có lỗi xảy ra" });
+  }
+};
+
