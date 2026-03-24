@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import "../assets/styles/MovieDetail.css";
+import { getImageUrl } from "../utils/imageUtils";
 
 export default function MovieDetail() {
   const { id } = useParams();
@@ -111,7 +112,7 @@ export default function MovieDetail() {
   // khi bấm nút đặt vé thì mới gọi API lấy showtimes
   const handleBookingClick = () => {
     setShowBooking(true);
-    fetch(`http://localhost:9999/showtimes/${id}`)
+    fetch(`http://localhost:9999/showtimes/movie/${id}`)
       .then((res) => {
         if (!res.ok) {
           return res.text().then((text) => {
@@ -160,7 +161,7 @@ export default function MovieDetail() {
   return (
     <div className="movie-detail">
       <img
-        src={`http://localhost:9999${movie.posterUrl}`}
+        src={getImageUrl(movie.posterUrl)}
         alt={movie.title}
         className="poster"
       />

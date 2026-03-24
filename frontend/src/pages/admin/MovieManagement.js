@@ -5,6 +5,7 @@ import {
   updateMovie, 
   deleteMovie 
 } from '../../services/api';
+import { getImageUrl } from '../../utils/imageUtils';
 import './AdminManagement.css';
 
 const GENRES = [
@@ -22,7 +23,7 @@ const MovieManagement = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    genre: '',
+    genre: [],
     duration: '',
     releaseDate: '',
     endDate: '',
@@ -94,6 +95,18 @@ const MovieManagement = () => {
     }));
   };
 
+  // Handle genre checkbox selection
+  const handleGenreChange = (genre) => {
+    setFormData(prev => {
+      const currentGenres = prev.genre || [];
+      if (currentGenres.includes(genre)) {
+        return { ...prev, genre: currentGenres.filter(g => g !== genre) };
+      } else {
+        return { ...prev, genre: [...currentGenres, genre] };
+      }
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -125,7 +138,7 @@ const MovieManagement = () => {
     setFormData({
       title: movie.title || '',
       description: movie.description || '',
-      genre: movie.genre || '',
+      genre: movie.genre || [],
       duration: movie.duration || '',
       releaseDate: movie.releaseDate ? movie.releaseDate.split('T')[0] : '',
       endDate: movie.endDate ? movie.endDate.split('T')[0] : '',
@@ -156,7 +169,7 @@ const MovieManagement = () => {
     setFormData({
       title: '',
       description: '',
-      genre: '',
+      genre: [],
       duration: '',
       releaseDate: '',
       endDate: '',
@@ -226,7 +239,7 @@ const MovieManagement = () => {
                 <td>
                   {movie.posterUrl ? (
                     <img 
-                      src={movie.posterUrl} 
+                      src={getImageUrl(movie.posterUrl)} 
                       alt={movie.title} 
                       className="table-poster"
                       onError={(e) => e.target.style.display = 'none'}
@@ -236,7 +249,7 @@ const MovieManagement = () => {
                   )}
                 </td>
                 <td>{movie.title}</td>
-                <td>{movie.genre}</td>
+                <td>{movie.genre && Array.isArray(movie.genre) ? movie.genre.join(', ') : movie.genre}</td>
                 <td>{movie.duration ? `${movie.duration} phút` : '-'}</td>
                 <td>{movie.releaseDate ? new Date(movie.releaseDate).toLocaleDateString('vi-VN') : '-'}</td>
                 <td>{movie.endDate ? new Date(movie.endDate).toLocaleDateString('vi-VN') : '-'}</td>
@@ -286,13 +299,19 @@ const MovieManagement = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Thể loại</label>
-                  <select name="genre" value={formData.genre} onChange={handleInputChange}>
-                    <option value="">Chọn thể loại</option>
+                  <label>Thể loại (chọn nhiều)</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '5px' }}>
                     {GENRES.map(genre => (
-                      <option key={genre} value={genre}>{genre}</option>
+                      <label key={genre} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={formData.genre && formData.genre.includes(genre)}
+                          onChange={() => handleGenreChange(genre)}
+                        />
+                        {genre}
+                      </label>
                     ))}
-                  </select>
+                  </div>
                 </div>
               </div>
 
@@ -415,7 +434,7 @@ const MovieManagement = () => {
                 <div className="form-group">
                   <label>Xem trước Poster</label>
                   <img 
-                    src={formData.posterUrl} 
+                    src={getImageUrl(formData.posterUrl)} 
                     alt="Preview" 
                     className="poster-preview"
                     onError={(e) => e.target.style.display = 'none'}

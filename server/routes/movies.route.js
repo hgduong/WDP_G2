@@ -5,7 +5,8 @@ const {
   updateMovie, 
   deleteMovie,
   getNowShowingMovies,
-  getComingSoonMovies
+  getComingSoonMovies,
+  getSpecialMovies
 } = require("../controllers/movies.controller");
 const { getShowtimesByMovie } = require("../controllers/showtime.controller");
 const express = require("express");
@@ -15,6 +16,7 @@ const router = express.Router();
 router.get("/movies/all", getAllMovies);
 router.get("/movies/now-showing", getNowShowingMovies);
 router.get("/movies/coming-soon", getComingSoonMovies);
+router.get("/movies/special", getSpecialMovies);
 router.get("/movies/:id", getMoviesById);  
 router.post("/movies", addMovie);
 router.put("/movies/:id", updateMovie);

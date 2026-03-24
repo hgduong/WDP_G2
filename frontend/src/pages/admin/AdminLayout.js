@@ -11,11 +11,11 @@ const AdminLayout = ({ children }) => {
 
   const allMenuItems = [
     { path: "/admin/dashboard", label: "Dashboard" },
-    { path: "/admin/movies", label: "Quan ly Phim" },
-    { path: "/admin/cinemas", label: "Quan ly Rap & Phong" },
-    { path: "/admin/showtimes", label: "Quan ly Lich Chieu" },
-    { path: "/admin/staff-register", label: "Dang ky Staff" },
-    { path: "/admin/staffs", label: "Quan ly Nhan Vien" },
+    { path: "/admin/movies", label: "Quản lý Phim" },
+    { path: "/admin/cinemas", label: "Quản lý Rạp & Phòng" },
+    { path: "/admin/showtimes", label: "Quản lý Lịch Chiếu" },
+    { path: "/admin/staff-register", label: "Đăng ký Staff" },
+    { path: "/admin/staffs", label: "Quản lý Nhân Viên" },
   ];
 
   const menuItems =
@@ -74,11 +74,11 @@ const AdminLayout = ({ children }) => {
             }}
           >
             <span className="nav-icon"></span>
-            {sidebarOpen && <span className="nav-label">Ve trang chu</span>}
+            {sidebarOpen && <span className="nav-label">Về Trang Chủ</span>}
           </a>
           <button className="logout-btn" onClick={handleLogout}>
             <span className="nav-icon"></span>
-            {sidebarOpen && <span className="nav-label">Dang xuat</span>}
+            {sidebarOpen && <span className="nav-label">Đăng xuất</span>}
           </button>
         </div>
       </div>

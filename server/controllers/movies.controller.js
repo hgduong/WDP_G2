@@ -9,9 +9,9 @@ const updateMovieStatuses = async () => {
     const now = new Date();
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     
-    // Cập nhật các phim hết hạn -> Ended
+    // Cập nhật các phim hết hạn -> Ended (trừ phim Special)
     await Movie.updateMany(
-      { endDate: { $lt: now }, status: { $ne: 'Ended' } },
+      { endDate: { $lt: now }, status: { $nin: ['Ended', 'Special'] } },
       { $set: { status: 'Ended' } }
     );
     
@@ -25,11 +25,11 @@ const updateMovieStatuses = async () => {
       { $set: { status: 'NowShowing' } }
     );
     
-    // Cập nhật các phim sắp chiếu (trong vòng 7 ngày tới) -> ComingSoon
+    // Cập nhật các phim sắp chiếu (trong vòng 7 ngày tới) -> ComingSoon (trừ Special)
     await Movie.updateMany(
       { 
         releaseDate: { $gt: now, $lte: sevenDaysFromNow },
-        status: { $nin: ['ComingSoon', 'NowShowing', 'Ended'] }
+        status: { $nin: ['ComingSoon', 'NowShowing', 'Ended', 'Special'] }
       },
       { $set: { status: 'ComingSoon' } }
     );
@@ -68,6 +68,12 @@ exports.getMoviesById = async (req, res) => {
 // Thêm phim mới
 exports.addMovie = async (req, res) => {
   try {
+    // Kiểm tra trùng tên phim
+    const existingMovie = await Movie.findOne({ title: req.body.title });
+    if (existingMovie) {
+      return res.status(400).json({ message: "Tên phim đã tồn tại trong hệ thống" });
+    }
+    
     const movie = new Movie(req.body); 
     await movie.save(); 
     res.status(201).json(movie); 
@@ -79,6 +85,15 @@ exports.addMovie = async (req, res) => {
 // Cập nhật phim
 exports.updateMovie = async (req, res) => {
   try {
+    // Kiểm tra trùng tên phim (trừ phim hiện tại đang sửa)
+    const existingMovie = await Movie.findOne({ 
+      title: req.body.title, 
+      _id: { $ne: req.params.id } 
+    });
+    if (existingMovie) {
+      return res.status(400).json({ message: "Tên phim đã tồn tại trong hệ thống" });
+    }
+    
     const movie = await Movie.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!movie) {
       return res.status(404).json({ message: "Phim không tồn tại" });
@@ -128,6 +143,16 @@ exports.getComingSoonMovies = async (req, res) => {
   try {
     await updateMovieStatuses();
     const movies = await Movie.find({ status: 'ComingSoon' }).sort({ releaseDate: 1 });
+    res.json(movies);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Lấy phim đặc biệt
+exports.getSpecialMovies = async (req, res) => {
+  try {
+    const movies = await Movie.find({ status: 'Special' }).sort({ releaseDate: -1 });
     res.json(movies);
   } catch (error) {
     res.status(500).json({ message: error.message });
