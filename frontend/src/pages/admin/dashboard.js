@@ -42,36 +42,36 @@ const Dashboard = () => {
 
   const menuItems = [
     {
-      title: "Quan ly Phim",
-      description: "Them, sua, xoa phim va cap nhat thong tin phim.",
+      title: "Quản lý Phim",
+      description: "Thêm mới, cập nhật và xóa phim trong hệ thống.",
       icon: "PM",
       path: "/admin/movies",
       color: "#e50914",
     },
     {
-      title: "Quan ly Rap & Phong",
-      description: "Theo doi rap chieu, phong chieu va cau hinh su dung.",
+      title: "Quản lý Rạp & Phòng",
+      description: "Theo dõi rạp chiếu, phòng chiếu và cấu hình sử dụng.",
       icon: "RP",
       path: "/admin/cinemas",
       color: "#ffc107",
     },
     {
-      title: "Quan ly Lich Chieu",
-      description: "Tao va dieu chinh suat chieu cho tung rap, tung phong.",
+      title: "Quản lý Lịch Chiếu",
+      description: "ạo và điều chỉnh suất chiếu cho từng rạp, từng phòng.",
       icon: "LC",
       path: "/admin/showtimes",
       color: "#17a2b8",
     },
     {
-      title: "Dang ky Staff",
-      description: "Tao tai khoan nhan vien moi voi day du thong tin co ban.",
+      title: "Đăng ký Staff",
+      description: "ạo tài khoản nhân viên mới với đầy đủ thông tin cơ bản.",
       icon: "DK",
       path: "/admin/staff-register",
       color: "#6f42c1",
     },
     {
-      title: "Quan ly Nhan Vien",
-      description: "Xem danh sach, cap nhat trang thai va doi mat khau staff.",
+      title: "Quản lý Nhân Viên",
+      description: "Xem danh sách, cập nhật trạng thái và đổi mật khẩu staff.",
       icon: "NV",
       path: "/admin/staffs",
       color: "#28a745",
@@ -81,8 +81,8 @@ const Dashboard = () => {
   return (
     <div className="dashboard">
       <div className="dashboard-header">
-        <h2>Xin chao, Admin!</h2>
-        <p>Day la trung tam dieu phoi chinh cua Time Cinemas.</p>
+        <h2>Xin chào!</h2>
+        <p>Chào mừng bạn đến với trang quản trị của Time Cinemas.</p>
       </div>
 
       <div className="stats-container">
@@ -90,7 +90,7 @@ const Dashboard = () => {
           <div className="stat-icon">PM</div>
           <div className="stat-info">
             <h3>{stats.movies}</h3>
-            <p>Tong so phim</p>
+            <p>Tổng số phim</p>
           </div>
         </div>
 
@@ -98,7 +98,7 @@ const Dashboard = () => {
           <div className="stat-icon">RP</div>
           <div className="stat-info">
             <h3>{stats.cinemas}</h3>
-            <p>Tong so rap</p>
+            <p>Tổng số rạp</p>
           </div>
         </div>
 
@@ -106,7 +106,7 @@ const Dashboard = () => {
           <div className="stat-icon">LC</div>
           <div className="stat-info">
             <h3>{stats.showtimes}</h3>
-            <p>Lich chieu</p>
+            <p>Lịch chiếu</p>
           </div>
         </div>
 
@@ -114,7 +114,7 @@ const Dashboard = () => {
           <div className="stat-icon">DC</div>
           <div className="stat-info">
             <h3>{stats.nowShowing}</h3>
-            <p>Dang chieu</p>
+            <p>Đang chiếu</p>
           </div>
         </div>
 
@@ -122,13 +122,13 @@ const Dashboard = () => {
           <div className="stat-icon">SC</div>
           <div className="stat-info">
             <h3>{stats.comingSoon}</h3>
-            <p>Sap chieu</p>
+            <p>Sắp chiếu</p>
           </div>
         </div>
       </div>
 
       <div className="quick-actions">
-        <h3>Chuc nang quan ly</h3>
+        <h3>Chức năng quản lý</h3>
         <div className="action-grid">
           {menuItems.map((item) => (
             <div
@@ -153,13 +153,13 @@ const Dashboard = () => {
           <h4>Goi y su dung</h4>
           <ul>
             <li>
-              <strong>Dang ky Staff:</strong> Tao nhanh tai khoan staff moi tu form rieng.
+              <strong>Đăng ký Staff:</strong> ạo nhanh tài khoản staff mới từ form riêng.
             </li>
             <li>
-              <strong>Quan ly Nhan Vien:</strong> Xem danh sach, sua thong tin va doi mat khau.
+              <strong>Quản lý Nhân Viên:</strong> Xem danh sách, sửa thông tin và đổi mật khẩu.
             </li>
             <li>
-              <strong>Lich chieu:</strong> Theo doi suat chieu va phoi hop voi rap.
+              <strong>Lịch chiếu:</strong> Theo dõi suất chiếu và phối hợp với rạp.
             </li>
           </ul>
         </div>
