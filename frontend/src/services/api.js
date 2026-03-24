@@ -398,6 +398,33 @@ export const deleteShowtime = async (id) => {
   }
 };
 
+export const getStaffBookingShowtimes = async (params = {}) => {
+  try {
+    const response = await API.get("/staff/bookings/showtimes", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getStaffBookingSeatMap = async (showtimeId) => {
+  try {
+    const response = await API.get(`/staff/bookings/showtimes/${showtimeId}/seats`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const createStaffBookingOrder = async (payload) => {
+  try {
+    const response = await API.post("/staff/bookings", payload);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 //Staff
 export const getAllStaff = async () => {
   try {
