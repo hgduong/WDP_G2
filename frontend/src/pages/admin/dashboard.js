@@ -57,14 +57,14 @@ const Dashboard = () => {
     },
     {
       title: "Quản lý Lịch Chiếu",
-      description: "ạo và điều chỉnh suất chiếu cho từng rạp, từng phòng.",
+      description: "Tạo và điều chỉnh suất chiếu cho từng rạp, từng phòng.",
       icon: "LC",
       path: "/admin/showtimes",
       color: "#17a2b8",
     },
     {
       title: "Đăng ký Staff",
-      description: "ạo tài khoản nhân viên mới với đầy đủ thông tin cơ bản.",
+      description: "Tạo tài khoản nhân viên mới với đầy đủ thông tin cơ bản.",
       icon: "DK",
       path: "/admin/staff-register",
       color: "#6f42c1",

@@ -458,3 +458,40 @@ export const changeStaffPassword = async (id, passwordData) => {
     throw error.response?.data || error;
   }
 };
+
+// Seat holding (real-time)
+export const holdSeats = async (showtimeId, seatIds, userId) => {
+  try {
+    const response = await API.post("/seats/hold", { showtimeId, seatIds, userId });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const releaseSeats = async (seatIds) => {
+  try {
+    const response = await API.post("/seats/release", { seatIds });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getHeldSeats = async (showtimeId) => {
+  try {
+    const response = await API.get(`/seats/held/${showtimeId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const bookSeats = async (showtimeId, seatIds) => {
+  try {
+    const response = await API.post("/seats/book", { showtimeId, seatIds });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
