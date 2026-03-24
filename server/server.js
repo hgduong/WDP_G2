@@ -2,11 +2,17 @@ const express = require("express");
 const cors = require("cors");
 const passport = require("passport");
 const cookieParser = require("cookie-parser");
+const http = require("http");
 const connectDB = require("./config/db");
+const socketIO = require("./socket");
 
 require("./config/passport");
 
 const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+socketIO.init(server);
 
 app.use(cookieParser());
 app.use(express.json());
@@ -78,15 +84,15 @@ const moviesRoutes = require("./routes/movies.route");
 const cinemaRoutes = require("./routes/cinema.routes");
 const staffRoutes = require("./routes/staffs.route");
 const voucherRoutes = require("./routes/voucher.routes");
-
-// Đăng ký voucher routes tại /vouchers (cùng cấp với các routes khác)
-app.use("/vouchers", voucherRoutes);
+const seatsRoutes = require("./routes/seats.route");
 
 app.use(authRoutes);
 app.use(userRoutes);
 app.use(moviesRoutes);
 app.use(cinemaRoutes);
 app.use(staffRoutes);
-
+app.use("/api", seatsRoutes);
+// Đăng ký voucher routes tại /vouchers (cùng cấp với các routes khác)
+app.use("/vouchers", voucherRoutes);
 const PORT = process.env.PORT || 9999;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

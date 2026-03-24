@@ -166,13 +166,27 @@ const CinemaManagement = () => {
     if (!selectedMovie || !selectedMovie.endDate) return { valid: true, message: '' };
     
     const startDate = new Date(startTime);
+    const movieReleaseDate = selectedMovie.releaseDate ? new Date(selectedMovie.releaseDate) : null;
     const movieEndDate = new Date(selectedMovie.endDate);
     
     // Get just the date parts (year, month, day) for comparison
     const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
     const endDateOnly = new Date(movieEndDate.getFullYear(), movieEndDate.getMonth(), movieEndDate.getDate());
     
-    // startTime cannot be after the movie's endDate
+    // Validate: showtime cannot be BEFORE the movie's releaseDate
+    if (movieReleaseDate) {
+      const releaseDateOnly = new Date(movieReleaseDate.getFullYear(), movieReleaseDate.getMonth(), movieReleaseDate.getDate());
+      if (startDateOnly < releaseDateOnly) {
+        const releaseStr = formatDate(selectedMovie.releaseDate);
+        const startDateStr = formatDate(startTime);
+        return {
+          valid: false,
+          message: `Không thể chọn ngày chiếu (${startDateStr}) trước ngày khởi chiếu (${releaseStr})`
+        };
+      }
+    }
+    
+    // Validate: showtime cannot be AFTER the movie's endDate
     if (startDateOnly > endDateOnly) {
       const endDateStr = formatDate(selectedMovie.endDate);
       const startDateStr = formatDate(startTime);

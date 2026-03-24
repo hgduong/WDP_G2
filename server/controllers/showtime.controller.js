@@ -57,8 +57,7 @@ exports.getShowtimesByMovie = async (req, res) => {
       movieId,
     })
       .populate("cinemasId", "name address city")
-      // room schema has no language field so we only grab name
-      .populate("roomId", "name");
+      .populate("roomId", "name capacity");
 
     const result = [];
     for (let s of showtimes) {

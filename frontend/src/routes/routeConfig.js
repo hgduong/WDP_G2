@@ -42,7 +42,7 @@ export const routesConfig = [
     element: <MovieDetail />,
     allowedRoles: ["Customer", "Admin", "Staff", "Guest"],
   },
-  { path: "/booking/:id", element: <Booking />, allowedRoles: ["Customer"] },
+  { path: "/booking/:id", element: <Booking />, allowedRoles: ["Customer", "Guest"] },
   { path: "/checkout", element: <Checkout />, allowedRoles: ["Customer"] },
   {
     path: "/profile",
