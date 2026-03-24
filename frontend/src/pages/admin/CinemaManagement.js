@@ -10,12 +10,23 @@ import {
   updateRoom,
   deleteRoom
 } from '../../services/api';
+import { toast } from 'react-toastify';
 import './AdminManagement.css';
 
 // ID của rạp Time Cinemas (hardcoded theo DB)
 const TIME_CINEMAS_ID = '69ad9a89012ada8e95feb9cf';
 
 const ROOM_TYPES = ['Standard', 'VIP', 'IMAX'];
+
+// Format date as dd/mm/yyyy
+const formatDate = (date) => {
+  if (!date) return '';
+  const d = new Date(date);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
 const CinemaManagement = () => {
   const [loading, setLoading] = useState(true);
@@ -28,7 +39,7 @@ const CinemaManagement = () => {
   const [cinemaRooms, setCinemaRooms] = useState([]);
   const [cinemaShowtimes, setCinemaShowtimes] = useState([]);
   const [movies, setMovies] = useState([]);
-  
+   
   const [cinemaFormData, setCinemaFormData] = useState({
     name: '',
     address: '',
@@ -55,6 +66,9 @@ const CinemaManagement = () => {
   const [showTimeSlotsModal, setShowTimeSlotsModal] = useState(false);
   const [editingTimeSlotsRoom, setEditingTimeSlotsRoom] = useState(null);
   const [timeSlotsInput, setTimeSlotsInput] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingRoomId, setDeletingRoomId] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchTimeCinemas();
@@ -103,12 +117,35 @@ const CinemaManagement = () => {
     }
   };
 
-  // Lấy phim đang chiếu trong phòng
-  const getMovieForRoom = (roomId) => {
-    const activeShowtime = cinemaShowtimes.find(st => 
-      st.roomId?._id === roomId || st.roomId === roomId
-    );
-    return activeShowtime?.movieId || null;
+  // Lấy danh sách movieId đã được chọn bởi các phòng khác
+  const getAssignedMovieIds = (currentRoomId) => {
+    const assignedIds = [];
+    cinemaRooms.forEach(room => {
+      // Khi thêm mới (currentRoomId là null/undefined), lấy tất cả các phòng có movie
+      // Khi sửa, bỏ qua phòng hiện tại
+      if (currentRoomId === null || currentRoomId === undefined) {
+        if (room.movieId) {
+          assignedIds.push(room.movieId);
+        }
+      } else if (room._id !== currentRoomId && room.movieId) {
+        assignedIds.push(room.movieId);
+      }
+    });
+    return assignedIds;
+  };
+
+  // Lọc movies để loại trừ phim đã được chọn bởi phòng khác
+  const getAvailableMovies = (currentRoomId) => {
+    const assignedIds = getAssignedMovieIds(currentRoomId);
+    return movies.filter(movie => !assignedIds.includes(movie._id));
+  };
+
+  // Lấy phim đang chiếu trong phòng - từ movieId trong room
+  const getMovieForRoom = (room) => {
+    const movieId = room.movieId;
+    if (!movieId) return null;
+    if (typeof movieId === 'object') return movieId;
+    return movies.find(m => m._id === movieId) || null;
   };
 
   const handleCinemaInputChange = (e) => {
@@ -119,6 +156,32 @@ const CinemaManagement = () => {
   const handleRoomInputChange = (e) => {
     const { name, value } = e.target;
     setRoomFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Validate endDate must be after startTime
+  const validateEndDate = (movieId, startTime) => {
+    if (!movieId || !startTime) return { valid: true, message: '' };
+    
+    const selectedMovie = movies.find(m => m._id === movieId);
+    if (!selectedMovie || !selectedMovie.endDate) return { valid: true, message: '' };
+    
+    const startDate = new Date(startTime);
+    const movieEndDate = new Date(selectedMovie.endDate);
+    
+    // Get just the date parts (year, month, day) for comparison
+    const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const endDateOnly = new Date(movieEndDate.getFullYear(), movieEndDate.getMonth(), movieEndDate.getDate());
+    
+    // startTime cannot be after the movie's endDate
+    if (startDateOnly > endDateOnly) {
+      const endDateStr = formatDate(selectedMovie.endDate);
+      const startDateStr = formatDate(startTime);
+      return {
+        valid: false,
+        message: `Không thể chọn ngày chiếu (${startDateStr}) sau ngày kết thúc chiếu phim (${endDateStr})`
+      };
+    }
+    return { valid: true, message: '' };
   };
 
   const handleEditTimeSlots = (room) => {
@@ -140,8 +203,10 @@ const CinemaManagement = () => {
       await fetchRooms(selectedCinema._id);
       setShowTimeSlotsModal(false);
       setEditingTimeSlotsRoom(null);
+      toast.success('Cập nhật khung giờ chiếu thành công!');
     } catch (err) {
-      setError(err.message || 'Failed to save time slots');
+      const errorMsg = err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi lưu khung giờ';
+      toast.error(errorMsg);
     }
   };
 
@@ -158,13 +223,25 @@ const CinemaManagement = () => {
       await updateCinema(TIME_CINEMAS_ID, cinemaData);
       await fetchTimeCinemas();
       closeCinemaModal();
+      toast.success('Cập nhật thông tin rạp thành công!');
     } catch (err) {
-      setError(err.message || 'Failed to save cinema');
+      const errorMsg = err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi lưu thông tin rạp';
+      toast.error(errorMsg);
     }
   };
 
   const handleRoomSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate endDate if movie and startTime are selected
+    if (roomFormData.movieId && roomFormData.startTime) {
+      const validation = validateEndDate(roomFormData.movieId, roomFormData.startTime);
+      if (!validation.valid) {
+        toast.error(validation.message);
+        return;
+      }
+    }
+    
     try {
       const roomData = {
         cinemaId: roomFormData.cinemaId,
@@ -173,33 +250,28 @@ const CinemaManagement = () => {
         type: roomFormData.type,
         timeSlots: roomFormData.timeSlots || [],
         description: roomFormData.description,
-        status: roomFormData.status
+        status: roomFormData.status,
+        // Lưu thông tin phim đang chiếu trực tiếp vào room
+        movieId: roomFormData.movieId || null,
+        startTime: roomFormData.startTime || null,
+        price: roomFormData.price ? parseInt(roomFormData.price) : null
       };
       
       let savedRoom;
       if (editingRoom) {
         savedRoom = await updateRoom(editingRoom._id, roomData);
+        toast.success('Cập nhật phòng chiếu thành công!');
       } else {
         savedRoom = await createRoom(roomData);
+        toast.success('Thêm phòng chiếu mới thành công!');
       }
       
-      // Tạo showtime nếu có chọn phim
-      if (roomFormData.movieId && roomFormData.startTime && roomFormData.price) {
-        const showtimeData = {
-          movieId: roomFormData.movieId,
-          cinemasId: roomFormData.cinemaId,
-          roomId: savedRoom._id,
-          startTime: roomFormData.startTime,
-          price: parseInt(roomFormData.price),
-          language: 'Tiếng Việt'
-        };
-        await createShowtime(showtimeData);
-      }
-      
+      // Refresh rooms to show updated data
       await fetchRooms(roomFormData.cinemaId);
       closeRoomModal();
     } catch (err) {
-      setError(err.message || 'Failed to save room');
+      const errorMsg = err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi lưu phòng chiếu';
+      toast.error(errorMsg);
     }
   };
 
@@ -218,16 +290,15 @@ const CinemaManagement = () => {
   };
 
   const handleEditRoom = (room) => {
-    const currentMovie = getMovieForRoom(room._id);
     setEditingRoom(room);
     setRoomFormData({
       cinemaId: room.cinemaId || selectedCinema._id,
       name: room.name || '',
       capacity: room.capacity || '',
       type: room.type || 'Standard',
-      movieId: currentMovie?._id || '',
-      startTime: '',
-      price: '',
+      movieId: room.movieId || '',
+      startTime: room.startTime || '',
+      price: room.price || '',
       timeSlots: room.timeSlots || [],
       description: room.description || '',
       status: room.status || 'Active'
@@ -235,15 +306,33 @@ const CinemaManagement = () => {
     setShowRoomModal(true);
   };
 
-  const handleDeleteRoom = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this room?')) return;
+  const handleDeleteClick = (id) => {
+    setDeletingRoomId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteRoom = async () => {
+    if (!deletingRoomId || isDeleting) return;
+    
+    setIsDeleting(true);
     
     try {
-      await deleteRoom(id);
+      await deleteRoom(deletingRoomId);
       await fetchRooms(selectedCinema._id);
+      toast.success('Xóa phòng chiếu thành công!');
     } catch (err) {
-      setError(err.message || 'Failed to delete room');
+      const errorMsg = err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi xóa phòng chiếu';
+      toast.error(errorMsg);
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeletingRoomId(null);
+      setIsDeleting(false);
     }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setDeletingRoomId(null);
   };
 
   const openEditCinemaModal = () => {
@@ -259,7 +348,7 @@ const CinemaManagement = () => {
 
   const openAddRoomModal = () => {
     if (!selectedCinema) {
-      alert('Vui lòng chọn một rạp trước');
+      toast.error('Vui lòng chọn một rạp trước');
       return;
     }
     setEditingRoom(null);
@@ -336,7 +425,6 @@ const CinemaManagement = () => {
                   <th>Tên phòng</th>
                   <th>Loại phòng</th>
                   <th>Số ghế</th>
-                  <th>Khung giờ</th>
                   <th>Phim đang chiếu</th>
                   <th>Trạng thái</th>
                   <th>Thao tác</th>
@@ -344,7 +432,7 @@ const CinemaManagement = () => {
               </thead>
               <tbody>
                 {cinemaRooms.map((room, index) => {
-                  const movie = getMovieForRoom(room._id);
+                  const movie = getMovieForRoom(room);
                   return (
                   <tr key={room._id}>
                     <td>{index + 1}</td>
@@ -352,32 +440,16 @@ const CinemaManagement = () => {
                     <td>{getRoomTypeBadge(room.type)}</td>
                     <td>{room.capacity}</td>
                     <td>
-                      <div className="time-slots-display">
-                        {room.timeSlots && room.timeSlots.length > 0 ? (
-                          room.timeSlots.map((slot, idx) => (
-                            <span key={idx} className="time-slot-badge">{slot}</span>
-                          ))
-                        ) : (
-                          <span className="no-time-slots">Chưa set</span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
                       {movie ? (
-                        <span className="movie-playing">{movie.title}</span>
+                        <span className="movie-playing">
+                          {typeof movie === 'object' && movie.title ? movie.title : 'Phim đã xóa'}
+                        </span>
                       ) : (
                         <span className="no-movie">Chưa có phim</span>
                       )}
                     </td>
                     <td>{getStatusBadge(room.status)}</td>
                     <td>
-                      <button 
-                        className="btn btn-sm btn-time"
-                        onClick={() => handleEditTimeSlots(room)}
-                        title="Quản lý khung giờ"
-                      >
-                        Giờ
-                      </button>
                       <button 
                         className="btn btn-sm btn-edit"
                         onClick={() => handleEditRoom(room)}
@@ -386,7 +458,7 @@ const CinemaManagement = () => {
                       </button>
                       <button 
                         className="btn btn-sm btn-delete"
-                        onClick={() => handleDeleteRoom(room._id)}
+                        onClick={() => handleDeleteClick(room._id)}
                       >
                         Xóa
                       </button>
@@ -395,7 +467,7 @@ const CinemaManagement = () => {
                 )})}
                 {cinemaRooms.length === 0 && (
                   <tr>
-                    <td colSpan="8" className="no-data">Không có phòng nào</td>
+                    <td colSpan="7" className="no-data">Không có phòng nào</td>
                   </tr>
                 )}
               </tbody>
@@ -546,33 +618,12 @@ const CinemaManagement = () => {
                 <div className="form-group">
                   <label>Chọn phim</label>
                   <select name="movieId" value={roomFormData.movieId} onChange={handleRoomInputChange}>
-                    <option value="">-- Không có phim --</option>
-                    {movies.map(movie => (
+                    <option value="">-- Chưa có phim --</option>
+                    {getAvailableMovies(editingRoom ? editingRoom._id : null).map(movie => (
                       <option key={movie._id} value={movie._id}>{movie.title}</option>
                     ))}
                   </select>
                 </div>
-                <div className="form-group">
-                  <label>Giờ chiếu</label>
-                  <input
-                    type="datetime-local"
-                    name="startTime"
-                    value={roomFormData.startTime}
-                    onChange={handleRoomInputChange}
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Giá vé (VNĐ)</label>
-                <input
-                  type="number"
-                  name="price"
-                  value={roomFormData.price}
-                  onChange={handleRoomInputChange}
-                  placeholder="VD: 75000"
-                  min="0"
-                />
               </div>
 
               <div className="form-group">
@@ -648,6 +699,42 @@ const CinemaManagement = () => {
               </button>
               <button type="button" className="btn btn-primary" onClick={handleSaveTimeSlots}>
                 Lưu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={isDeleting ? undefined : cancelDelete}>
+          <div 
+            className={`modal-content modal-small ${isDeleting ? 'deleting' : ''}`} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3>Xác nhận xóa</h3>
+              <button className="modal-close" onClick={cancelDelete}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p>Bạn có chắc chắn muốn xóa phòng chiếu này không?</p>
+              <p className="text-muted">Hành động này không thể hoàn tác.</p>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={cancelDelete}>
+                Hủy
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-danger" 
+                onClick={confirmDeleteRoom} 
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <span>
+                    <span className="spinner"></span> Đang xóa...
+                  </span>
+                ) : 'Xóa'}
               </button>
             </div>
           </div>

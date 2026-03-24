@@ -97,6 +97,25 @@
   cursor: not-allowed;
 }
 
+/* Spinner for delete button */
+.spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 0.8s linear infinite;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Table Styles */
 .table-container {
   overflow-x: auto;
@@ -221,6 +240,34 @@
 
 .modal-small {
   max-width: 400px;
+}
+
+.modal-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content.deleting {
+  animation: fadeOut 0.3s ease-out;
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
 }
 
 .modal-body {
@@ -535,4 +582,35 @@
   border-radius: 3px;
   font-size: 12px;
   display: inline-block;
+}
+
+/* Delete Confirmation Modal */
+.delete-confirm-modal {
+  max-width: 400px;
+}
+
+.delete-confirm-modal .modal-body {
+  padding: 20px;
+}
+
+.delete-warning {
+  color: #dc3545;
+  font-weight: 500;
+  margin-top: 10px;
+}
+
+.delete-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ffffff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
