@@ -1,15 +1,32 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
+import { deleteUserAccount } from "../../services/api";
+import { UserContext } from "../../context/UserContext";
 
 export default function DeleteAccountModal({ isOpen, onClose }) {
   const [password, setPassword] = useState("");
-
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { logout } = useContext(UserContext);
+  
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
 
-    alert("Tài khoản đã được xóa!");
-    onClose();
+    try {
+      await deleteUserAccount(password);
+      alert("Tài khoản đã được vô hiệu hóa thành công!");
+      onClose();
+      logout();
+      // Redirect to home or login page
+      window.location.href = "/";
+    } catch (err) {
+      setError(err.response?.data?.message || "Có lỗi xảy ra khi xóa tài khoản");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -30,8 +47,12 @@ export default function DeleteAccountModal({ isOpen, onClose }) {
             />
           </div>
 
+          {error && <p className="error-message" style={{ color: "red" }}>{error}</p>}
+
           <div className="actions">
-            <button type="submit">Xóa tài khoản</button>
+            <button type="submit" disabled={loading}>
+              {loading ? "Đang xử lý..." : "Xóa tài khoản"}
+            </button>
             <button type="button" onClick={onClose}>Hủy</button>
           </div>
         </form>
