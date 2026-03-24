@@ -2,19 +2,19 @@
 
 const priceRules = [
   {
-    title: "Dưới 22 tuổi",
-    description: "Giá vé 50.000 VND",
-    badge: "< 22",
+    title: "U22",
+    description: "Áp dụng cho khách hàng dưới 22 tuổi.",
+    badge: "Giá vé 50.000 VND",
   },
   {
-    title: "Từ 22 tuổi trở lên",
-    description: "Giá vé 100.000 VND",
-    badge: ">= 22",
+    title: "22+ to U70",
+    description: "Áp dụng cho khách hàng từ 22 tuổi đến dưới 70 tuổi.",
+    badge: "Giá vé 100.000 VND",
   },
   {
-    title: "Trên 70 tuổi",
-    description: "Miễn phí",
-    badge: "> 70",
+    title: "70+",
+    description: "Áp dụng cho khách hàng 70 tuổi đổ lên.",
+    badge: "Miễn phí",
   },
 ];
 
@@ -23,7 +23,7 @@ export default function TicketPrices() {
     <div>
       <section className="section-page">
         <div className="section-page__container">
-          <h1 className="section-page__title">Giá vé</h1>
+          <h1 className="section-page__title">Giá vé (Áp dụng theo độ tuổi) </h1>
           <p className="section-page__subtitle">
             Thông tin giá vé theo độ tuổi như yêu cầu.
           </p>
