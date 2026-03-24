@@ -16,6 +16,8 @@ const AdminLayout = ({ children }) => {
     { path: "/admin/showtimes", label: "Quản lý lịch chiếu" },
     { path: "/admin/staff-register", label: "Đăng ký staff" },
     { path: "/admin/staffs", label: "Quản lý nhân viên" },
+    { path: "/admin/users", label: "Quản lý người dùng" },
+    { path: "/admin/voucher", label: "Quản lý voucher/point" },
   ];
 
   const menuItems =
