@@ -12,6 +12,11 @@ import OtpVerify from "../pages/OtpVerify";
 import ForgotPassword from "../pages/ForgotPassword";
 import ResetPassword from "../pages/ResetPassword";
 import NotFound from "../pages/NotFound";
+import ShowtimesByCinema from "../pages/ShowtimesByCinema";
+import MoviesAll from "../pages/MoviesAll";
+import CinemasOverview from "../pages/CinemasOverview";
+import TicketPrices from "../pages/TicketPrices";
+import NewsOffers from "../pages/NewsOffers";
 
 //Staff pages
 
@@ -60,6 +65,31 @@ export const routesConfig = [
     path: "/reset_password",
     element: <ResetPassword />,
     allowedRoles: ["Guest"],
+  },
+  {
+    path: "/showtimes",
+    element: <ShowtimesByCinema />,
+    allowedRoles: ["Customer", "Admin", "Staff", "Guest"],
+  },
+  {
+    path: "/movies",
+    element: <MoviesAll />,
+    allowedRoles: ["Customer", "Admin", "Staff", "Guest"],
+  },
+  {
+    path: "/cinemas",
+    element: <CinemasOverview />,
+    allowedRoles: ["Customer", "Admin", "Staff", "Guest"],
+  },
+  {
+    path: "/prices",
+    element: <TicketPrices />,
+    allowedRoles: ["Customer", "Admin", "Staff", "Guest"],
+  },
+  {
+    path: "/news",
+    element: <NewsOffers />,
+    allowedRoles: ["Customer", "Admin", "Staff", "Guest"],
   },
   
   // Admin routes
