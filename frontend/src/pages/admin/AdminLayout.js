@@ -10,14 +10,16 @@ const AdminLayout = ({ children }) => {
   const { logout, role } = useContext(UserContext);
 
   const allMenuItems = [
-    { path: "/admin/dashboard", label: "Bảng điều khiển" },
-    { path: "/admin/movies", label: "Quản lý phim" },
-    { path: "/admin/cinemas", label: "Quản lý rạp và phòng" },
-    { path: "/admin/showtimes", label: "Quản lý lịch chiếu" },
-    { path: "/admin/staff-register", label: "Đăng ký staff" },
-    { path: "/admin/staffs", label: "Quản lý nhân viên" },
-    { path: "/admin/users", label: "Quản lý người dùng" },
-    { path: "/admin/voucher", label: "Quản lý voucher/point" },
+    { path: "/admin/dashboard", label: "Dashboard" },
+    { path: "/admin/movies", label: "Quản lý Phim" },
+    { path: "/admin/cinemas", label: "Quản lý Rạp & Phòng" },
+    { path: "/admin/showtimes", label: "Quản lý Lịch Chiếu" },
+    { path: "/admin/staff-register", label: "Đăng ký Staff" },
+    { path: "/admin/staffs", label: "Quản lý Nhân Viên" },
+    { path: "/admin/users", label: "Quản lý Người Dùng" },
+    { path: "/admin/voucher", label: "Quản lý Voucher" },
+    { path: "/admin/point", label: "Quản lý Point" },
+
   ];
 
   const menuItems =

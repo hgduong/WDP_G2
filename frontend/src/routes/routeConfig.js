@@ -29,6 +29,7 @@ import CinemaManagement from "../pages/admin/CinemaManagement";
 import ShowtimeManagement from "../pages/admin/ShowtimeManagement";
 import StaffRegistration from "../pages/admin/StaffRegistration";
 import StaffManagement from "../pages/admin/StaffManagement";
+import VoucherManagement from "../pages/admin/VoucherManagement";
 
 export const routesConfig = [
   {
@@ -138,6 +139,11 @@ export const routesConfig = [
   {
     path: "/admin/staff-register",
     element: <StaffRegistration />,
+    allowedRoles: ["Admin"],
+  },
+  {
+    path: "/admin/voucher",
+    element: <VoucherManagement />,
     allowedRoles: ["Admin"],
   },
   

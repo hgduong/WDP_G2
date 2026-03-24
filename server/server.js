@@ -77,6 +77,10 @@ const userRoutes = require("./routes/user.routes");
 const moviesRoutes = require("./routes/movies.route");
 const cinemaRoutes = require("./routes/cinema.routes");
 const staffRoutes = require("./routes/staffs.route");
+const voucherRoutes = require("./routes/voucher.routes");
+
+// Đăng ký voucher routes tại /vouchers (cùng cấp với các routes khác)
+app.use("/vouchers", voucherRoutes);
 
 app.use(authRoutes);
 app.use(userRoutes);
