@@ -10,14 +10,14 @@ const AdminLayout = ({ children }) => {
   const { logout, role } = useContext(UserContext);
 
   const allMenuItems = [
-    { path: "/admin/dashboard", label: "Dashboard" },
-    { path: "/admin/movies", label: "Quản lý Phim" },
-    { path: "/admin/cinemas", label: "Quản lý Rạp & Phòng" },
-    { path: "/admin/showtimes", label: "Quản lý Lịch Chiếu" },
-    { path: "/admin/staff-register", label: "Đăng ký Staff" },
-    { path: "/admin/staffs", label: "Quản lý Nhân Viên" },
-    { path: "/admin/users", label: "Quản lý Người Dùng" },
-    { path: "/admin/voucher", label: "Quản lý Voucher/Point" },
+    { path: "/admin/dashboard", label: "Bảng điều khiển" },
+    { path: "/admin/movies", label: "Quản lý phim" },
+    { path: "/admin/cinemas", label: "Quản lý rạp và phòng" },
+    { path: "/admin/showtimes", label: "Quản lý lịch chiếu" },
+    { path: "/admin/staff-register", label: "Đăng ký staff" },
+    { path: "/admin/staffs", label: "Quản lý nhân viên" },
+    { path: "/admin/users", label: "Quản lý người dùng" },
+    { path: "/admin/voucher", label: "Quản lý voucher/point" },
   ];
 
   const menuItems =
@@ -76,7 +76,7 @@ const AdminLayout = ({ children }) => {
             }}
           >
             <span className="nav-icon"></span>
-            {sidebarOpen && <span className="nav-label">Về Trang Chủ</span>}
+            {sidebarOpen && <span className="nav-label">Về trang chủ</span>}
           </a>
           <button className="logout-btn" onClick={handleLogout}>
             <span className="nav-icon"></span>
@@ -87,7 +87,7 @@ const AdminLayout = ({ children }) => {
 
       <div className="admin-main">
         <header className="admin-header">
-          <h1>{role === "Staff" ? "Staff Dashboard" : "Admin Dashboard"}</h1>
+          <h1>{role === "Staff" ? "Bảng điều khiển staff" : "Bảng điều khiển admin"}</h1>
           <div className="admin-user">
             <span>{role || "Admin"}</span>
           </div>
