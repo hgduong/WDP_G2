@@ -6,6 +6,46 @@ const crypto = require("crypto");
 const passport = require("passport");
 
 const STAFF_ALLOWED_ROLES = ["Staff", "Admin"];
+const STAFF_LOGIN_OTP_EXPIRES_MS = 5 * 60 * 1000;
+
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function createSmtpTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+}
+
+function buildAuthPayload(user) {
+  return {
+    id: user._id,
+    fullName: user.fullName,
+    email: user.email,
+    role: user.role,
+    avatarUrl: user.avatarUrl || null,
+  };
+}
+
+function issueAuthCookie(res, user) {
+  const token = jwt.sign(buildAuthPayload(user), process.env.JWT_SECRET, {
+    expiresIn: "1d",
+  });
+
+  res.cookie("jwt", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 24 * 60 * 60 * 1000,
+  });
+}
 
 exports.sendOtp = async (req, res) => {
   try {
@@ -197,13 +237,7 @@ exports.verifyOtp = async (req, res) => {
       await user.save();
 
       // Tạo transporter gửi mail
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      });
+      const transporter = createSmtpTransporter();
 
       // Tạo link reset password
       const resetUrl = `http://localhost:3000/reset_password?token=${resetToken}`;
@@ -227,6 +261,124 @@ exports.verifyOtp = async (req, res) => {
   } catch (error) {
     console.error("Verify OTP Error:", error);
     return res.status(500).json({ error: "Lỗi server khi xác thực OTP" });
+  }
+};
+
+exports.requestStaffLoginOtp = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email va mat khau la bat buoc" });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      return res.status(404).json({ message: "Khong tim thay tai khoan" });
+    }
+
+    if (!STAFF_ALLOWED_ROLES.includes(user.role)) {
+      return res.status(403).json({ message: "Tai khoan khong thuoc khu vuc staff" });
+    }
+
+    if (user.authProvider !== "local") {
+      return res.status(400).json({ message: "Tai khoan nay khong ho tro dang nhap OTP" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Sai mat khau" });
+    }
+
+    if (user.status !== "Active") {
+      return res.status(403).json({ message: "Tai khoan staff dang cho admin xac nhan" });
+    }
+
+    if (
+      user.lastOtpSentAt &&
+      Date.now() - user.lastOtpSentAt.getTime() < 60 * 1000
+    ) {
+      return res.status(400).json({ message: "Ban chi co the gui lai OTP sau 60 giay" });
+    }
+
+    const otp = generateOTP();
+    user.otpCode = otp;
+    user.otpExpires = new Date(Date.now() + STAFF_LOGIN_OTP_EXPIRES_MS);
+    user.lastOtpSentAt = new Date();
+    await user.save();
+
+    const transporter = createSmtpTransporter();
+    await transporter.sendMail({
+      from: process.env.SMTP_USER,
+      to: user.email,
+      subject: "Ma OTP dang nhap Staff",
+      text:
+        `Xin chao ${user.fullName},\n\n` +
+        `Ma OTP dang nhap cua ban la: ${otp}\n` +
+        "Ma nay se het han sau 5 phut.\n",
+    });
+
+    return res.json({
+      message: "Ma OTP dang nhap da duoc gui qua Gmail",
+      email: user.email,
+    });
+  } catch (error) {
+    console.error("Staff OTP Request Error:", error);
+    return res.status(500).json({ message: "Loi server khi gui OTP dang nhap" });
+  }
+};
+
+exports.verifyStaffLoginOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ message: "Email va OTP la bat buoc" });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      return res.status(404).json({ message: "Khong tim thay tai khoan" });
+    }
+
+    if (!STAFF_ALLOWED_ROLES.includes(user.role)) {
+      return res.status(403).json({ message: "Tai khoan khong thuoc khu vuc staff" });
+    }
+
+    if (user.status !== "Active") {
+      return res.status(403).json({ message: "Tai khoan staff dang cho admin xac nhan" });
+    }
+
+    if (!user.otpCode || !user.otpExpires) {
+      return res.status(400).json({ message: "OTP chua duoc tao" });
+    }
+
+    if (new Date() > user.otpExpires) {
+      return res.status(400).json({ message: "OTP da het han" });
+    }
+
+    if (user.otpCode !== otp.trim()) {
+      return res.status(400).json({ message: "OTP khong dung" });
+    }
+
+    user.otpCode = null;
+    user.otpExpires = null;
+    user.lastOtpSentAt = null;
+    await user.save();
+
+    issueAuthCookie(res, user);
+
+    return res.status(200).json({
+      message: "Dang nhap thanh cong",
+      user: buildAuthPayload(user),
+    });
+  } catch (error) {
+    console.error("Staff OTP Verify Error:", error);
+    return res.status(500).json({ message: "Loi server khi xac thuc OTP dang nhap" });
   }
 };
 
@@ -437,4 +589,3 @@ exports.getUserIdentity = (req, res) => {
     },
   });
 };
-

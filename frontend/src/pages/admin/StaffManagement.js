@@ -271,6 +271,24 @@ const StaffManagement = () => {
     }
   };
 
+  const handleApprove = async (id) => {
+    try {
+      await updateStaffStatus(id, "Active");
+      await fetchStaff();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Failed to approve staff"));
+    }
+  };
+
+  const handleReject = async (id) => {
+    try {
+      await updateStaffStatus(id, "Inactive");
+      await fetchStaff();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Failed to reject staff"));
+    }
+  };
+
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
 
@@ -402,6 +420,22 @@ const StaffManagement = () => {
                 </td>
                 <td>{getStatusBadge(staff.status)}</td>
                 <td>
+                  {staff.status === "Pending" ? (
+                    <>
+                      <button
+                        className="btn btn-sm btn-primary"
+                        onClick={() => handleApprove(staff._id)}
+                      >
+                        Duyet
+                      </button>
+                      <button
+                        className="btn btn-sm btn-delete"
+                        onClick={() => handleReject(staff._id)}
+                      >
+                        Tu choi
+                      </button>
+                    </>
+                  ) : null}
                   <button
                     className="btn btn-sm btn-edit"
                     onClick={() => openEditModal(staff)}
