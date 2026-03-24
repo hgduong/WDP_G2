@@ -33,6 +33,10 @@
   padding: 16px;
   border: 1px solid #e7e7e7;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 120px;
 }
 
 .section-card__title {
@@ -54,7 +58,7 @@
   background: #111;
   color: #fff;
   font-size: 12px;
-  margin-top: 8px;
+  margin-top: auto;
 }
 
 .section-page__toolbar {
