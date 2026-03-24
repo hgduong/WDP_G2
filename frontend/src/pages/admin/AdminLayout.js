@@ -1,28 +1,34 @@
-import React, { useState, useContext } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { UserContext } from '../../context/UserContext';
-import '../../assets/styles/AdminLayout.css';
+import React, { useState, useContext } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { UserContext } from "../../context/UserContext";
+import "../../assets/styles/AdminLayout.css";
 
 const AdminLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { logout } = useContext(UserContext);
+  const { logout, role } = useContext(UserContext);
 
-  const menuItems = [
-    { path: '/admin/dashboard', label: 'Dashboard' },
-    { path: '/admin/movies', label: 'Quản lý Phim' },
-    { path: '/admin/cinemas', label: 'Quản lý Rạp & Phòng' },
-    { path: '/admin/showtimes', label: 'Quản lý Lịch Chiếu' },
-    { path: '/admin/staffs', label: 'Quản lý Nhân Viên' },
+  const allMenuItems = [
+    { path: "/admin/dashboard", label: "Dashboard" },
+    { path: "/admin/movies", label: "Quan ly Phim" },
+    { path: "/admin/cinemas", label: "Quan ly Rap & Phong" },
+    { path: "/admin/showtimes", label: "Quan ly Lich Chieu" },
+    { path: "/admin/staff-register", label: "Dang ky Staff" },
+    { path: "/admin/staffs", label: "Quan ly Nhan Vien" },
   ];
+
+  const menuItems =
+    role === "Staff"
+      ? allMenuItems.filter((item) => item.path === "/admin/dashboard")
+      : allMenuItems;
 
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/login');
+      navigate("/login");
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
     }
   };
 
@@ -30,25 +36,23 @@ const AdminLayout = ({ children }) => {
 
   return (
     <div className="admin-layout">
-      <div className={`admin-sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+      <div className={`admin-sidebar ${sidebarOpen ? "open" : "closed"}`}>
         <div className="sidebar-header">
-          <div className="logo">
-            {sidebarOpen ? 'Time Cinemas' : '🎬'}
-          </div>
-          <button 
+          <div className="logo">{sidebarOpen ? "Time Cinemas" : "TC"}</div>
+          <button
             className="toggle-btn"
             onClick={() => setSidebarOpen(!sidebarOpen)}
           >
-            {sidebarOpen ? '◀' : '▶'}
+            {sidebarOpen ? "<" : ">"}
           </button>
         </div>
-        
+
         <nav className="sidebar-nav">
           {menuItems.map((item) => (
             <a
               key={item.path}
               href={item.path}
-              className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
+              className={`nav-item ${isActive(item.path) ? "active" : ""}`}
               onClick={(e) => {
                 e.preventDefault();
                 navigate(item.path);
@@ -66,30 +70,28 @@ const AdminLayout = ({ children }) => {
             className="nav-item"
             onClick={(e) => {
               e.preventDefault();
-              navigate('/');
+              navigate("/");
             }}
           >
             <span className="nav-icon"></span>
-            {sidebarOpen && <span className="nav-label">Về trang chủ</span>}
+            {sidebarOpen && <span className="nav-label">Ve trang chu</span>}
           </a>
           <button className="logout-btn" onClick={handleLogout}>
             <span className="nav-icon"></span>
-            {sidebarOpen && <span className="nav-label">Đăng xuất</span>}
+            {sidebarOpen && <span className="nav-label">Dang xuat</span>}
           </button>
         </div>
       </div>
 
       <div className="admin-main">
         <header className="admin-header">
-          <h1>Admin Dashboard</h1>
+          <h1>{role === "Staff" ? "Staff Dashboard" : "Admin Dashboard"}</h1>
           <div className="admin-user">
-            <span>👤 Admin</span>
+            <span>{role || "Admin"}</span>
           </div>
         </header>
-        
-        <main className="admin-content">
-          {children}
-        </main>
+
+        <main className="admin-content">{children}</main>
       </div>
     </div>
   );

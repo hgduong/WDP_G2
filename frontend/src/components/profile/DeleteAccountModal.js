@@ -13,21 +13,29 @@ export default function DeleteAccountModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="modal">
-      <h4>Xóa tài khoản</h4>
-      <p>Hành động này không thể hoàn tác.</p>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal danger-modal" onClick={(e) => e.stopPropagation()}>
+        <h4>Xóa tài khoản</h4>
+        <p>Hành động này không thể hoàn tác. Tất cả dữ liệu của bạn sẽ bị xóa vĩnh viễn.</p>
 
-      <form onSubmit={handleSubmit}>
-        <input
-          type="password"
-          placeholder="Nhập mật khẩu"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Nhập mật khẩu để xác nhận</label>
+            <input
+              type="password"
+              placeholder="Nhập mật khẩu"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
 
-        <button type="submit">Xóa</button>
-        <button type="button" onClick={onClose}>Hủy</button>
-      </form>
+          <div className="actions">
+            <button type="submit">Xóa tài khoản</button>
+            <button type="button" onClick={onClose}>Hủy</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

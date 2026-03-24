@@ -6,7 +6,7 @@ export default function MovieCard({ movie }) {
     <Link to={`/movie/${movie._id}`} className="block">
       <div className="rounded overflow-hidden shadow-lg bg-gray-800 hover:scale-105 transition-transform" style={{ width: '200px' }}>
         <img
-          src={getImageUrl(movie.posterUrl)}
+          src={movie.posterUrl}
           alt={movie.title}
           style={{ width: '100%', height: '150px', objectFit: 'cover' }}
         />

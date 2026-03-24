@@ -1,27 +1,35 @@
-// src/components/Navbar.jsx
 import { useContext, useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import "../assets/styles/Navbar.css";
 import logo from "../assets/images/logo.png";
-import VIE from "../assets/images/VIE.png";
-import ENG from "../assets/images/ENG.png";
 import ava from "../assets/images/person.png";
 import { LanguageContext } from "../context/LanguageContext";
 import { UserContext } from "../context/UserContext.js";
 
 export default function Navbar() {
-  const { lang, toggleLang } = useContext(LanguageContext);
+  const { lang } = useContext(LanguageContext);
   const [showDropdown, setShowDropdown] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useContext(UserContext);
+  const dashboardPath =
+    user?.role === "Admin"
+      ? "/admin/dashboard"
+      : user?.role === "Staff"
+        ? "/staff/dashboard"
+        : null;
 
   useEffect(() => {
     setShowDropdown(false);
   }, [user]);
 
   const handleLogout = () => {
+    setShowDropdown(false);
     logout();
     navigate("/");
+  };
+
+  const handleDropdownLinkClick = () => {
+    setShowDropdown(false);
   };
 
   return (
@@ -33,19 +41,62 @@ export default function Navbar() {
         </Link>
 
         <nav className="navbar-menu">
-          <Link to="/showtimes">
+          <NavLink
+            to="/showtimes"
+            className={({ isActive }) =>
+              isActive ? "navbar-link navbar-link--active" : "navbar-link"
+            }
+          >
             {lang === "vi" ? "LỊCH CHIẾU THEO RẠP" : "SHOWTIMES"}
-          </Link>
-          <Link to="/movies">{lang === "vi" ? "PHIM" : "MOVIES"}</Link>
-          <Link to="/cinemas">{lang === "vi" ? "RẠP" : "CINEMAS"}</Link>
-          <Link to="/prices">{lang === "vi" ? "GIÁ VÉ" : "PRICES"}</Link>
-          <Link to="/news">
+          </NavLink>
+          <NavLink
+            to="/movies"
+            className={({ isActive }) =>
+              isActive ? "navbar-link navbar-link--active" : "navbar-link"
+            }
+          >
+            {lang === "vi" ? "PHIM" : "MOVIES"}
+          </NavLink>
+          <NavLink
+            to="/cinemas"
+            className={({ isActive }) =>
+              isActive ? "navbar-link navbar-link--active" : "navbar-link"
+            }
+          >
+            {lang === "vi" ? "RẠP" : "CINEMAS"}
+          </NavLink>
+          <NavLink
+            to="/prices"
+            className={({ isActive }) =>
+              isActive ? "navbar-link navbar-link--active" : "navbar-link"
+            }
+          >
+            {lang === "vi" ? "GIÁ VÉ" : "PRICES"}
+          </NavLink>
+          <NavLink
+            to="/news"
+            className={({ isActive }) =>
+              isActive ? "navbar-link navbar-link--active" : "navbar-link"
+            }
+          >
             {lang === "vi" ? "TIN MỚI & ƯU ĐÃI" : "NEWS & OFFERS"}
-          </Link>
-          <Link to="/franchise">
+          </NavLink>
+          <NavLink
+            to="/franchise"
+            className={({ isActive }) =>
+              isActive ? "navbar-link navbar-link--active" : "navbar-link"
+            }
+          >
             {lang === "vi" ? "NHƯỢNG QUYỀN" : "FRANCHISE"}
-          </Link>
-          <Link to="/members">{lang === "vi" ? "THÀNH VIÊN" : "MEMBERS"}</Link>
+          </NavLink>
+          <NavLink
+            to="/members"
+            className={({ isActive }) =>
+              isActive ? "navbar-link navbar-link--active" : "navbar-link"
+            }
+          >
+            {lang === "vi" ? "THÀNH VIÊN" : "MEMBERS"}
+          </NavLink>
         </nav>
 
         <div className="navbar-right">
@@ -55,27 +106,35 @@ export default function Navbar() {
                 src={user.avatarUrl || ava}
                 alt="avatar"
                 className="navbar-avatar"
-                onClick={() => setShowDropdown(prev => !prev)}
+                onClick={() => setShowDropdown((prev) => !prev)}
               />
               {showDropdown && (
                 <ul className="navbar-dropdown">
                   <li className="dropdown-header">{user.fullName}</li>
+                  {dashboardPath ? (
+                    <li>
+                      <Link to={dashboardPath} onClick={handleDropdownLinkClick}>
+                        {user.role === "Admin" ? "Trang quan tri" : "Trang staff"}
+                      </Link>
+                    </li>
+                  ) : null}
                   <li>
-                    <Link to="/profile"> Trang cá nhân</Link>
+                    <Link to="/profile" onClick={handleDropdownLinkClick}>
+                      Trang ca nhan
+                    </Link>
                   </li>
                   <li>
-                    <Link to="/settings"> Cài đặt</Link>
-                  </li>
-                  <li>
-                    <button onClick={handleLogout}> Đăng xuất</button>
+                    <button onClick={handleLogout}>Dang xuat</button>
                   </li>
                 </ul>
               )}
             </div>
           ) : (
             <>
-              <Link to="/login">{lang === "vi" ? "Đăng nhập" : "Login"}</Link>
-              <Link to="/signup">{lang === "vi" ? "Đăng ký" : "Register"}</Link>
+              <Link to="/login">{lang === "vi" ? "Dang nhap" : "Login"}</Link>
+              <Link to="/signup">
+                {lang === "vi" ? "Dang ky" : "Register"}
+              </Link>
             </>
           )}
         </div>

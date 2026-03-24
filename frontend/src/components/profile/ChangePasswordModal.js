@@ -43,7 +43,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
 
     setLoading(true);
     try {
-      await changePassword(currentPassword, newPassword);
+      await changePassword(currentPassword, newPassword, confirmPassword);
       setSuccess("Đổi mật khẩu thành công!");
       setForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       setTimeout(onClose, 1500);
@@ -77,73 +77,87 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="modal">
-      <h4>Đổi mật khẩu</h4>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h4>Đổi mật khẩu</h4>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {success && <p style={{ color: "green" }}>{success}</p>}
+        {error && <div className="error-message">{error}</div>}
+        {success && <div className="success-message">{success}</div>}
 
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="currentPassword">Mật khẩu hiện tại</label>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <input
-              id="currentPassword"
-              type={show.current ? "text" : "password"}
-              name="currentPassword"
-              value={form.currentPassword}
-              onChange={handleChange}
-              required
-            />
-            <button type="button" onClick={() => toggleShow("current")}>
-              {show.current ? "Ẩn" : "Hiện"}
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="currentPassword">Mật khẩu hiện tại</label>
+            <div className="password-input-wrapper">
+              <input
+                id="currentPassword"
+                type={show.current ? "text" : "password"}
+                name="currentPassword"
+                value={form.currentPassword}
+                onChange={handleChange}
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => toggleShow("current")}
+              >
+                {show.current ? "Ẩn" : "Hiện"}
+              </button>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="newPassword">Mật khẩu mới</label>
+            <div className="password-input-wrapper">
+              <input
+                id="newPassword"
+                type={show.new ? "text" : "password"}
+                name="newPassword"
+                value={form.newPassword}
+                onChange={handleChange}
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => toggleShow("new")}
+              >
+                {show.new ? "Ẩn" : "Hiện"}
+              </button>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="confirmPassword">Xác nhận mật khẩu mới</label>
+            <div className="password-input-wrapper">
+              <input
+                id="confirmPassword"
+                type={show.confirm ? "text" : "password"}
+                name="confirmPassword"
+                value={form.confirmPassword}
+                onChange={handleChange}
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => toggleShow("confirm")}
+              >
+                {show.confirm ? "Ẩn" : "Hiện"}
+              </button>
+            </div>
+          </div>
+
+          <div className="actions">
+            <button type="submit" disabled={loading}>
+              {loading ? "Đang xử lý..." : "Đổi mật khẩu"}
+            </button>
+            <button type="button" onClick={onClose}>
+              Hủy
             </button>
           </div>
-        </div>
-
-        <div>
-          <label htmlFor="newPassword">Mật khẩu mới</label>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <input
-              id="newPassword"
-              type={show.new ? "text" : "password"}
-              name="newPassword"
-              value={form.newPassword}
-              onChange={handleChange}
-              required
-            />
-            <button type="button" onClick={() => toggleShow("new")}>
-              {show.new ? "Ẩn" : "Hiện"}
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <label htmlFor="confirmPassword">Xác nhận mật khẩu mới</label>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <input
-              id="confirmPassword"
-              type={show.confirm ? "text" : "password"}
-              name="confirmPassword"
-              value={form.confirmPassword}
-              onChange={handleChange}
-              required
-            />
-            <button type="button" onClick={() => toggleShow("confirm")}>
-              {show.confirm ? "Ẩn" : "Hiện"}
-            </button>
-          </div>
-        </div>
-
-        <div className="actions">
-          <button type="submit" disabled={loading}>
-            {loading ? "Đang xử lý..." : "Đổi"}
-          </button>
-          <button type="button" onClick={onClose}>
-            Hủy
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }

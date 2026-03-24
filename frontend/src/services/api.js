@@ -34,6 +34,15 @@ export const staffLogin = async (credentials) => {
   }
 };
 
+export const registerStaffAccount = async (staffData) => {
+  try {
+    const res = await API.post("/staff/register", staffData);
+    return res.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export const logoutUser = async () => {
   try {
     const res = await API.post("/logout");
@@ -408,7 +417,7 @@ export const updateStaffStatus = async (id, status) => {
 }
 export const changeStaffPassword = async (id, passwordData) => {
   try {
-    const response = await API.patch(`/staffs/${id}/password`, passwordData);
+    const response = await API.post(`/staffs/${id}/change-password`, passwordData);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;

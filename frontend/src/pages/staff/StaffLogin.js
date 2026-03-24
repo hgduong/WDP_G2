@@ -1,8 +1,8 @@
 import React, { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { staffLogin } from "../services/api";
-import { UserContext } from "../context/UserContext";
-import "../assets/styles/StaffLogin.css";
+import { staffLogin } from "../../services/api";
+import { UserContext } from "../../context/UserContext";
+import "../../assets/styles/StaffLogin.css";
 
 const STAFF_ROLES = ["Staff", "Admin"];
 
@@ -22,14 +22,16 @@ function StaffLogin() {
 
     try {
       const result = await staffLogin({ email, password });
-      if (!STAFF_ROLES.includes(result?.data?.user?.role)) {
+      const userRole = result?.data?.user?.role;
+
+      if (!STAFF_ROLES.includes(userRole)) {
         setError("Tai khoan khong thuoc nhom staff.");
         return;
       }
 
       // Use callback to wait for state update then navigate
       login(result?.data?.user, () => {
-        navigate("/admin/dashboard");
+        navigate(userRole === "Admin" ? "/admin/dashboard" : "/staff/dashboard");
       });
     } catch (err) {
       setError(err?.message || "Dang nhap that bai.");
@@ -82,6 +84,10 @@ function StaffLogin() {
         </form>
 
         <div className="staff-login-footer">
+          <Link to="/staff-register">Dang ky staff</Link>
+        </div>
+
+        <div className="staff-login-footer">
           <Link to="/login">Dang nhap khach hang</Link>
         </div>
       </div>
@@ -90,5 +96,3 @@ function StaffLogin() {
 }
 
 export default StaffLogin;
-
-

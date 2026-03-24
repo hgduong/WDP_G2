@@ -1,74 +1,118 @@
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
 
-// Lấy danh sách tất cả nhân viên
+const sanitizeStaff = (staff) => {
+  if (!staff) return staff;
+
+  const staffObject =
+    typeof staff.toObject === "function" ? staff.toObject() : { ...staff };
+
+  delete staffObject.passwordHash;
+  delete staffObject.otpCode;
+  delete staffObject.otpExpires;
+  delete staffObject.lastOtpSentAt;
+  delete staffObject.resetToken;
+  delete staffObject.resetExpires;
+
+  return staffObject;
+};
+
+const createStaffRecord = async (payload = {}, options = {}) => {
+  const {
+    email,
+    fullName,
+    gender,
+    password,
+    phone,
+    dob,
+    idCard,
+    address,
+    status,
+  } = payload;
+  const { defaultStatus = "Active" } = options;
+
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    const error = new Error("Email da duoc su dung");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!password) {
+    const error = new Error("Mat khau la bat buoc");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  const passwordHash = await bcrypt.hash(password, salt);
+
+  const newStaff = new User({
+    email,
+    fullName,
+    gender,
+    passwordHash,
+    phone,
+    dob,
+    idCard,
+    address,
+    role: "Staff",
+    status: status || defaultStatus,
+    authProvider: "local",
+  });
+
+  await newStaff.save();
+  return newStaff;
+};
+
+exports.registerStaff = async (req, res) => {
+  try {
+    const newStaff = await createStaffRecord(req.body, { defaultStatus: "Pending" });
+    res.status(201).json({
+      message: "Dang ky staff thanh cong. Vui long cho admin kich hoat tai khoan.",
+      staff: sanitizeStaff(newStaff),
+    });
+  } catch (error) {
+    console.error("Loi khi dang ky staff:", error);
+    res.status(error.statusCode || 400).json({ message: error.message });
+  }
+};
+
 exports.getAllStaff = async (req, res) => {
   try {
     const staff = await User.find({ role: "Staff" }).sort({ createdAt: -1 });
-    res.json(staff);
+    res.json(staff.map(sanitizeStaff));
   } catch (error) {
-    console.error("Lỗi khi lấy danh sách nhân viên:", error);
-    res.status(500).json({ message: "Lỗi server" });
+    console.error("Loi khi lay danh sach nhan vien:", error);
+    res.status(500).json({ message: "Loi server" });
   }
 };
 
-// Lấy thông tin nhân viên theo ID
 exports.getStaffById = async (req, res) => {
   try {
     const staff = await User.findOne({ _id: req.params.id, role: "Staff" });
+
     if (!staff) {
-      return res.status(404).json({ message: "Nhân viên không tồn tại" });
+      return res.status(404).json({ message: "Nhan vien khong ton tai" });
     }
-    res.json(staff);
+
+    res.json(sanitizeStaff(staff));
   } catch (error) {
-    console.error("Lỗi khi lấy thông tin nhân viên:", error);
-    res.status(500).json({ message: "Lỗi server" });
+    console.error("Loi khi lay thong tin nhan vien:", error);
+    res.status(500).json({ message: "Loi server" });
   }
 };
 
-// Tạo nhân viên mới
 exports.createStaff = async (req, res) => {
   try {
-    const { email, fullName, gender, password, phone, dob, idCard, address, status } = req.body;
-
-    // Kiểm tra email đã tồn tại chưa
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: "Email đã được sử dụng" });
-    }
-
-    // Mã hóa mật khẩu
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
-    const newStaff = new User({
-      email,
-      fullName,
-      gender,
-      passwordHash,
-      phone,
-      dob,
-      idCard,
-      address,
-      role: "Staff",
-      status: status || "Active",
-      authProvider: "local",
-    });
-
-    await newStaff.save();
-    
-    // Trả về thông tin nhân viên (không bao gồm passwordHash)
-    const staffResponse = newStaff.toObject();
-    delete staffResponse.passwordHash;
-    
-    res.status(201).json(staffResponse);
+    const newStaff = await createStaffRecord(req.body, { defaultStatus: "Active" });
+    res.status(201).json(sanitizeStaff(newStaff));
   } catch (error) {
-    console.error("Lỗi khi tạo nhân viên:", error);
-    res.status(400).json({ message: error.message });
+    console.error("Loi khi tao nhan vien:", error);
+    res.status(error.statusCode || 400).json({ message: error.message });
   }
 };
 
-// Cập nhật thông tin nhân viên
 exports.updateStaff = async (req, res) => {
   try {
     const { fullName, gender, phone, dob, idCard, address, status } = req.body;
@@ -85,83 +129,74 @@ exports.updateStaff = async (req, res) => {
         status,
         updatedAt: Date.now(),
       },
-      { new: true }
+      { new: true, runValidators: true },
     );
 
     if (!updatedStaff) {
-      return res.status(404).json({ message: "Nhân viên không tồn tại" });
+      return res.status(404).json({ message: "Nhan vien khong ton tai" });
     }
 
-    // Không trả về passwordHash
-    const staffResponse = updatedStaff.toObject();
-    delete staffResponse.passwordHash;
-
-    res.json(staffResponse);
+    res.json(sanitizeStaff(updatedStaff));
   } catch (error) {
-    console.error("Lỗi khi cập nhật nhân viên:", error);
+    console.error("Loi khi cap nhat nhan vien:", error);
     res.status(400).json({ message: error.message });
   }
 };
 
-// Xóa nhân viên (chuyển trạng thái thành Inactive)
 exports.deleteStaff = async (req, res) => {
   try {
     const staff = await User.findOneAndUpdate(
       { _id: req.params.id, role: "Staff" },
       { status: "Inactive", updatedAt: Date.now() },
-      { new: true }
+      { new: true },
     );
 
     if (!staff) {
-      return res.status(404).json({ message: "Nhân viên không tồn tại" });
+      return res.status(404).json({ message: "Nhan vien khong ton tai" });
     }
 
-    res.json({ message: "Nhân viên đã bị vô hiệu hóa" });
+    res.json({
+      message: "Nhan vien da bi vo hieu hoa",
+      staff: sanitizeStaff(staff),
+    });
   } catch (error) {
-    console.error("Lỗi khi xóa nhân viên:", error);
-    res.status(500).json({ message: "Lỗi server" });
+    console.error("Loi khi vo hieu hoa nhan vien:", error);
+    res.status(500).json({ message: "Loi server" });
   }
 };
 
-// Cập nhật trạng thái nhân viên
 exports.updateStaffStatus = async (req, res) => {
   try {
     const { status } = req.body;
-
-    // Kiểm tra trạng thái hợp lệ
     const validStatuses = ["Active", "Inactive", "Pending", "Banned"];
+
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ message: "Trạng thái không hợp lệ" });
+      return res.status(400).json({ message: "Trang thai khong hop le" });
     }
 
     const updatedStaff = await User.findOneAndUpdate(
       { _id: req.params.id, role: "Staff" },
       { status, updatedAt: Date.now() },
-      { new: true }
+      { new: true, runValidators: true },
     );
 
     if (!updatedStaff) {
-      return res.status(404).json({ message: "Nhân viên không tồn tại" });
+      return res.status(404).json({ message: "Nhan vien khong ton tai" });
     }
 
-    // Không trả về passwordHash
-    const staffResponse = updatedStaff.toObject();
-    delete staffResponse.passwordHash;
-
-    res.json(staffResponse);
+    res.json(sanitizeStaff(updatedStaff));
   } catch (error) {
-    console.error("Lỗi khi cập nhật trạng thái nhân viên:", error);
+    console.error("Loi khi cap nhat trang thai nhan vien:", error);
     res.status(400).json({ message: error.message });
   }
 };
 
-// Đổi mật khẩu nhân viên
 exports.changeStaffPassword = async (req, res) => {
   try {
     const { newPassword } = req.body;
 
     if (!newPassword) {
-      return res.status(400).json({ message: "Mật khẩu mới là bắt buộc" });
+      return res.status(400).json({ message: "Mat khau moi la bat buoc" });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -170,16 +205,16 @@ exports.changeStaffPassword = async (req, res) => {
     const updatedStaff = await User.findOneAndUpdate(
       { _id: req.params.id, role: "Staff" },
       { passwordHash, updatedAt: Date.now() },
-      { new: true }
+      { new: true },
     );
 
     if (!updatedStaff) {
-      return res.status(404).json({ message: "Nhân viên không tồn tại" });
+      return res.status(404).json({ message: "Nhan vien khong ton tai" });
     }
 
-    res.json({ message: "Đổi mật khẩu thành công" });
+    res.json({ message: "Doi mat khau thanh cong" });
   } catch (error) {
-    console.error("Lỗi khi đổi mật khẩu nhân viên:", error);
-    res.status(500).json({ message: "Lỗi server" });
+    console.error("Loi khi doi mat khau nhan vien:", error);
+    res.status(500).json({ message: "Loi server" });
   }
 };

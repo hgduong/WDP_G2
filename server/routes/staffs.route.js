@@ -1,7 +1,6 @@
-// routes/staffs.route.js
 const express = require("express");
-const router = express.Router();
 const {
+  registerStaff,
   getAllStaff,
   getStaffById,
   createStaff,
@@ -15,29 +14,27 @@ const {
   authorizeRoles,
 } = require("../config/auth.middleware");
 
-// Tất cả các routes nhân viên đều cần đăng nhập và có quyền Admin
-router.use(authenticateToken);
-router.use(authorizeRoles(["Admin"]));
+const router = express.Router();
+const adminStaffRouter = express.Router();
 
-// Lấy danh sách tất cả nhân viên
-router.get("/staffs", getAllStaff);
+// Public staff registration
+router.post("/staff/register", registerStaff);
 
-// Lấy thông tin nhân viên theo ID
-router.get("/staffs/:id", getStaffById);
+// Admin-only staff management
+adminStaffRouter.use(authenticateToken);
+adminStaffRouter.use(authorizeRoles(["Admin"]));
 
-// Tạo nhân viên mới
-router.post("/staffs", createStaff);
+adminStaffRouter.get("/staffs", getAllStaff);
+adminStaffRouter.get("/staffs/:id", getStaffById);
+adminStaffRouter.post("/staffs", createStaff);
+adminStaffRouter.put("/staffs/:id", updateStaff);
+adminStaffRouter.delete("/staffs/:id", deleteStaff);
+adminStaffRouter.patch("/staffs/:id/status", updateStaffStatus);
+adminStaffRouter.post("/staffs/:id/change-password", changeStaffPassword);
 
-// Cập nhật thông tin nhân viên
-router.put("/staffs/:id", updateStaff);
+// Backward-compatible alias for older frontend calls
+adminStaffRouter.patch("/staffs/:id/password", changeStaffPassword);
 
-// Xóa nhân viên (vô hiệu hóa)
-router.delete("/staffs/:id", deleteStaff);
-
-// Cập nhật trạng thái nhân viên
-router.patch("/staffs/:id/status", updateStaffStatus);
-
-// Đổi mật khẩu nhân viên
-router.post("/staffs/:id/change-password", changeStaffPassword);
+router.use(adminStaffRouter);
 
 module.exports = router;

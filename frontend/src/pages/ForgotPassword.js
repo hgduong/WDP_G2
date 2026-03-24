@@ -16,9 +16,13 @@ function ForgotPassword() {
         return;
       }
       toast.success(res.data.message);
-      navigate("/otp_verify", {
-        state: { email: res.data.email, purpose: "forgotPassword" },
-      });
+      navigate(
+        "/otp_verify",
+        {
+          replace: true,
+          state: { email: res.data.email, purpose: "forgotPassword" },
+        },
+      );
     } catch (err) {
       setMessage(
         err.response?.data?.error || "Có lỗi xảy ra, vui lòng thử lại sau ",
