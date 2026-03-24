@@ -19,6 +19,7 @@ const AdminLayout = ({ children }) => {
     { path: "/admin/users", label: "Quản lý Người Dùng" },
     { path: "/admin/voucher", label: "Quản lý Voucher" },
     { path: "/admin/point", label: "Quản lý Point" },
+
   ];
 
   const menuItems =
@@ -77,7 +78,7 @@ const AdminLayout = ({ children }) => {
             }}
           >
             <span className="nav-icon"></span>
-            {sidebarOpen && <span className="nav-label">Về Trang Chủ</span>}
+            {sidebarOpen && <span className="nav-label">Về trang chủ</span>}
           </a>
           <button className="logout-btn" onClick={handleLogout}>
             <span className="nav-icon"></span>
@@ -88,7 +89,7 @@ const AdminLayout = ({ children }) => {
 
       <div className="admin-main">
         <header className="admin-header">
-          <h1>{role === "Staff" ? "Staff Dashboard" : "Admin Dashboard"}</h1>
+          <h1>{role === "Staff" ? "Bảng điều khiển staff" : "Bảng điều khiển admin"}</h1>
           <div className="admin-user">
             <span>{role || "Admin"}</span>
           </div>
