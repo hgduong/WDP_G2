@@ -87,7 +87,6 @@
 
 .date-tab.no-showtime {
   color: #999;
-  cursor: not-allowed;
   font-style: italic;
 }
 
@@ -122,17 +121,16 @@
 }
 
 .time-slot.unavailable {
-  background: #f0f0f0;
+  background: #f8f8f8;
   color: #999;
-  cursor: not-allowed;
 }
 
-.time-slot:not(.unavailable) {
+.time-slot {
   cursor: pointer;
 }
 
-.time-slot:not(.unavailable):hover {
-  background: #d0d0d0;
+.time-slot:hover {
+  background: #e8e8e8;
 }
 
 .time-label {
@@ -148,6 +146,12 @@
 .seats {
   font-size: 12px;
   margin-top: 6px;
+}
+
+.seats-note {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
 }
 
 .price {

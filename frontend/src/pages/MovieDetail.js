@@ -9,94 +9,48 @@ export default function MovieDetail() {
   const [showtimes, setShowtimes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showBooking, setShowBooking] = useState(false); // trạng thái hiển thị đặt vé
-  const [selectedDate, setSelectedDate] = useState(null); // ngày được chọn để hiển thị suất chiếu
+  const [showBooking, setShowBooking] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
 
-  // helper: lấy 7 ngày liên tiếp tính từ hôm nay (hoặc đến ngày kết thúc lịch chiếu nếu có)
-  const getNextSevenDays = () => {
-    const days = [];
+  const getSevenDays = () => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Đặt về đầu ngày
-    
-    // Xác định ngày kết thúc: hoặc 7 ngày tới, hoặc ngày kết thúc lịch chiếu của phim
-    let endDate = new Date(today);
-    endDate.setDate(endDate.getDate() + 7);
-    
-    if (movie?.endDate) {
-      const movieEndDate = new Date(movie.endDate);
-      movieEndDate.setHours(23, 59, 59, 999);
-      if (movieEndDate < endDate) {
-        endDate = movieEndDate;
-      }
-    }
-    
-    let currentDate = new Date(today);
-    while (currentDate <= endDate) {
-      days.push(currentDate.toISOString().split("T")[0]);
-      currentDate.setDate(currentDate.getDate() + 1);
+    today.setHours(0, 0, 0, 0);
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() + i);
+      days.push(d.toISOString().split("T")[0]);
     }
     return days;
   };
 
-  // helper: lấy danh sách ngày duy nhất từ showtimes
-  const getUniqueDates = (times) => {
-    const dates = Array.from(
-      new Set(
-        times.map((t) => new Date(t.startTime).toISOString().split("T")[0]),
-      ),
-    );
-    dates.sort();
-    return dates;
-  };
-
-  // helper: kiểm tra xem ngày có showtime chưa hết giờ không
-  const hasShowtimeForDate = (date) => {
-    const now = new Date();
-    return showtimes.some((t) => {
-      const showtimeTime = new Date(t.startTime);
-      // Chỉ hiện showtime nếu chưa hết giờ
-      return showtimeTime > now && 
-        showtimeTime.toISOString().split("T")[0] === date;
+  // Lấy tất cả khung giờ từ showtimes (bất kể ngày)
+  const getAllTimeSlots = () => {
+    const times = new Set();
+    showtimes.forEach((t) => {
+      const showtimeDate = new Date(t.startTime);
+      const hours = String(showtimeDate.getHours()).padStart(2, "0");
+      const minutes = String(showtimeDate.getMinutes()).padStart(2, "0");
+      times.add(`${hours}:${minutes}`);
     });
+    return Array.from(times).sort();
   };
 
-  // Danh sách khung giờ cố định trong ngày
-  const FIXED_TIME_SLOTS = [
-    "08:00",
-    "08:30",
-    "09:00",
-    "09:25",
-    "09:50", 
-    "10:00",
-    "10:30",
-    "11:00",
-    "11:30",
-    "12:00",
-    "13:00",
-    "16:00",
-    "19:00",
-    "22:00"
-  ];
-
-  // Lấy showtime phù hợp với ngày và giờ cố định (chỉ lấy showtime chưa hết giờ)
+  // Lấy showtime cho ngày và giờ cụ thể
   const getShowtimeForSlot = (date, timeSlot) => {
     const [hours, minutes] = timeSlot.split(":");
-    const now = new Date();
     return showtimes.find((t) => {
       const showtimeDate = new Date(t.startTime);
-      // Chỉ lấy showtime nếu chưa hết giờ
-      if (showtimeDate <= now) return false;
       const dateStr = showtimeDate.toISOString().split("T")[0];
       return (
         dateStr === date &&
-        showtimeDate.getUTCHours() === parseInt(hours) &&
-        showtimeDate.getUTCMinutes() === parseInt(minutes)
+        showtimeDate.getHours() === parseInt(hours) &&
+        showtimeDate.getMinutes() === parseInt(minutes)
       );
     });
   };
 
   useEffect(() => {
-    // lấy chi tiết phim
     fetch(`http://localhost:9999/movies/${id}`)
       .then((res) => res.json())
       .then((data) => {
@@ -109,7 +63,6 @@ export default function MovieDetail() {
       });
   }, [id]);
 
-  // khi bấm nút đặt vé thì mới gọi API lấy showtimes
   const handleBookingClick = () => {
     setShowBooking(true);
     fetch(`http://localhost:9999/showtimes/movie/${id}`)
@@ -123,32 +76,16 @@ export default function MovieDetail() {
         return res.json();
       })
       .then((data) => {
-        // Validate data is an array
         if (Array.isArray(data)) {
           setShowtimes(data);
-          // chọn ngày đầu tiên có suất chiếu từ hôm nay (7 ngày tới)
-          const availableDates = getNextSevenDays();
-          const firstDateWithShowtime = availableDates.find(date => 
-            data.some(t => {
-              const showtimeTime = new Date(t.startTime);
-              const now = new Date();
-              return showtimeTime > now && 
-                showtimeTime.toISOString().split("T")[0] === date;
-            })
-          );
-          if (firstDateWithShowtime) {
-            setSelectedDate(firstDateWithShowtime);
-          } else {
-            setSelectedDate(availableDates[0]);
-          }
+          const sevenDays = getSevenDays();
+          setSelectedDate(sevenDays[0]);
         } else {
-          console.error("Dữ liệu showtimes không phải là array:", data);
           setShowtimes([]);
           setError("Không thể tải suất chiếu");
         }
       })
       .catch((err) => {
-        console.error("Lỗi lấy showtimes:", err);
         setShowtimes([]);
         setError(err.message);
       });
@@ -157,6 +94,8 @@ export default function MovieDetail() {
   if (loading) return <p>Đang tải...</p>;
   if (error) return <p>Lỗi: {error}</p>;
   if (!movie) return <p>Không tìm thấy phim</p>;
+
+  const allTimeSlots = getAllTimeSlots();
 
   return (
     <div className="movie-detail">
@@ -177,7 +116,6 @@ export default function MovieDetail() {
         </button>
       </div>
 
-      {/* Chỉ hiện suất chiếu khi đã bấm nút Đặt vé */}
       {showBooking && (
         <div className="showtimes">
           <h2>Suất chiếu:</h2>
@@ -185,62 +123,64 @@ export default function MovieDetail() {
             <p>Chưa có suất chiếu nào.</p>
           ) : (
             <>
-              {/* tên rạp (lấy từ showtimes) */}
               <div className="cinema-name">
                 {Array.from(
                   new Set(showtimes.map((s) => s.cinemasId?.name || "")),
                 ).join(" / ")}
               </div>
-              {/* ngày chọn - hiển thị 7 ngày từ hôm nay */}
+              
               <div className="date-tabs">
-                {getNextSevenDays().map((date) => {
+                {getSevenDays().map((date) => {
                   const d = new Date(date);
                   const weekDays = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
                   const label = `${String(d.getDate()).padStart(2, "0")}/${String(
                     d.getMonth() + 1,
                   ).padStart(2, "0")} - ${weekDays[d.getDay()]}`;
                   const isActive = selectedDate === date;
-                  const hasShowtime = hasShowtimeForDate(date);
                   return (
                     <div
                       key={date}
-                      className={`date-tab ${isActive ? "active" : ""} ${!hasShowtime ? "no-showtime" : ""}`}
-                      onClick={() => hasShowtime && setSelectedDate(date)}
+                      className={`date-tab ${isActive ? "active" : ""}`}
+                      onClick={() => setSelectedDate(date)}
                     >
-                      {!hasShowtime ? "Chưa có lịch" : label}
+                      {label}
                     </div>
                   );
                 })}
               </div>
 
-              {/* loại rạp/tính năng tạm cố định */}
               <div className="showtime-category">2D PHỤ ĐỀ</div>
 
-              {/* lưới suất chiếu ngày đã chọn - hiển thị khung giờ cố định */}
               <div className="time-grid">
-                {FIXED_TIME_SLOTS.map((timeSlot) => {
-                  const showtime = getShowtimeForSlot(selectedDate, timeSlot);
-                  const [hours, minutes] = timeSlot.split(":");
-                  const isLate = parseInt(hours) >= 22;
-                  const isAvailable = !!showtime;
-                  
-                  return (
-                    <div
-                      key={timeSlot}
-                      className={`time-slot ${isLate ? "late" : ""} ${!isAvailable ? "unavailable" : ""}`}
-                      onClick={() => isAvailable && console.log("Booking showtime:", showtime._id)}
-                    >
-                      <div className="time-label">{timeSlot}</div>
-                      {isAvailable ? (
-                        <div className="seats">
-                          {showtime.availableSeats} ghế trống
-                        </div>
-                      ) : (
-                        <div className="seats">Hết vé</div>
-                      )}
-                    </div>
-                  );
-                })}
+                {allTimeSlots.length === 0 ? (
+                  <p className="no-showtimes">Chưa có suất chiếu nào</p>
+                ) : (
+                  allTimeSlots.map((timeSlot) => {
+                    const showtime = getShowtimeForSlot(selectedDate, timeSlot);
+                    const [hours, minutes] = timeSlot.split(":");
+                    const isLate = parseInt(hours) >= 22;
+                    const isAvailable = !!showtime;
+
+                    return (
+                      <div
+                        key={timeSlot}
+                        className={`time-slot ${isLate ? "late" : ""}`}
+                        onClick={() => {
+                          console.log("Booking showtime:", showtime?._id);
+                        }}
+                      >
+                        <div className="time-label">{timeSlot}</div>
+                        {isAvailable ? (
+                          <div className="seats">
+                            <div className="seats-note">Còn {showtime.roomId?.capacity || 0} ghế</div>
+                          </div>
+                        ) : (
+                          <div className="seats">-</div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </>
           )}
