@@ -33,6 +33,14 @@ exports.updateUserProfile = async (req, res) => {
       street,
     } = req.body;
 
+    // Kiểm tra xem email mới đã tồn tại chưa (nếu đổi email)
+    if (email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser && existingUser._id.toString() !== userId) {
+        return res.status(400).json({ message: "Email đã được sử dụng bởi tài khoản khác" });
+      }
+    }
+
     // Cập nhật user
     const updatedUser = await User.findByIdAndUpdate(
       userId,
@@ -63,12 +71,27 @@ exports.updateUserProfile = async (req, res) => {
         fullName: updatedUser.fullName,
         email: updatedUser.email,
         role: updatedUser.role,
+        avatarUrl: updatedUser.avatarUrl || null,
       },
       process.env.JWT_SECRET,
       { expiresIn: "1d" },
     );
 
-    res.cookie("jwt", newToken, { httpOnly: true, secure: true });
+    // Xóa cookie cũ trước khi set cookie mới
+    res.clearCookie("jwt", {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    // Set cookie mới với các tham số đầy đủ
+    res.cookie("jwt", newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 24 * 60 * 60 * 1000, // 1 ngày
+    });
+
     res.json({ user: updatedUser, token: newToken });
   } catch (error) {
     console.error("Lỗi khi cập nhật profile:", error);
