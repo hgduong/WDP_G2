@@ -10,12 +10,23 @@ import {
   updateRoom,
   deleteRoom
 } from '../../services/api';
+import { toast } from 'react-toastify';
 import './AdminManagement.css';
 
 // ID của rạp Time Cinemas (hardcoded theo DB)
 const TIME_CINEMAS_ID = '69ad9a89012ada8e95feb9cf';
 
 const ROOM_TYPES = ['Standard', 'VIP', 'IMAX'];
+
+// Format date as dd/mm/yyyy
+const formatDate = (date) => {
+  if (!date) return '';
+  const d = new Date(date);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
 const CinemaManagement = () => {
   const [loading, setLoading] = useState(true);
@@ -28,7 +39,7 @@ const CinemaManagement = () => {
   const [cinemaRooms, setCinemaRooms] = useState([]);
   const [cinemaShowtimes, setCinemaShowtimes] = useState([]);
   const [movies, setMovies] = useState([]);
-  
+   
   const [cinemaFormData, setCinemaFormData] = useState({
     name: '',
     address: '',
@@ -55,6 +66,9 @@ const CinemaManagement = () => {
   const [showTimeSlotsModal, setShowTimeSlotsModal] = useState(false);
   const [editingTimeSlotsRoom, setEditingTimeSlotsRoom] = useState(null);
   const [timeSlotsInput, setTimeSlotsInput] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingRoomId, setDeletingRoomId] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchTimeCinemas();
@@ -121,6 +135,32 @@ const CinemaManagement = () => {
     setRoomFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Validate endDate must be after startTime
+  const validateEndDate = (movieId, startTime) => {
+    if (!movieId || !startTime) return { valid: true, message: '' };
+    
+    const selectedMovie = movies.find(m => m._id === movieId);
+    if (!selectedMovie || !selectedMovie.endDate) return { valid: true, message: '' };
+    
+    const startDate = new Date(startTime);
+    const movieEndDate = new Date(selectedMovie.endDate);
+    
+    // Get just the date parts (year, month, day) for comparison
+    const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    const endDateOnly = new Date(movieEndDate.getFullYear(), movieEndDate.getMonth(), movieEndDate.getDate());
+    
+    // startTime cannot be after the movie's endDate
+    if (startDateOnly > endDateOnly) {
+      const endDateStr = formatDate(selectedMovie.endDate);
+      const startDateStr = formatDate(startTime);
+      return {
+        valid: false,
+        message: `Không thể chọn ngày chiếu (${startDateStr}) sau ngày kết thúc chiếu phim (${endDateStr})`
+      };
+    }
+    return { valid: true, message: '' };
+  };
+
   const handleEditTimeSlots = (room) => {
     setEditingTimeSlotsRoom(room);
     const slots = room.timeSlots || [];
@@ -140,8 +180,10 @@ const CinemaManagement = () => {
       await fetchRooms(selectedCinema._id);
       setShowTimeSlotsModal(false);
       setEditingTimeSlotsRoom(null);
+      toast.success('Cập nhật khung giờ chiếu thành công!');
     } catch (err) {
-      setError(err.message || 'Failed to save time slots');
+      const errorMsg = err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi lưu khung giờ';
+      toast.error(errorMsg);
     }
   };
 
@@ -158,13 +200,25 @@ const CinemaManagement = () => {
       await updateCinema(TIME_CINEMAS_ID, cinemaData);
       await fetchTimeCinemas();
       closeCinemaModal();
+      toast.success('Cập nhật thông tin rạp thành công!');
     } catch (err) {
-      setError(err.message || 'Failed to save cinema');
+      const errorMsg = err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi lưu thông tin rạp';
+      toast.error(errorMsg);
     }
   };
 
   const handleRoomSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate endDate if movie and startTime are selected
+    if (roomFormData.movieId && roomFormData.startTime) {
+      const validation = validateEndDate(roomFormData.movieId, roomFormData.startTime);
+      if (!validation.valid) {
+        toast.error(validation.message);
+        return;
+      }
+    }
+    
     try {
       const roomData = {
         cinemaId: roomFormData.cinemaId,
@@ -179,8 +233,10 @@ const CinemaManagement = () => {
       let savedRoom;
       if (editingRoom) {
         savedRoom = await updateRoom(editingRoom._id, roomData);
+        toast.success('Cập nhật phòng chiếu thành công!');
       } else {
         savedRoom = await createRoom(roomData);
+        toast.success('Thêm phòng chiếu mới thành công!');
       }
       
       // Tạo showtime nếu có chọn phim
@@ -194,12 +250,14 @@ const CinemaManagement = () => {
           language: 'Tiếng Việt'
         };
         await createShowtime(showtimeData);
+        toast.success('Tạo lịch chiếu thành công!');
       }
       
       await fetchRooms(roomFormData.cinemaId);
       closeRoomModal();
     } catch (err) {
-      setError(err.message || 'Failed to save room');
+      const errorMsg = err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi lưu phòng chiếu';
+      toast.error(errorMsg);
     }
   };
 
@@ -235,15 +293,33 @@ const CinemaManagement = () => {
     setShowRoomModal(true);
   };
 
-  const handleDeleteRoom = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this room?')) return;
+  const handleDeleteClick = (id) => {
+    setDeletingRoomId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteRoom = async () => {
+    if (!deletingRoomId || isDeleting) return;
+    
+    setIsDeleting(true);
     
     try {
-      await deleteRoom(id);
+      await deleteRoom(deletingRoomId);
       await fetchRooms(selectedCinema._id);
+      toast.success('Xóa phòng chiếu thành công!');
     } catch (err) {
-      setError(err.message || 'Failed to delete room');
+      const errorMsg = err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi xóa phòng chiếu';
+      toast.error(errorMsg);
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeletingRoomId(null);
+      setIsDeleting(false);
     }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setDeletingRoomId(null);
   };
 
   const openEditCinemaModal = () => {
@@ -259,7 +335,7 @@ const CinemaManagement = () => {
 
   const openAddRoomModal = () => {
     if (!selectedCinema) {
-      alert('Vui lòng chọn một rạp trước');
+      toast.error('Vui lòng chọn một rạp trước');
       return;
     }
     setEditingRoom(null);
@@ -386,7 +462,7 @@ const CinemaManagement = () => {
                       </button>
                       <button 
                         className="btn btn-sm btn-delete"
-                        onClick={() => handleDeleteRoom(room._id)}
+                        onClick={() => handleDeleteClick(room._id)}
                       >
                         Xóa
                       </button>
@@ -648,6 +724,42 @@ const CinemaManagement = () => {
               </button>
               <button type="button" className="btn btn-primary" onClick={handleSaveTimeSlots}>
                 Lưu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={isDeleting ? undefined : cancelDelete}>
+          <div 
+            className={`modal-content modal-small ${isDeleting ? 'deleting' : ''}`} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3>Xác nhận xóa</h3>
+              <button className="modal-close" onClick={cancelDelete}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p>Bạn có chắc chắn muốn xóa phòng chiếu này không?</p>
+              <p className="text-muted">Hành động này không thể hoàn tác.</p>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={cancelDelete}>
+                Hủy
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-danger" 
+                onClick={confirmDeleteRoom} 
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <span>
+                    <span className="spinner"></span> Đang xóa...
+                  </span>
+                ) : 'Xóa'}
               </button>
             </div>
           </div>
