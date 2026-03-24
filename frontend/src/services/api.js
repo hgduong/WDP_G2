@@ -97,12 +97,16 @@ export const getUserInfo = async () => {
   }
 };
 
-export const changePassword = async (currentPassword, newPassword, confirmPassword) => {
+export const changePassword = async (
+  currentPassword,
+  newPassword,
+  confirmPassword,
+) => {
   try {
     const res = await API.post("/user/change-password", {
       currentPassword,
       newPassword,
-      confirmPassword
+      confirmPassword,
     });
     return res;
   } catch (error) {
@@ -158,6 +162,16 @@ export const updateUserProfile = async (credentials) => {
     return response.data;
   } catch (error) {
     console.error("Lỗi khi cập nhật user profile:", error);
+    throw error;
+  }
+};
+
+export const deleteUserAccount = async (password) => {
+  try {
+    const response = await API.put(`/user/account`, { password });
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi khi xóa tài khoản:", error);
     throw error;
   }
 };
@@ -374,7 +388,7 @@ export const getAllStaff = async () => {
   } catch (error) {
     throw error.response?.data || error;
   }
-};  
+};
 export const getStaffById = async (id) => {
   try {
     const response = await API.get(`/staffs/${id}`);
@@ -398,7 +412,7 @@ export const updateStaff = async (id, staffData) => {
   } catch (error) {
     throw error.response?.data || error;
   }
-}
+};
 export const deleteStaff = async (id) => {
   try {
     const response = await API.delete(`/staffs/${id}`);
@@ -406,7 +420,7 @@ export const deleteStaff = async (id) => {
   } catch (error) {
     throw error.response?.data || error;
   }
-}
+};
 export const updateStaffStatus = async (id, status) => {
   try {
     const response = await API.patch(`/staffs/${id}/status`, { status });
@@ -414,12 +428,15 @@ export const updateStaffStatus = async (id, status) => {
   } catch (error) {
     throw error.response?.data || error;
   }
-}
+};
 export const changeStaffPassword = async (id, passwordData) => {
   try {
-    const response = await API.post(`/staffs/${id}/change-password`, passwordData);
+    const response = await API.post(
+      `/staffs/${id}/change-password`,
+      passwordData,
+    );
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
   }
-}
+};

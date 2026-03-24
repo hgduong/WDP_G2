@@ -4,6 +4,7 @@ const {
   getUserProfile,
   updateUserProfile,
   changePassword,
+  deleteAccount,
 } = require("../controllers/user.controller");
 const {
   authenticateToken,
@@ -27,5 +28,11 @@ router.post(
   authenticateToken,
   authorizeRoles(["Admin", "Customer", "Staff", "Manager"]),
   changePassword,
+);
+router.put(
+  "/user/account",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff", "Manager"]),
+  deleteAccount,
 );
 module.exports = router;
