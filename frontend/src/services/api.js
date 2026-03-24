@@ -34,6 +34,24 @@ export const staffLogin = async (credentials) => {
   }
 };
 
+export const requestStaffLoginOtp = async (payload) => {
+  try {
+    const res = await API.post("/staff/login/request-otp", payload);
+    return res.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const verifyStaffLoginOtp = async (payload) => {
+  try {
+    const res = await API.post("/staff/login/verify-otp", payload);
+    return res;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export const registerStaffAccount = async (staffData) => {
   try {
     const res = await API.post("/staff/register", staffData);

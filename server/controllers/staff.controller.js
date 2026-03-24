@@ -1,5 +1,6 @@
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
+const { sendMail } = require("../utils/mail");
 
 const sanitizeStaff = (staff) => {
   if (!staff) return staff;
@@ -17,6 +18,36 @@ const sanitizeStaff = (staff) => {
   return staffObject;
 };
 
+const sendStaffApprovalEmail = async (staff, status) => {
+  if (!staff?.email) {
+    return;
+  }
+
+  try {
+    if (status === "Active") {
+      await sendMail({
+        to: staff.email,
+        subject: "Yeu cau dang ky staff da duoc phe duyet",
+        text:
+          `Xin chao ${staff.fullName},\n\n` +
+          "Admin da phe duyet tai khoan staff cua ban. Ban co the dang nhap va nhan OTP qua email de su dung he thong.\n",
+      });
+    }
+
+    if (status === "Inactive") {
+      await sendMail({
+        to: staff.email,
+        subject: "Yeu cau dang ky staff da bi tu choi",
+        text:
+          `Xin chao ${staff.fullName},\n\n` +
+          "Yeu cau dang ky staff cua ban da bi tu choi hoac tai khoan da bi vo hieu hoa. Vui long lien he admin de biet them chi tiet.\n",
+      });
+    }
+  } catch (error) {
+    console.error("Loi khi gui email thong bao staff:", error);
+  }
+};
+
 const createStaffRecord = async (payload = {}, options = {}) => {
   const {
     email,
@@ -31,7 +62,8 @@ const createStaffRecord = async (payload = {}, options = {}) => {
   } = payload;
   const { defaultStatus = "Active" } = options;
 
-  const existingUser = await User.findOne({ email });
+  const normalizedEmail = email?.trim()?.toLowerCase();
+  const existingUser = await User.findOne({ email: normalizedEmail });
   if (existingUser) {
     const error = new Error("Email da duoc su dung");
     error.statusCode = 400;
@@ -48,7 +80,7 @@ const createStaffRecord = async (payload = {}, options = {}) => {
   const passwordHash = await bcrypt.hash(password, salt);
 
   const newStaff = new User({
-    email,
+    email: normalizedEmail,
     fullName,
     gender,
     passwordHash,
@@ -59,6 +91,7 @@ const createStaffRecord = async (payload = {}, options = {}) => {
     role: "Staff",
     status: status || defaultStatus,
     authProvider: "local",
+    pendingSince: null,
   });
 
   await newStaff.save();
@@ -174,17 +207,21 @@ exports.updateStaffStatus = async (req, res) => {
       return res.status(400).json({ message: "Trang thai khong hop le" });
     }
 
-    const updatedStaff = await User.findOneAndUpdate(
-      { _id: req.params.id, role: "Staff" },
-      { status, updatedAt: Date.now() },
-      { new: true, runValidators: true },
-    );
+    const currentStaff = await User.findOne({ _id: req.params.id, role: "Staff" });
 
-    if (!updatedStaff) {
+    if (!currentStaff) {
       return res.status(404).json({ message: "Nhan vien khong ton tai" });
     }
 
-    res.json(sanitizeStaff(updatedStaff));
+    const previousStatus = currentStaff.status;
+    currentStaff.status = status;
+    currentStaff.updatedAt = Date.now();
+    await currentStaff.save();
+
+    if (previousStatus !== status && ["Active", "Inactive"].includes(status)) {
+      await sendStaffApprovalEmail(currentStaff, status);
+    }
+    res.json(sanitizeStaff(currentStaff));
   } catch (error) {
     console.error("Loi khi cap nhat trang thai nhan vien:", error);
     res.status(400).json({ message: error.message });

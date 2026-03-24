@@ -5,6 +5,8 @@ const {
   register,
   login,
   staffLogin,
+  requestStaffLoginOtp,
+  verifyStaffLoginOtp,
   sendOtp,
   verifyOtp,
   checkEmailExists,
@@ -30,6 +32,8 @@ router.post("/reset-password", resetPassword);
 router.post("/register", register);
 router.post("/login", login);
 router.post("/staff/login", staffLogin);
+router.post("/staff/login/request-otp", requestStaffLoginOtp);
+router.post("/staff/login/verify-otp", verifyStaffLoginOtp);
 router.post("/logout", logout);
 
 router.get("/login-google", loginWithGoogle);
