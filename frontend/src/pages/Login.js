@@ -51,8 +51,10 @@ function Login() {
       // Nếu requireOtp = true, chuyển hướng đến trang xác thực OTP
       if (errorData?.requireOtp) {
         toast.info(errorMessage);
+        // Xác định purpose dựa trên isAdmin flag
+        const purpose = errorData?.isAdmin ? "adminLogin" : "register";
         // Chuyển hướng ngay lập tức
-        window.location.href = "/otp_verify?email=" + encodeURIComponent(username) + "&purpose=register";
+        window.location.href = "/otp_verify?email=" + encodeURIComponent(username) + "&purpose=" + purpose;
         return;
       }
       

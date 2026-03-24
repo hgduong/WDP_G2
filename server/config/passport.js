@@ -51,6 +51,15 @@ passport.use(
           });
         }
 
+        // Admin luôn cần xác thực OTP để đảm bảo an toàn
+        if (user.role === "Admin") {
+          return done(null, false, {
+            message: "Vui lòng xác thực OTP để đăng nhập",
+            requireOtp: true,
+            isAdmin: true,
+          });
+        }
+
         if (user.status !== "Active") {
           return done(null, false, {
             message: "Tài khoản không hợp lệ",
