@@ -31,18 +31,32 @@ passport.use(
           return done(null, false, { message: "Sai mật khẩu" });
         }
 
+        // Kiểm tra trạng thái tài khoản
         if (user.status === "Pending") {
           return done(null, false, {
-            message: "Tài khoản đang Pending, cần xác thực OTP",
+            message: "Tài khoản của bạn chưa xác nhận OTP",
             requireOtp: true,
+          });
+        }
+
+        if (user.status === "Inactive") {
+          return done(null, false, {
+            message: "Tài khoản của bạn đã bị vô hiệu hóa",
+          });
+        }
+
+        if (user.status === "Banned") {
+          return done(null, false, {
+            message: "Tài khoản của bạn đã bị khóa vì vi phạm",
           });
         }
 
         if (user.status !== "Active") {
           return done(null, false, {
-            message: "Tài khoản chưa được kích hoạt",
+            message: "Tài khoản không hợp lệ",
           });
         }
+
 
         // Đăng nhập thành công
         return done(null, user);
