@@ -85,6 +85,7 @@ const cinemaRoutes = require("./routes/cinema.routes");
 const staffRoutes = require("./routes/staffs.route");
 const voucherRoutes = require("./routes/voucher.routes");
 const seatsRoutes = require("./routes/seats.route");
+const bookingRoutes = require("./routes/booking.route");
 const transactionRoutes = require("./routes/transaction.routes");
 
 app.use(authRoutes);
@@ -95,8 +96,5 @@ app.use(staffRoutes);
 app.use("/api", seatsRoutes);
 // Đăng ký voucher routes tại /vouchers (cùng cấp với các routes khác)
 app.use("/vouchers", voucherRoutes);
-// Đăng ký transaction routes tại /transactions và /api/admin/transactions
-app.use("/transactions", transactionRoutes);
-app.use("/api/admin/transactions", transactionRoutes);
 const PORT = process.env.PORT || 9999;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
