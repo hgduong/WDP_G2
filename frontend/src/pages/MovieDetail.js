@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import "../assets/styles/MovieDetail.css";
 import { getImageUrl } from "../utils/imageUtils";
@@ -9,6 +9,7 @@ import { io } from "socket.io-client";
 
 export default function MovieDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useContext(UserContext);
   const [movie, setMovie] = useState(null);
   const [showtimes, setShowtimes] = useState([]);
@@ -338,6 +339,60 @@ export default function MovieDetail() {
     setCountdown(0);
   };
 
+  // Handle booking confirmation and navigate to Order page
+  const handleBookingConfirmation = () => {
+    if (selectedSeats.length === 0) {
+      alert("Vui lòng chọn ít nhất một ghế!");
+      return;
+    }
+
+    // Generate booking code
+    const bookingCode = "BK" + Date.now().toString().slice(-8);
+    
+    // Generate ticket data with QR codes
+    const tickets = selectedSeats.map((seat, index) => ({
+      ticketCode: `TK${Date.now().toString().slice(-8)}${index}`,
+      seat: seat.label,
+      seatLabel: seat.label,
+      qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(seat.label + "-" + bookingCode)}`
+    }));
+
+    // Prepare order data to send to Order page
+    const orderData = {
+      bookingCode,
+      movie: {
+        title: movie.title,
+        posterUrl: movie.posterUrl,
+        duration: movie.duration,
+        director: movie.director
+      },
+      showtime: {
+        startTime: selectedShowtime.startTime,
+        price: selectedShowtime.price
+      },
+      cinema: {
+        name: selectedShowtime.cinemasId?.name
+      },
+      room: {
+        name: selectedShowtime.roomId?.name
+      },
+      seats: selectedSeats.map(s => ({ label: s.label })),
+      totalPrice,
+      tickets,
+      purchaseDate: new Date().toISOString()
+    };
+
+    // Also store in localStorage as backup
+    localStorage.setItem("lastOrder", JSON.stringify(orderData));
+
+    // Close seat modal first
+    closeSeatModal();
+    setShowBooking(false);
+
+    // Navigate to Order page with order data
+    navigate("/order", { state: { orderData } });
+  };
+
   if (loading) return <p>Đang tải...</p>;
   if (error) return <p>Lỗi: {error}</p>;
   if (!movie) return <p>Không tìm thấy phim</p>;
@@ -513,9 +568,7 @@ export default function MovieDetail() {
               <button 
                 className="btn btn-primary"
                 disabled={selectedSeats.length === 0}
-                onClick={() => {
-                  alert(`Đã chọn ${selectedSeats.length} ghế: ${selectedSeats.map(s => s.label).join(", ")}\nTổng tiền: ${totalPrice.toLocaleString("vi-VN")}đ`);
-                }}
+                onClick={handleBookingConfirmation}
               >
                 Xác nhận đặt vé
               </button>
