@@ -1,5 +1,5 @@
 import React, { useContext, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   requestStaffLoginOtp,
   verifyStaffLoginOtp,
@@ -10,7 +10,8 @@ import "../../assets/styles/StaffLogin.css";
 const STAFF_ROLES = ["Staff", "Admin"];
 
 function StaffLogin() {
-  const [email, setEmail] = useState("");
+  const location = useLocation();
+  const [email, setEmail] = useState(location.state?.email || "");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [otpRequested, setOtpRequested] = useState(false);
@@ -20,8 +21,7 @@ function StaffLogin() {
   const navigate = useNavigate();
   const { login } = useContext(UserContext);
 
-  const handleRequestOtp = async (e) => {
-    e.preventDefault();
+  const requestOtp = async () => {
     setError("");
     setMessage("");
     setLoading(true);
@@ -29,12 +29,22 @@ function StaffLogin() {
     try {
       const result = await requestStaffLoginOtp({ email, password });
       setOtpRequested(true);
+      setOtp("");
       setMessage(result?.message || "Mã OTP đăng nhập đã được gửi qua Gmail.");
     } catch (err) {
       setError(err?.message || "Không gửi được OTP.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRequestOtp = async (e) => {
+    e.preventDefault();
+    await requestOtp();
+  };
+
+  const handleResendOtp = async () => {
+    await requestOtp();
   };
 
   const handleVerifyOtp = async (e) => {
@@ -56,7 +66,16 @@ function StaffLogin() {
         navigate(userRole === "Admin" ? "/admin/dashboard" : "/staff/dashboard");
       });
     } catch (err) {
-      setError(err?.message || "Xác thực OTP thất bại.");
+      const errorMessage = err?.message || "Xác thực OTP thất bại.";
+      setError(errorMessage);
+
+      if (
+        errorMessage.toLowerCase().includes("hết hạn") ||
+        errorMessage.toLowerCase().includes("het han") ||
+        errorMessage.toLowerCase().includes("háº¿t háº¡n")
+      ) {
+        setMessage("Mã OTP đã hết hạn. Vui lòng bấm gửi lại OTP để nhận mã mới.");
+      }
     } finally {
       setLoading(false);
     }
@@ -127,18 +146,30 @@ function StaffLogin() {
           </button>
 
           {otpRequested ? (
-            <button
-              type="button"
-              onClick={() => {
-                setOtpRequested(false);
-                setOtp("");
-                setPassword("");
-                setError("");
-                setMessage("");
-              }}
-            >
-              Đổi email khác
-            </button>
+            <div className="staff-login-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={handleResendOtp}
+                disabled={loading}
+              >
+                Gửi lại OTP
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setOtpRequested(false);
+                  setOtp("");
+                  setPassword("");
+                  setError("");
+                  setMessage("");
+                }}
+                disabled={loading}
+              >
+                Đổi email khác
+              </button>
+            </div>
           ) : null}
         </form>
 

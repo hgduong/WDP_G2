@@ -598,3 +598,139 @@ export const bookSeats = async (showtimeId, seatIds) => {
     throw error.response?.data || error;
   }
 };
+
+// ==================== USER TRANSACTION API ====================
+
+/**
+ * Lấy lịch sử giao dịch của user hiện tại
+ * @param {Object} params - Query params { page, limit, type, status, startDate, endDate }
+ */
+export const getUserTransactions = async () => {
+  try {
+    const response = await API.get("/transactions");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Lấy thống kê giao dịch của user
+ * @param {Object} params - Query params { startDate, endDate }
+ */
+export const getUserTransactionStats = async () => {
+  try {
+    const response = await API.get("/transactions/stats");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Lấy chi tiết một giao dịch
+ * @param {string} id - Transaction ID
+ */
+export const getTransactionById = async (id) => {
+  try {
+    const response = await API.get(`/transactions/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Nạp tiền vào ví
+ * @param {Object} data - { amount, description, paymentMethod }
+ */
+export const deposit = async (data) => {
+  try {
+    const response = await API.post("/transactions/deposit", data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Rút tiền từ ví
+ * @param {Object} data - { amount, description, bankAccount }
+ */
+export const withdraw = async (data) => {
+  try {
+    const response = await API.post("/transactions/withdraw", data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Thanh toán từ ví (cho booking)
+ * @param {Object} data - { amount, description, bookingId }
+ */
+export const payWithWallet = async (data) => {
+  try {
+    const response = await API.post("/transactions/pay", data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Hủy giao dịch đang chờ (Admin)
+ * @param {string} id - Transaction ID
+ */
+export const cancelTransaction = async (id) => {
+  try {
+    const response = await API.put(`/transactions/${id}/cancel`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+// ==================== ADMIN TRANSACTION API ====================
+
+/**
+ * Lấy tất cả giao dịch (Admin)
+ * @param {Object} params - Query params { page, limit, userId, type, status, startDate, endDate }
+ */
+export const getAllTransactions = async (params = {}) => {
+  try {
+    const response = await API.get("/api/admin/transactions/admin/all", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Lấy thống kê giao dịch (Admin)
+ * @param {Object} params - Query params { startDate, endDate }
+ */
+export const getAllTransactionStats = async (params = {}) => {
+  try {
+    const response = await API.get("/api/admin/transactions/admin/stats", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Hoàn tiền (Admin/Staff)
+ * @param {Object} data - { userId, amount, description, bookingId }
+ */
+export const refund = async (data) => {
+  try {
+    const response = await API.post("/transactions/refund", data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export default API;
