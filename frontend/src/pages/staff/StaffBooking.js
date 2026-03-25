@@ -4,6 +4,7 @@ import {
   getAllMovies,
   getStaffBookingSeatMap,
   getStaffBookingShowtimes,
+  applyVoucher,
 } from "../../services/api";
 import "../../assets/styles/StaffBooking.css";
 
@@ -33,7 +34,7 @@ function StaffBooking() {
   const [movies, setMovies] = useState([]);
   const [showtimes, setShowtimes] = useState([]);
   const [selectedMovieId, setSelectedMovieId] = useState("");
-  const [selectedDate, setSelectedDate] = useState(toDateInputValue());
+  const [selectedDate, setSelectedDate] = useState("");
   const [selectedShowtimeId, setSelectedShowtimeId] = useState("");
   const [seatMapData, setSeatMapData] = useState(null);
   const [selectedSeatIds, setSelectedSeatIds] = useState([]);
@@ -50,6 +51,12 @@ function StaffBooking() {
     sendEmail: true,
     paymentStatus: "PayAtCounter",
   });
+
+  const [voucherCode, setVoucherCode] = useState("");
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [checkingVoucher, setCheckingVoucher] = useState(false);
+  const [voucherError, setVoucherError] = useState("");
+  const [voucherSuccess, setVoucherSuccess] = useState("");
 
   useEffect(() => {
     const loadMovies = async () => {
@@ -73,6 +80,10 @@ function StaffBooking() {
         setSelectedShowtimeId("");
         setSeatMapData(null);
         setSelectedSeatIds([]);
+        setDiscountAmount(0);
+        setVoucherCode("");
+        setVoucherError("");
+        setVoucherSuccess("");
 
         const data = await getStaffBookingShowtimes({
           date: selectedDate,
@@ -135,6 +146,7 @@ function StaffBooking() {
   }, [seatMapData, selectedSeatIds]);
 
   const totalPrice = selectedSeats.length * Number(selectedShowtime?.price || 0);
+  const finalPrice = Math.max(0, totalPrice - discountAmount);
 
   const toggleSeat = (seat) => {
     if (seat.status !== "Available") {
@@ -154,6 +166,36 @@ function StaffBooking() {
       ...current,
       [name]: type === "checkbox" ? checked : value,
     }));
+  };
+
+  const handleApplyVoucher = async () => {
+    if (!voucherCode.trim()) {
+      setVoucherError("Vui lòng nhập mã giảm giá.");
+      return;
+    }
+    if (totalPrice === 0) {
+      setVoucherError("Vui lòng chọn suất và ghế trước khi áp dụng mã.");
+      return;
+    }
+    
+    try {
+      setCheckingVoucher(true);
+      setVoucherError("");
+      setVoucherSuccess("");
+      
+      const res = await applyVoucher(voucherCode, totalPrice, null); // userId is null for staff guest booking
+      if (res && res.discountAmount) {
+        setDiscountAmount(res.discountAmount);
+        setVoucherSuccess(`Đã áp dụng giảm ${formatMoney(res.discountAmount)}`);
+      } else {
+        setDiscountAmount(0);
+      }
+    } catch (err) {
+      setDiscountAmount(0);
+      setVoucherError(err?.message || "Mã giảm giá không hợp lệ.");
+    } finally {
+      setCheckingVoucher(false);
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -177,6 +219,7 @@ function StaffBooking() {
       const result = await createStaffBookingOrder({
         showtimeId: selectedShowtimeId,
         seatIds: selectedSeatIds,
+        voucherCode: discountAmount > 0 ? voucherCode : undefined,
         ...formData,
       });
 
@@ -188,6 +231,10 @@ function StaffBooking() {
         notes: "",
       }));
       setSelectedSeatIds([]);
+      setDiscountAmount(0);
+      setVoucherCode("");
+      setVoucherError("");
+      setVoucherSuccess("");
 
       const refreshedSeatMap = await getStaffBookingSeatMap(selectedShowtimeId);
       setSeatMapData(refreshedSeatMap);
@@ -198,7 +245,11 @@ function StaffBooking() {
       });
       setShowtimes(Array.isArray(refreshedShowtimes) ? refreshedShowtimes : []);
     } catch (err) {
-      setError(err?.message || "Đặt chỗ thất bại.");
+      setError(
+        err?.message === "Network Error" 
+        ? "Network Error (Hãy kiểm tra phiên đăng nhập đã hết hạn hoặc máy chủ backend)."
+        : (err?.message || "Đặt chỗ thất bại.")
+      );
     } finally {
       setSubmitting(false);
     }
@@ -429,6 +480,30 @@ function StaffBooking() {
             />
           </label>
 
+          <div className="voucher-section" style={{ marginTop: '1rem', marginBottom: '1rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Mã giảm giá</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                value={voucherCode}
+                onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                placeholder="Nhập mã voucher"
+                style={{ flex: 1, padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                disabled={selectedSeatIds.length === 0}
+              />
+              <button 
+                type="button" 
+                onClick={handleApplyVoucher} 
+                disabled={checkingVoucher || !voucherCode || selectedSeatIds.length === 0}
+                style={{ padding: '0.5rem 1rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', opacity: (checkingVoucher || !voucherCode || selectedSeatIds.length === 0) ? 0.5 : 1 }}
+              >
+                {checkingVoucher ? "Đang ktra..." : "Áp dụng"}
+              </button>
+            </div>
+            {voucherError && <div style={{ color: '#ef4444', fontSize: '0.875rem', marginTop: '0.5rem' }}>{voucherError}</div>}
+            {voucherSuccess && <div style={{ color: '#10b981', fontSize: '0.875rem', marginTop: '0.5rem' }}>{voucherSuccess}</div>}
+          </div>
+
           <label className="checkbox-line">
             <input
               type="checkbox"
@@ -441,16 +516,19 @@ function StaffBooking() {
 
           <div className="checkout-bar">
             <div>
-              <span>Suất chiếu</span>
+              <span>Suất chiếu / Phim</span>
               <strong>
-                {selectedShowtime ? formatDateTime(selectedShowtime.startTime) : "Chưa chọn"}
+                {selectedShowtime ? `${selectedShowtime.movieId?.title || 'Phim'} - ${selectedShowtime.roomId?.name}` : "Chưa chọn"}
               </strong>
             </div>
             <div>
               <span>Tổng tiền</span>
-              <strong>{formatMoney(totalPrice)}</strong>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                {discountAmount > 0 && <span style={{ textDecoration: 'line-through', fontSize: '0.85rem', color: '#64748b' }}>{formatMoney(totalPrice)}</span>}
+                <strong style={{ color: '#10b981', fontSize: '1.25rem' }}>{formatMoney(finalPrice)}</strong>
+              </div>
             </div>
-            <button type="submit" disabled={submitting || !selectedShowtime}>
+            <button type="submit" disabled={submitting || !selectedShowtime || selectedSeatIds.length === 0}>
               {submitting ? "Đang xác nhận..." : "Xác nhận đặt chỗ"}
             </button>
           </div>

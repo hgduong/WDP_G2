@@ -409,9 +409,8 @@ export const getStaffBookingShowtimes = async (params = {}) => {
 
 export const getStaffBookingSeatMap = async (showtimeId) => {
   try {
-    // Use simple seatmap endpoint - no auth required
-    // Route is mounted at /api so full path is /api/seatmap/:showtimeId
-    const response = await API.get(`/api/seatmap/${showtimeId}`);
+    // Use public staff-booking seatmap route (no auth required)
+    const response = await API.get(`/staff/bookings/seatmap/${showtimeId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;

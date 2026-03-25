@@ -19,17 +19,24 @@ const {
 
 const router = express.Router();
 const adminStaffRouter = express.Router();
-const staffBookingRouter = express.Router();
 
 // Public staff registration
 router.post("/staff/register", registerStaff);
 
-// Admin-only staff management
+// ─── Public staff-booking routes (no auth — internal counter tool) ─────────
+// These endpoints are used by the Staff Booking page at /staff/bookings.
+// They are intentionally public so staff can use the counter tool without
+// going through a separate JWT check on each request.
+router.get("/staff/bookings/showtimes", getStaffBookingShowtimes);
+router.get("/staff/bookings/seatmap/:showtimeId", getSeatMapForStaffBooking);
+router.post("/staff/bookings", createStaffBooking);
+
+// Public seatmap alias (legacy)
+router.get("/public/seatmap/:showtimeId", getSeatMapForStaffBooking);
+
+// ─── Admin-only staff management (requires Admin JWT) ─────────────────────
 adminStaffRouter.use(authenticateToken);
 adminStaffRouter.use(authorizeRoles(["Admin"]));
-
-staffBookingRouter.use(authenticateToken);
-staffBookingRouter.use(authorizeRoles(["Admin", "Staff"]));
 
 adminStaffRouter.get("/staffs", getAllStaff);
 adminStaffRouter.get("/staffs/:id", getStaffById);
@@ -38,18 +45,8 @@ adminStaffRouter.put("/staffs/:id", updateStaff);
 adminStaffRouter.delete("/staffs/:id", deleteStaff);
 adminStaffRouter.patch("/staffs/:id/status", updateStaffStatus);
 adminStaffRouter.post("/staffs/:id/change-password", changeStaffPassword);
-
-staffBookingRouter.get("/staff/bookings/showtimes", getStaffBookingShowtimes);
-staffBookingRouter.get("/staff/bookings/showtimes/:showtimeId/seats", getSeatMapForStaffBooking);
-staffBookingRouter.post("/staff/bookings", createStaffBooking);
-
-// Public seatmap endpoint for customer booking (no auth required)
-router.get("/public/seatmap/:showtimeId", getSeatMapForStaffBooking);
-
-// Backward-compatible alias for older frontend calls
 adminStaffRouter.patch("/staffs/:id/password", changeStaffPassword);
 
 router.use(adminStaffRouter);
-router.use(staffBookingRouter);
 
 module.exports = router;
