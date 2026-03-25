@@ -46,16 +46,17 @@ function Signup() {
 
   const handleProvinceChange = async (e) => {
     const provinceCode = e.target.value;
-    setFormData({
+    const newFormData = {
       ...formData,
       province: provinceCode,
       district: "",
       ward: "",
-    });
+    };
+    setFormData(newFormData);
+    validateField("province", provinceCode, newFormData);
 
     try {
       const data = await getDistricts(provinceCode);
-      // API trả về object có field districts
       setDistricts(data.districts || []);
     } catch (error) {
       console.error("Lỗi khi lấy danh sách quận/huyện:", error);
@@ -64,18 +65,19 @@ function Signup() {
 
   const handleDistrictChange = async (e) => {
     const districtCode = e.target.value;
-    setFormData({ ...formData, district: districtCode, ward: "" });
+    const newFormData = { ...formData, district: districtCode, ward: "" };
+    setFormData(newFormData);
+    validateField("district", districtCode, newFormData);
 
     try {
       const data = await getWards(districtCode);
-      // API trả về object có field wards
       setWards(data.wards || []);
     } catch (error) {
       console.error("Lỗi khi lấy danh sách phường/xã:", error);
     }
   };
 
-  const validateField = (name, value) => {
+  const validateField = (name, value, allFormData) => {
     let errorMsg = "";
 
     switch (name) {
@@ -113,13 +115,6 @@ function Signup() {
         }
         break;
 
-      // case "password":
-      // if (!value) {
-      //   errorMsg = "Mật khẩu là bắt buộc";
-      // } else if (value.length < 6) {
-      //   errorMsg = "Mật khẩu phải ít nhất 6 ký tự";
-      // }
-      // break;
       case "password":
         if (!value) {
           errorMsg = "Mật khẩu là bắt buộc";
@@ -137,35 +132,23 @@ function Signup() {
         }
         break;
 
-      // case "confirmPassword":
-      //   if (value !== formData.password) {
-      //     errorMsg = "Mật khẩu nhập lại không khớp";
-      //   }
-      //   break;
       case "confirmPassword":
-        const trimmedConfirm = value.trimEnd();
-        const trimmedPassword = formData.password.trimEnd();
-        if (trimmedConfirm !== trimmedPassword) {
+        if (!value) {
+          errorMsg = "Vui lòng nhập lại mật khẩu";
+        } else if (value !== allFormData.password) {
           errorMsg = "Mật khẩu nhập lại không khớp";
         }
         break;
 
       case "dob":
-        if (value) {
+        if (!value) {
+          errorMsg = "Ngày sinh là bắt buộc";
+        } else {
           const today = new Date();
           const dobDate = new Date(value);
           const age = today.getFullYear() - dobDate.getFullYear();
           if (age < 13) {
             errorMsg = "Bạn phải ít nhất 13 tuổi để đăng ký";
-          }
-        }
-        break;
-
-      case "idCard":
-        if (value) {
-          const idCardRegex = /^\d{9,12}$/;
-          if (!idCardRegex.test(value)) {
-            errorMsg = "Số CMND/CCCD phải từ 9-12 chữ số";
           }
         }
         break;
@@ -181,7 +164,25 @@ function Signup() {
         }
         break;
 
-      case "address":
+      case "province":
+        if (!value) {
+          errorMsg = "Tỉnh/Thành phố là bắt buộc";
+        }
+        break;
+
+      case "district":
+        if (!value) {
+          errorMsg = "Quận/Huyện là bắt buộc";
+        }
+        break;
+
+      case "ward":
+        if (!value) {
+          errorMsg = "Phường/Xã là bắt buộc";
+        }
+        break;
+
+      case "street":
         if (!value) {
           errorMsg = "Địa chỉ là bắt buộc";
         } else if (value.length < 5) {
@@ -200,17 +201,147 @@ function Signup() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
+    const newFormData = {
       ...formData,
       [name]: value,
-    });
-    validateField(name, value);
+    };
+    setFormData(newFormData);
+    validateField(name, value, newFormData);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const hasError = Object.values(errors).some((err) => err !== "");
-    if (hasError) {
+
+    // Collect all validation errors locally
+    const validationErrors = {};
+    
+    const validateFieldLocal = (name, value, allFormData) => {
+      let errorMsg = "";
+      switch (name) {
+        case "fullName":
+          if (!value) {
+            errorMsg = "Họ và tên là bắt buộc";
+          } else if (value.length < 2) {
+            errorMsg = "Tên phải có ít nhất 2 ký tự";
+          } else if (value.length > 50) {
+            errorMsg = "Tên không được vượt quá 50 ký tự";
+          } else {
+            const nameRegex = /^[\p{L}\s]+$/u;
+            if (!nameRegex.test(value)) {
+              errorMsg = "Tên chỉ được chứa chữ cái và khoảng trắng";
+            }
+          }
+          break;
+        case "email":
+          if (!value) {
+            errorMsg = "Email là bắt buộc";
+          } else {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(value)) {
+              errorMsg = "Email không hợp lệ";
+            }
+          }
+          break;
+        case "password":
+          if (!value) {
+            errorMsg = "Mật khẩu là bắt buộc";
+          } else {
+            const trimmedValue = value.trimEnd();
+            if (trimmedValue.length < 7) {
+              errorMsg = "Mật khẩu phải dài hơn 6 ký tự";
+            } else if (!/[A-Z]/.test(trimmedValue)) {
+              errorMsg = "Mật khẩu phải có ít nhất 1 chữ in hoa";
+            } else if (!/[0-9]/.test(trimmedValue)) {
+              errorMsg = "Mật khẩu phải có ít nhất 1 chữ số";
+            } else if (!/[^A-Za-z0-9]/.test(trimmedValue)) {
+              errorMsg = "Mật khẩu phải có ít nhất 1 ký tự đặc biệt";
+            }
+          }
+          break;
+        case "confirmPassword":
+          if (!value) {
+            errorMsg = "Vui lòng nhập lại mật khẩu";
+          } else if (value !== allFormData.password) {
+            errorMsg = "Mật khẩu nhập lại không khớp";
+          }
+          break;
+        case "gender":
+          if (!value) {
+            errorMsg = "Giới tính là bắt buộc";
+          }
+          break;
+        case "dob":
+          if (!value) {
+            errorMsg = "Ngày sinh là bắt buộc";
+          } else {
+            const today = new Date();
+            const dobDate = new Date(value);
+            const age = today.getFullYear() - dobDate.getFullYear();
+            if (age < 13) {
+              errorMsg = "Bạn phải ít nhất 13 tuổi để đăng ký";
+            }
+          }
+          break;
+        case "phone":
+          if (!value) {
+            errorMsg = "Số điện thoại là bắt buộc";
+          } else {
+            const phoneRegex = /^(0|\+84)(\d{9})$/;
+            if (!phoneRegex.test(value)) {
+              errorMsg = "Số điện thoại không hợp lệ";
+            }
+          }
+          break;
+        case "province":
+          if (!value) {
+            errorMsg = "Tỉnh/Thành phố là bắt buộc";
+          }
+          break;
+        case "district":
+          if (!value) {
+            errorMsg = "Quận/Huyện là bắt buộc";
+          }
+          break;
+        case "ward":
+          if (!value) {
+            errorMsg = "Phường/Xã là bắt buộc";
+          }
+          break;
+        case "street":
+          if (!value) {
+            errorMsg = "Địa chỉ là bắt buộc";
+          } else if (value.length < 5) {
+            errorMsg = "Địa chỉ phải có ít nhất 5 ký tự";
+          } else if (value.length > 200) {
+            errorMsg = "Địa chỉ không được vượt quá 200 ký tự";
+          }
+          break;
+        default:
+          break;
+      }
+      if (errorMsg) {
+        validationErrors[name] = errorMsg;
+      }
+    };
+
+    // Validate all required fields
+    validateFieldLocal("fullName", formData.fullName, formData);
+    validateFieldLocal("email", formData.email, formData);
+    validateFieldLocal("password", formData.password, formData);
+    validateFieldLocal("confirmPassword", formData.confirmPassword, formData);
+    validateFieldLocal("gender", formData.gender, formData);
+    validateFieldLocal("dob", formData.dob, formData);
+    validateFieldLocal("phone", formData.phone, formData);
+    validateFieldLocal("province", formData.province, formData);
+    validateFieldLocal("district", formData.district, formData);
+    validateFieldLocal("ward", formData.ward, formData);
+    validateFieldLocal("street", formData.street, formData);
+
+    // Update errors state
+    setErrors(validationErrors);
+
+    // Check if any errors exist
+    if (Object.keys(validationErrors).length > 0) {
       toast.error("Vui lòng sửa lỗi trước khi đăng ký");
       return;
     }
@@ -354,6 +485,9 @@ function Signup() {
               </option>
             ))}
           </select>
+          {errors.province && (
+            <span className="error-text">{errors.province}</span>
+          )}
         </div>
 
         <div className="form-group">
@@ -370,13 +504,21 @@ function Signup() {
               </option>
             ))}
           </select>
+          {errors.district && (
+            <span className="error-text">{errors.district}</span>
+          )}
         </div>
 
         <div className="form-group">
           <label>Phường/Xã</label>
           <select
             value={formData.ward}
-            onChange={(e) => setFormData({ ...formData, ward: e.target.value })}
+            onChange={(e) => {
+              const wardValue = e.target.value;
+              const newFormData = { ...formData, ward: wardValue };
+              setFormData(newFormData);
+              validateField("ward", wardValue, newFormData);
+            }}
             required
           >
             <option value="">--Chọn phường/xã--</option>
@@ -386,6 +528,7 @@ function Signup() {
               </option>
             ))}
           </select>
+          {errors.ward && <span className="error-text">{errors.ward}</span>}
         </div>
 
         <div className="form-group">
@@ -398,6 +541,9 @@ function Signup() {
             placeholder="Nhập số nhà, tên đường"
             required
           />
+          {errors.street && (
+            <span className="error-text">{errors.street}</span>
+          )}
         </div>
 
         <button type="submit" className="signup-btn">
