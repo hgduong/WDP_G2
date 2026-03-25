@@ -68,6 +68,15 @@
   background-color: #c82333;
 }
 
+.btn-seat {
+  background-color: #28a745;
+  color: white;
+}
+
+.btn-seat:hover {
+  background-color: #218838;
+}
+
 .btn-time {
   background-color: #17a2b8;
   color: white;
