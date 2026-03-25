@@ -10,7 +10,7 @@ const bookingSchema = new mongoose.Schema({
   seats: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Seat', required: true }],
   totalPrice: { type: Number, required: true },
   bookingCode: { type: String, required: true, unique: true },
-  status: { type: String, enum: ['Pending', 'Confirmed', 'Cancelled'], default: 'Pending' },
+  status: { type: String, enum: ['Pending', 'Confirmed', 'Done', 'Cancelled'], default: 'Pending' },
   bookingSource: {
     type: String,
     enum: ['Customer', 'Staff'],

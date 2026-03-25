@@ -185,7 +185,7 @@ exports.updatePaymentStatus = async (req, res) => {
 
     booking.paymentStatus = paymentStatus;
     if (paymentStatus === "Paid") {
-      booking.status = "Confirmed";
+      booking.status = "Done";
     }
     await booking.save();
 

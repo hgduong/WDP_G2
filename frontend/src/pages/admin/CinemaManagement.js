@@ -8,7 +8,8 @@ import {
   createShowtime,
   createRoom,
   updateRoom,
-  deleteRoom
+  deleteRoom,
+  generateSeatLayout
 } from '../../services/api';
 import { toast } from 'react-toastify';
 import './AdminManagement.css';
@@ -323,6 +324,23 @@ const CinemaManagement = () => {
   const handleDeleteClick = (id) => {
     setDeletingRoomId(id);
     setShowDeleteConfirm(true);
+  };
+
+  const handleGenerateSeats = async (room) => {
+    if (!room.capacity) {
+      toast.error('Vui lòng nhập số ghế cho phòng trước');
+      return;
+    }
+    
+    try {
+      await generateSeatLayout(room._id, room.capacity);
+      toast.success(`Tạo bố cục ghế thành công cho phòng ${room.name}!`);
+      // Refresh rooms
+      await fetchRooms(selectedCinema._id);
+    } catch (err) {
+      const errorMsg = err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi tạo bố cục ghế';
+      toast.error(errorMsg);
+    }
   };
 
   const confirmDeleteRoom = async () => {

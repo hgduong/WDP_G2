@@ -43,6 +43,9 @@ staffBookingRouter.get("/staff/bookings/showtimes", getStaffBookingShowtimes);
 staffBookingRouter.get("/staff/bookings/showtimes/:showtimeId/seats", getSeatMapForStaffBooking);
 staffBookingRouter.post("/staff/bookings", createStaffBooking);
 
+// Public seatmap endpoint for customer booking (no auth required)
+router.get("/public/seatmap/:showtimeId", getSeatMapForStaffBooking);
+
 // Backward-compatible alias for older frontend calls
 adminStaffRouter.patch("/staffs/:id/password", changeStaffPassword);
 

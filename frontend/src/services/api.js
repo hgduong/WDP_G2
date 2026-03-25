@@ -409,7 +409,9 @@ export const getStaffBookingShowtimes = async (params = {}) => {
 
 export const getStaffBookingSeatMap = async (showtimeId) => {
   try {
-    const response = await API.get(`/staff/bookings/showtimes/${showtimeId}/seats`);
+    // Use simple seatmap endpoint - no auth required
+    // Route is mounted at /api so full path is /api/seatmap/:showtimeId
+    const response = await API.get(`/api/seatmap/${showtimeId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -542,9 +544,28 @@ export const applyVoucher = async (code, orderValue, userId) => {
 };
 
 // Seat holding (real-time)
+export const getSeatmap = async (showtimeId) => {
+  try {
+    const response = await API.get(`/seatmap/${showtimeId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+// Generate seat layout for a room
+export const generateSeatLayout = async (roomId, capacity) => {
+  try {
+    const response = await API.post("/seatmap/generate", { roomId, capacity });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export const holdSeats = async (showtimeId, seatIds, userId) => {
   try {
-    const response = await API.post("/seats/hold", { showtimeId, seatIds, userId });
+    const response = await API.post("/api/seats/hold", { showtimeId, seatIds, userId });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -553,7 +574,7 @@ export const holdSeats = async (showtimeId, seatIds, userId) => {
 
 export const releaseSeats = async (seatIds) => {
   try {
-    const response = await API.post("/seats/release", { seatIds });
+    const response = await API.post("/api/seats/release", { seatIds });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -562,7 +583,7 @@ export const releaseSeats = async (seatIds) => {
 
 export const getHeldSeats = async (showtimeId) => {
   try {
-    const response = await API.get(`/seats/held/${showtimeId}`);
+    const response = await API.get(`/api/seats/held/${showtimeId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -571,7 +592,7 @@ export const getHeldSeats = async (showtimeId) => {
 
 export const bookSeats = async (showtimeId, seatIds) => {
   try {
-    const response = await API.post("/seats/book", { showtimeId, seatIds });
+    const response = await API.post("/api/seats/book", { showtimeId, seatIds });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;

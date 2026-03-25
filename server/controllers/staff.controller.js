@@ -24,20 +24,11 @@ const sanitizeStaff = (staff) => {
   return staffObject;
 };
 
-const DEFAULT_SEATS_PER_ROW = 8;
+const seatmapController = require("./seatmap.controller");
 
 const buildSeatBlueprint = (capacity = 0) => {
-  const totalSeats = Math.max(Number(capacity) || 0, 0);
-  return Array.from({ length: totalSeats }, (_, index) => {
-    const rowIndex = Math.floor(index / DEFAULT_SEATS_PER_ROW);
-    const seatNumber = (index % DEFAULT_SEATS_PER_ROW) + 1;
-    return {
-      row: String.fromCharCode(65 + rowIndex),
-      number: seatNumber,
-      type: rowIndex >= 3 ? "VIP" : "Standard",
-      status: "Available",
-    };
-  });
+  // Use the shared function from seatmapController
+  return seatmapController.buildSeatLayout(capacity);
 };
 
 const createBookingCode = () =>
@@ -124,7 +115,12 @@ const ensureShowtimeSeatmap = async (showtimeInput) => {
   return populateSeatmap(seatmap._id);
 };
 
-const formatSeatLabel = (seat) => `${seat.row}${seat.number}`;
+const formatSeatLabel = (seat) => {
+  if (seat.type === 'Couple') {
+    return `${seat.row}${seat.number}-${seat.number + 1}`;
+  }
+  return `${seat.row}${seat.number}`;
+};
 
 const mapSeatForClient = (seat) => ({
   _id: seat._id,
