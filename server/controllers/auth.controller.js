@@ -143,6 +143,7 @@ exports.register = async (req, res) => {
       console.error("Validation Error:", error.errors);
       return res.status(400).json({
         message: "Dữ liệu không hợp lệ",
+        errors: error.errors,
       });
     }
 
