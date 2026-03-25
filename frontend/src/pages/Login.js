@@ -58,6 +58,15 @@ function Login() {
         return;
       }
       
+      if (errorData?.useStaffLogin) {
+        toast.info(errorMessage);
+        navigate("/staff-login", {
+          replace: true,
+          state: { email: username },
+        });
+        return;
+      }
+
       toast.error(errorMessage);
     }
   };
@@ -146,6 +155,16 @@ function Login() {
             Chưa có tài khoản?{" "}
             <button type="button" className="link-btn" onClick={handleSignup}>
               Đăng ký ngay
+            </button>
+          </p>
+          <p>
+            TÃ i khoáº£n staff?{" "}
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => navigate("/staff-login")}
+            >
+              ÄÄƒng nháº­p staff
             </button>
           </p>
         </div>

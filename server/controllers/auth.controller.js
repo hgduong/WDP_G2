@@ -468,7 +468,11 @@ exports.resetPassword = async (req, res) => {
 
 // Đăng nhập bằng Local Strategy
 const loginWithLocalStrategy = (req, res, next, options = {}) => {
-  const { staffOnly = false } = options;
+  const {
+    staffOnly = false,
+    disallowRoles = [],
+    disallowRolesMessage = "Tai khoan khong duoc phep dang nhap tai day",
+  } = options;
 
   passport.authenticate("local", { session: false }, async (err, user, info) => {
     if (err) {
@@ -517,6 +521,13 @@ const loginWithLocalStrategy = (req, res, next, options = {}) => {
       return res.status(401).json(info);
     }
 
+    if (disallowRoles.includes(user.role)) {
+      return res.status(403).json({
+        message: disallowRolesMessage,
+        useStaffLogin: true,
+      });
+    }
+
     if (staffOnly && !STAFF_ALLOWED_ROLES.includes(user.role)) {
       return res.status(403).json({
         message: "Tài khoản không có quyền truy cập khu vực staff",
@@ -559,12 +570,20 @@ const loginWithLocalStrategy = (req, res, next, options = {}) => {
 
 // Đăng nhập bằng Local Strategy (khách hàng)
 exports.login = (req, res, next) => {
-  return loginWithLocalStrategy(req, res, next);
+  return loginWithLocalStrategy(req, res, next, {
+    disallowRoles: ["Staff"],
+    disallowRolesMessage:
+      "Tai khoan staff chi duoc phep dang nhap tai http://localhost:3000/staff-login",
+  });
 };
 
 // Đăng nhập cho khu vực Staff/Admin
-exports.staffLogin = (req, res, next) => {
-  return loginWithLocalStrategy(req, res, next, { staffOnly: true });
+exports.staffLogin = (_req, res) => {
+  return res.status(403).json({
+    message:
+      "Dang nhap truc tiep cho staff da bi tat. Vui long dung quy trinh OTP tai http://localhost:3000/staff-login",
+    useOtpLogin: true,
+  });
 };
 // Đăng nhập bằng Facebook Strategy
 exports.loginWithFacebook = (req, res, next) => {
