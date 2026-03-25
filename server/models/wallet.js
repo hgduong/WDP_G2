@@ -1,37 +1,5 @@
 const mongoose = require("mongoose");
-
-const transactionSchema = new mongoose.Schema({
-  type: {
-    type: String,
-    enum: ["deposit", "withdraw", "payment", "refund", "transfer"],
-    required: [true, "Loại giao dịch là bắt buộc"],
-  },
-  amount: {
-    type: Number,
-    required: [true, "Số tiền giao dịch là bắt buộc"],
-    min: [0, "Số tiền không được âm"],
-  },
-  description: {
-    type: String,
-    trim: true,
-    default: "",
-  },
-  referenceId: {
-    type: mongoose.Schema.Types.ObjectId,
-    default: null,
-  },
-  referenceType: {
-    type: String,
-    enum: ["booking", "topup", "refund", null],
-    default: null,
-  },
-  status: {
-    type: String,
-    enum: ["pending", "completed", "failed", "cancelled"],
-    default: "completed",
-  },
-  createdAt: { type: Date, default: Date.now },
-});
+const Transaction = require("./transaction");
 
 const walletSchema = new mongoose.Schema({
   userId: {
@@ -55,7 +23,6 @@ const walletSchema = new mongoose.Schema({
     enum: ["Active", "Frozen", "Closed"],
     default: "Active",
   },
-  transactions: [transactionSchema],
   totalDeposited: {
     type: Number,
     default: 0,
@@ -95,25 +62,32 @@ walletSchema.virtual("availableBalance").get(function () {
 });
 
 // Instance method: thêm tiền vào ví
-walletSchema.methods.deposit = async function (amount, description = "Nạp tiền", referenceId = null, referenceType = "topup") {
+walletSchema.methods.deposit = async function (amount, description = "Nạp tiền", referenceId = null, referenceType = "topup", paymentMethod = "wallet") {
   if (amount <= 0) {
     throw new Error("Số tiền nạp phải lớn hơn 0");
   }
 
+  const previousBalance = this.balance;
   this.balance += amount;
   this.totalDeposited += amount;
   this.lastTransactionAt = new Date();
+  await this.save();
 
-  this.transactions.push({
+  // Tạo transaction record riêng
+  await Transaction.createTransaction({
+    userId: this.userId,
+    walletId: this._id,
     type: "deposit",
     amount: amount,
+    balanceAfter: this.balance,
     description: description,
     referenceId: referenceId,
     referenceType: referenceType,
     status: "completed",
+    paymentMethod: paymentMethod,
   });
 
-  return this.save();
+  return this;
 };
 
 // Instance method: trừ tiền từ ví
@@ -130,20 +104,27 @@ walletSchema.methods.withdraw = async function (amount, description = "Rút ti�
     throw new Error("Ví không hoạt động, không thể thực hiện giao dịch");
   }
 
+  const previousBalance = this.balance;
   this.balance -= amount;
   this.totalSpent += amount;
   this.lastTransactionAt = new Date();
+  await this.save();
 
-  this.transactions.push({
+  // Tạo transaction record riêng
+  await Transaction.createTransaction({
+    userId: this.userId,
+    walletId: this._id,
     type: "withdraw",
     amount: amount,
+    balanceAfter: this.balance,
     description: description,
     referenceId: referenceId,
     referenceType: referenceType,
     status: "completed",
+    paymentMethod: "wallet",
   });
 
-  return this.save();
+  return this;
 };
 
 // Instance method: thanh toán từ ví
@@ -157,19 +138,26 @@ walletSchema.methods.refund = async function (amount, description = "Hoàn tiề
     throw new Error("Số tiền hoàn phải lớn hơn 0");
   }
 
+  const previousBalance = this.balance;
   this.balance += amount;
   this.lastTransactionAt = new Date();
+  await this.save();
 
-  this.transactions.push({
+  // Tạo transaction record riêng
+  await Transaction.createTransaction({
+    userId: this.userId,
+    walletId: this._id,
     type: "refund",
     amount: amount,
+    balanceAfter: this.balance,
     description: description,
     referenceId: referenceId,
     referenceType: referenceType,
     status: "completed",
+    paymentMethod: "wallet",
   });
 
-  return this.save();
+  return this;
 };
 
 // Instance method: đóng băng ví
@@ -200,6 +188,14 @@ walletSchema.methods.unfreeze = async function () {
   this.frozenReason = null;
 
   return this.save();
+};
+
+// Instance method: lấy lịch sử giao dịch của ví
+walletSchema.methods.getTransactions = async function (options = {}) {
+  return Transaction.getUserTransactions(this.userId, {
+    ...options,
+    walletId: this._id,
+  });
 };
 
 // Static method: tìm hoặc tạo ví mới cho user
@@ -250,7 +246,6 @@ walletSchema.set("toObject", { virtuals: true });
 // Index cho các trường thường truy vấn
 walletSchema.index({ userId: 1 });
 walletSchema.index({ status: 1 });
-walletSchema.index({ "transactions.createdAt": -1 });
 walletSchema.index({ lastTransactionAt: -1 });
 
 module.exports = mongoose.model("Wallet", walletSchema);
