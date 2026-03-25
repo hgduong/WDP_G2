@@ -1,3 +1,4 @@
+require('node:dns').setServers(['8.8.8.8', '8.8.4.4']);
 const express = require("express");
 const cors = require("cors");
 const passport = require("passport");
@@ -18,7 +19,7 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
   }),

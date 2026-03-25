@@ -407,12 +407,15 @@ exports.getStaffBookingShowtimes = async (req, res) => {
     }
 
     if (date) {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(startOfDay);
-      endOfDay.setDate(endOfDay.getDate() + 1);
-      filter.startTime = { $gte: startOfDay, $lt: endOfDay };
+      // Parse the date in local UTC+7 timezone to avoid off-by-one day issues
+      const parts = date.split('-'); // YYYY-MM-DD
+      if (parts.length === 3) {
+        const startOfDay = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0));
+        const endOfDay = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) + 1, 0, 0, 0));
+        filter.startTime = { $gte: startOfDay, $lt: endOfDay };
+      }
     }
+    // If no date is provided, return ALL scheduled showtimes (sorted ascending)
 
     const showtimes = await Showtime.find(filter)
       .populate("movieId", "title duration posterUrl")
