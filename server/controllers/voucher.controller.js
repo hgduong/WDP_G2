@@ -60,19 +60,25 @@ exports.getVoucherById = async (req, res) => {
 exports.createVoucher = async (req, res) => {
   try {
     const {
+      code,
       discountPercent,
       maxDiscount,
       maxUsage,
       maxUsagePerAccount,
       minOrderValue,
-      note,
       startDate,
       endDate,
     } = req.body;
 
     // Validate
-    if (!discountPercent || !maxDiscount || !startDate || !endDate) {
+    if (!code || !discountPercent || !maxDiscount || !startDate || !endDate) {
       return res.status(400).json({ message: "Vui lòng nhập đầy đủ thông tin" });
+    }
+
+    // Kiểm tra mã voucher đã tồn tại chưa
+    const existingVoucher = await Voucher.findOne({ code: code.toUpperCase() });
+    if (existingVoucher) {
+      return res.status(400).json({ message: "Mã voucher đã tồn tại" });
     }
 
     if (discountPercent < 0 || discountPercent > 100) {
@@ -84,12 +90,12 @@ exports.createVoucher = async (req, res) => {
     }
 
     const voucher = new Voucher({
+      code: code.toUpperCase(),
       discountPercent,
       maxDiscount,
       maxUsage: maxUsage || 1,
       maxUsagePerAccount: maxUsagePerAccount || 1,
       minOrderValue: minOrderValue || 0,
-      note: note || "",
       startDate,
       endDate,
       usedCount: 0,
@@ -102,6 +108,9 @@ exports.createVoucher = async (req, res) => {
     if (error.name === "ValidationError") {
       return res.status(400).json({ message: "Dữ liệu không hợp lệ" });
     }
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "Mã voucher đã tồn tại" });
+    }
     res.status(500).json({ message: "Lỗi server khi tạo voucher" });
   }
 };
@@ -111,12 +120,12 @@ exports.updateVoucher = async (req, res) => {
   try {
     const { id } = req.params;
     const {
+      code,
       discountPercent,
       maxDiscount,
       maxUsage,
       maxUsagePerAccount,
       minOrderValue,
-      note,
       startDate,
       endDate,
     } = req.body;
@@ -136,12 +145,12 @@ exports.updateVoucher = async (req, res) => {
     }
 
     // Cập nhật các trường
+    if (code) voucher.code = code.toUpperCase();
     if (discountPercent !== undefined) voucher.discountPercent = discountPercent;
     if (maxDiscount !== undefined) voucher.maxDiscount = maxDiscount;
     if (maxUsage !== undefined) voucher.maxUsage = maxUsage;
     if (maxUsagePerAccount !== undefined) voucher.maxUsagePerAccount = maxUsagePerAccount;
     if (minOrderValue !== undefined) voucher.minOrderValue = minOrderValue;
-    if (note !== undefined) voucher.note = note;
     if (startDate) voucher.startDate = startDate;
     if (endDate) voucher.endDate = endDate;
 
