@@ -1,0 +1,527 @@
+.order-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+.order-loading,
+.order-error {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.order-error h2 {
+  color: #e74c3c;
+}
+
+/* Payment Pending State */
+.payment-pending {
+  text-align: center;
+  padding: 30px;
+  background: linear-gradient(135deg, #ff9800, #ffb74d);
+  border-radius: 10px;
+  color: white;
+  margin-bottom: 30px;
+}
+
+.pending-icon {
+  width: 60px;
+  height: 60px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  color: #ff9800;
+  margin: 0 auto 15px;
+}
+
+.payment-pending h1 {
+  margin: 0 0 10px;
+  font-size: 28px;
+}
+
+/* Success Message */
+.order-success {
+  text-align: center;
+  padding: 30px;
+  background: linear-gradient(135deg, #4CAF50, #8BC34A);
+  border-radius: 10px;
+  color: white;
+  margin-bottom: 30px;
+}
+
+.success-icon {
+  width: 60px;
+  height: 60px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  color: #4CAF50;
+  margin: 0 auto 15px;
+}
+
+.order-success h1 {
+  margin: 0 0 10px;
+  font-size: 28px;
+}
+
+.order-code {
+  font-size: 18px;
+  margin: 5px 0;
+}
+
+.purchase-date {
+  opacity: 0.9;
+  font-size: 14px;
+}
+
+.payment-status {
+  margin-top: 10px;
+  padding: 8px 15px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 20px;
+  display: inline-block;
+}
+
+/* Order Details Table */
+.order-details-table {
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 30px;
+}
+
+.order-details-table h2 {
+  margin-top: 0;
+  color: #333;
+  font-size: 20px;
+  border-bottom: 2px solid #4CAF50;
+  padding-bottom: 10px;
+  margin-bottom: 15px;
+}
+
+.order-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.order-table tbody tr {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.order-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.order-table tbody tr.total-row {
+  background: #fff3f3;
+}
+
+.table-label {
+  padding: 12px 15px;
+  font-weight: 600;
+  color: #555;
+  width: 40%;
+  vertical-align: top;
+}
+
+.table-value {
+  padding: 12px 15px;
+  color: #333;
+  font-weight: 500;
+}
+
+.seats-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.seat-tag {
+  background: #4CAF50;
+  color: white;
+  padding: 5px 12px;
+  border-radius: 15px;
+  font-size: 14px;
+}
+
+.total-row .table-value {
+  color: #e74c3c;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+/* Payment Section */
+.payment-section {
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.payment-section h2 {
+  margin-top: 0;
+  color: #333;
+  font-size: 20px;
+  margin-bottom: 20px;
+}
+
+.payment-qr-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.payment-qr {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  border: 2px solid #ff9800;
+  text-align: center;
+}
+
+.qr-code-payment {
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+}
+
+.payment-amount {
+  font-size: 24px;
+  font-weight: bold;
+  color: #e74c3c;
+  margin: 15px 0 10px;
+}
+
+.payment-note {
+  color: #666;
+  font-size: 14px;
+  margin: 0;
+}
+
+.payment-actions {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+/* QR Ticket Section */
+.qr-ticket-section {
+  margin-bottom: 30px;
+}
+
+.qr-ticket-section h2 {
+  color: #333;
+  font-size: 22px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #4CAF50;
+  padding-bottom: 10px;
+}
+
+/* Ticket Message */
+.ticket-message {
+  background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 25px;
+  border-left: 4px solid #4CAF50;
+}
+
+.message-title {
+  font-weight: bold;
+  color: #2e7d32;
+  margin: 0 0 10px 0;
+  font-size: 16px;
+}
+
+.message-content {
+  color: #333;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* QR Display */
+.qr-display {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 25px;
+}
+
+.qr-main {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  text-align: center;
+  border: 2px solid #4CAF50;
+}
+
+.qr-code-main {
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+}
+
+.qr-label {
+  margin: 15px 0 0;
+  font-weight: bold;
+  color: #4CAF50;
+  font-size: 16px;
+}
+
+/* Ticket Content */
+.ticket-content {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 25px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.ticket-content h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.ticket-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+.ticket-info-item {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #666;
+  font-size: 13px;
+  margin-bottom: 5px;
+}
+
+.info-value {
+  color: #333;
+  font-weight: 500;
+  font-size: 15px;
+}
+
+/* User Info Section */
+.user-info-section {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 25px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  border-left: 4px solid #2196F3;
+}
+
+.user-info-section h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.user-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.user-info-item {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  background: #e3f2fd;
+  border-radius: 8px;
+}
+
+.user-info-item .info-label {
+  color: #1565c0;
+}
+
+.user-info-item .info-value {
+  color: #333;
+}
+
+/* Email Notification */
+.email-notification {
+  background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+  padding: 15px 20px;
+  border-radius: 10px;
+  margin-bottom: 25px;
+  text-align: center;
+  border: 1px solid #ffb74d;
+}
+
+.email-notification p {
+  margin: 0;
+  color: #e65100;
+  font-size: 15px;
+}
+
+.email-notification strong {
+  color: #bf360c;
+}
+
+/* Individual Tickets */
+.individual-tickets {
+  margin-bottom: 30px;
+}
+
+.individual-tickets h3 {
+  color: #333;
+  font-size: 18px;
+  margin-bottom: 15px;
+}
+
+.tickets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.ticket-card {
+  background: white;
+  border: 2px solid #4CAF50;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.ticket-header {
+  background: #4CAF50;
+  color: white;
+  padding: 15px;
+  text-align: center;
+}
+
+.ticket-header h3 {
+  margin: 0 0 5px;
+  font-size: 16px;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticket-code {
+  margin: 0;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.ticket-body {
+  padding: 15px;
+}
+
+.ticket-body p {
+  margin: 8px 0;
+  color: #333;
+}
+
+.qr-section {
+  text-align: center;
+  padding: 15px;
+  background: #f5f5f5;
+  border-top: 1px dashed #ccc;
+}
+
+.qr-code {
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+}
+
+.qr-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.order-actions {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 30px;
+}
+
+.btn {
+  padding: 12px 30px;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  transition: background 0.3s;
+}
+
+.btn-primary {
+  background: #4CAF50;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #45a049;
+}
+
+.btn-secondary {
+  background: #2196F3;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #1976D2;
+}
+
+@media (max-width: 768px) {
+  .order-table {
+    font-size: 14px;
+  }
+  
+  .table-label {
+    width: 45%;
+  }
+  
+  .ticket-info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .user-info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .qr-code-main {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .qr-code-payment {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .tickets-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .payment-actions {
+    flex-direction: column;
+  }
+}

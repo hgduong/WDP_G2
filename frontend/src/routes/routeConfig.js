@@ -13,6 +13,7 @@ import OtpVerify from "../pages/OtpVerify";
 import ForgotPassword from "../pages/ForgotPassword";
 import ResetPassword from "../pages/ResetPassword";
 import NotFound from "../pages/NotFound";
+import Order from "../pages/OrderUser";
 import Unauthorized from "../pages/Unauthorized";
 import ShowtimesByCinema from "../pages/ShowtimesByCinema";
 import MoviesAll from "../pages/MoviesAll";
@@ -44,6 +45,7 @@ export const routesConfig = [
   },
   { path: "/booking/:id", element: <Booking />, allowedRoles: ["Customer", "Guest"] },
   { path: "/checkout", element: <Checkout />, allowedRoles: ["Customer"] },
+  { path: "/order", element: <Order />, allowedRoles: ["Customer", "Staff", "Admin"] },
   {
     path: "/profile",
     element: <Profile />,
