@@ -11,6 +11,14 @@ const {
   getStaffBookingShowtimes,
   getSeatMapForStaffBooking,
   createStaffBooking,
+  getStaffDashboardStats,
+  getStaffBookings,
+  getAllBookings,
+  verifyTicket,
+  overrideSeatStatus,
+  unlockInternalSeats,
+  updateBookingPayment,
+  getAuditLogs,
 } = require("../controllers/staff.controller");
 const {
   authenticateToken,
@@ -19,9 +27,26 @@ const {
 
 const router = express.Router();
 const adminStaffRouter = express.Router();
+const staffWorkRouter = express.Router();
 
 // Public staff registration
 router.post("/staff/register", registerStaff);
+
+// ─── Staff dashboard (requires JWT) ────────────────────────────────────────
+router.get("/staff/dashboard/stats", authenticateToken, getStaffDashboardStats);
+
+// ─── Staff work routes (requires JWT) ──────────────────────────────────────
+staffWorkRouter.use(authenticateToken);
+
+staffWorkRouter.get("/staff/bookings", getStaffBookings);
+staffWorkRouter.get("/staff/bookings/all", getAllBookings);
+staffWorkRouter.post("/staff/tickets/verify", verifyTicket);
+staffWorkRouter.post("/staff/seats/override", overrideSeatStatus);
+staffWorkRouter.post("/staff/seats/unlock-internal", unlockInternalSeats);
+staffWorkRouter.patch("/staff/bookings/:id/payment", updateBookingPayment);
+staffWorkRouter.get("/staff/audit-logs", getAuditLogs);
+
+router.use(staffWorkRouter);
 
 // ─── Public staff-booking routes (no auth — internal counter tool) ─────────
 // These endpoints are used by the Staff Booking page at /staff/bookings.

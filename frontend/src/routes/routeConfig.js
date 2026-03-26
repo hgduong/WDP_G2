@@ -8,6 +8,8 @@ import StaffDashboard from "../pages/staff/StaffDashboard";
 import StaffBooking from "../pages/staff/StaffBooking";
 import StaffLogin from "../pages/staff/StaffLogin";
 import StaffRegister from "../pages/staff/StaffRegister";
+import StaffOrder from "../pages/staff/StaffOrder";
+import TicketCheck from "../pages/staff/TicketCheck";
 import Signup from "../pages/Signup";
 import OtpVerify from "../pages/OtpVerify";
 import ForgotPassword from "../pages/ForgotPassword";
@@ -63,6 +65,16 @@ export const routesConfig = [
   {
     path: "/staff/bookings",
     element: <StaffBooking />,
+    allowedRoles: ["Staff", "Admin"],
+  },
+  {
+    path: "/staff/orders",
+    element: <StaffOrder />,
+    allowedRoles: ["Staff", "Admin"],
+  },
+  {
+    path: "/staff/ticket-check",
+    element: <TicketCheck />,
     allowedRoles: ["Staff", "Admin"],
   },
   { path: "/signup", element: <Signup />, allowedRoles: ["Guest"] },
