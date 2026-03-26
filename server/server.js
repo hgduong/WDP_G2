@@ -4,8 +4,8 @@ const passport = require("passport");
 const cookieParser = require("cookie-parser");
 const http = require("http");
 const connectDB = require("./config/db");
-const socketIO = require("./socket");
 
+const socketIO = require("./socket");
 require("./config/passport");
 
 const app = express();
@@ -74,6 +74,8 @@ app.get("/api/wards/:districtCode", async (req, res) => {
   }
 });
 
+
+
 const uploadRoutes = require("./routes/upload.route");
 app.use("/api", uploadRoutes);
 app.use("/upload", express.static("public/upload"));
@@ -88,7 +90,6 @@ const voucherRoutes = require("./routes/voucher.routes");
 // const bookingRoutes = require("./routes/booking.route");
 const transactionRoutes = require("./routes/transaction.routes");
 
-
 app.use(authRoutes);
 
 app.use(userRoutes);
@@ -100,7 +101,6 @@ app.use(cinemaRoutes);
 app.use("/transactions", transactionRoutes);
 
 app.use(staffRoutes);
-
 
 // app.use("/api", seatsRoutes);
 

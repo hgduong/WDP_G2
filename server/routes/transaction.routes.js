@@ -15,6 +15,7 @@ const {
   cancelTransaction,
   getAllTransactions,
   getAllTransactionStats,
+  createPaymentLink,
 } = require("../controllers/transaction.controller");
 
 /**
@@ -63,6 +64,18 @@ router.post(
   authenticateToken,
   authorizeRoles(["Admin", "Customer", "Staff"]),
   deposit,
+);
+
+/**
+ * @route   POST /api/transactions/create-payment-link
+ * @desc    Tạo payment link qua PayOS
+ * @access  Private (User)
+ */
+router.post(
+  "/create-payment-link",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  createPaymentLink,
 );
 
 /**

@@ -20,6 +20,8 @@ import MoviesAll from "../pages/MoviesAll";
 import CinemasOverview from "../pages/CinemasOverview";
 import TicketPrices from "../pages/TicketPrices";
 import NewsOffers from "../pages/NewsOffers";
+import TopUp from "../pages/TopUp";
+import TopUpPayment from "../pages/TopUpPayment";
 
 //Staff pages
 
@@ -49,6 +51,16 @@ export const routesConfig = [
   {
     path: "/profile",
     element: <Profile />,
+    allowedRoles: ["Customer", "Admin", "Staff"],
+  },
+  {
+    path: "/topup",
+    element: <TopUp />,
+    allowedRoles: ["Customer", "Admin", "Staff"],
+  },
+  {
+    path: "/topup/payment",
+    element: <TopUpPayment />,
     allowedRoles: ["Customer", "Admin", "Staff"],
   },
   { path: "/login", element: <Login />, allowedRoles: ["Guest"] },

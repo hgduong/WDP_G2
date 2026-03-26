@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getUserTransactions, getUserTransactionStats } from "../../services/api";
 
 export default function TransactionHistory() {
@@ -6,6 +7,7 @@ export default function TransactionHistory() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -121,6 +123,13 @@ export default function TransactionHistory() {
             </span>
           </div>
         </div>
+        
+        <button 
+          className="topup-button"
+          onClick={() => navigate("/topup")}
+        >
+          Nạp tiền
+        </button>
       </div>
 
       <h3>Lịch sử giao dịch</h3>

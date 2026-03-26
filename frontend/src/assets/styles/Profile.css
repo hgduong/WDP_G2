@@ -433,6 +433,31 @@
   background: #0d4f8b;
 }
 
+/* Top-up Button */
+.topup-button {
+  width: 100%;
+  padding: 14px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 16px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.topup-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.topup-button:active {
+  transform: translateY(0);
+}
+
 /* Modal Styles */
 .modal-overlay {
   position: fixed;
