@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { sendOtp, verifyOtp } from "../services/api";
 import { toast } from "react-toastify";
@@ -14,7 +14,7 @@ function OtpVerify() {
   const [searchParams] = useSearchParams();
   const userContext = React.useContext(UserContext);
   
-  // Ưu tiên lấy từ state, nếu không có thì lấy từ query params
+ 
   const email = location.state?.email || searchParams.get("email");
   const purpose = location.state?.purpose || searchParams.get("purpose");
   const [isDisabled, setIsDisabled] = useState(false);
@@ -41,7 +41,7 @@ function OtpVerify() {
     return (
       <div className="otp-error-container">
         <p className="otp-error-message">
-          Không tìm thấy email, vui lòng đăng ký lại.
+          Không tìm thấy email để xác thực OTP. Vui lòng thử lại.
         </p>
       </div>
     );
@@ -120,77 +120,79 @@ function OtpVerify() {
   };
 
   return (
-    <div className="otp-verify-wrapper">
-      <h2 className="otp-verify-title">Xác thực OTP cho {maskEmail(email)}</h2>
+    <div className="otp-verify-container">
+      <div className="otp-verify-wrapper">
+        <h2 className="otp-verify-title">Xác thực OTP cho {maskEmail(email)}</h2>
 
-      <div className="otp-verify-form">
-        <div className="form-group">
-          <label>Nhập mã OTP (6 số):</label>
-          <div className="otp-input-group">
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              className="otp-input"
-              value={otp}
-              placeholder="Nhập 6 số OTP"
-              onChange={(e) => {
-                let value = e.target.value;
+        <div className="otp-verify-form">
+          <div className="form-group">
+            <label>Nhập mã OTP (6 số):</label>
+            <div className="otp-input-group">
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                className="otp-input"
+                value={otp}
+                placeholder="Nhập 6 số OTP"
+                onChange={(e) => {
+                  let value = e.target.value;
 
-                // Check for invalid characters first
-                if (/[^0-9]/.test(value)) {
-                  // setOtpError("OTP chỉ được chứa số");
-                  return;
-                }
+                  // Check for invalid characters first
+                  if (/[^0-9]/.test(value)) {
+                    // setOtpError("OTP chỉ được chứa số");
+                    return;
+                  }
 
-                // Check for negative
-                if (value.startsWith("-")) {
-                  // setOtpError("OTP không được chứa số âm");
-                  return;
-                }
+                  // Check for negative
+                  if (value.startsWith("-")) {
+                    // setOtpError("OTP không được chứa số âm");
+                    return;
+                  }
 
-                // Check for whitespace
-                if (value.includes(" ")) {
-                  // setOtpError("OTP không được chứa khoảng trắng");
-                  return;
-                }
+                  // Check for whitespace
+                  if (value.includes(" ")) {
+                    // setOtpError("OTP không được chứa khoảng trắng");
+                    return;
+                  }
 
-                // Limit to 6 characters
-                value = value.slice(0, 6);
+                  // Limit to 6 characters
+                  value = value.slice(0, 6);
 
-                // Clear error if valid
-                setOtpError("");
-                setOtp(value);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && otp.length === 6) {
-                  handleVerifyOtp();
-                }
-              }}
-            />
+                  // Clear error if valid
+                  setOtpError("");
+                  setOtp(value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && otp.length === 6) {
+                    handleVerifyOtp();
+                  }
+                }}
+              />
+            </div>
           </div>
-        </div>
 
-        {/* {otpError && <p className="otp-message error">{otpError}</p>} */}
-        {/* {message && !otpError && (
-          <p className="otp-message success">{message}</p>
-        )} */}
+          {/* {otpError && <p className="otp-message error">{otpError}</p>} */}
+          {/* {message && !otpError && (
+            <p className="otp-message success">{message}</p>
+          )} */}
 
-        <div className="otp-button-group">
-          <button
-            className="otp-send-btn"
-            onClick={handleSendOtp}
-            disabled={isDisabled}
-          >
-            {isDisabled ? `Gửi lại sau ${remainingTime}s` : "Gửi OTP"}
-          </button>
-          <button
-            className="otp-verify-btn"
-            onClick={handleVerifyOtp}
-            disabled={!checkOtpValidity(otp)}
-          >
-            Xác nhận OTP
-          </button>
+          <div className="otp-button-group">
+            <button
+              className="otp-send-btn"
+              onClick={handleSendOtp}
+              disabled={isDisabled}
+            >
+              {isDisabled ? `Gửi lại sau ${remainingTime}s` : "Gửi OTP"}
+            </button>
+            <button
+              className="otp-verify-btn"
+              onClick={handleVerifyOtp}
+              disabled={!checkOtpValidity(otp)}
+            >
+              Xác nhận OTP
+            </button>
+          </div>
         </div>
       </div>
     </div>

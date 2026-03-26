@@ -13,6 +13,12 @@ const formatDate = (value) => {
   });
 };
 
+const getRatingClass = (rating) => {
+  const value = Number(rating);
+  if (Number.isNaN(value)) return "";
+  return value < 8 ? "section-card__badge--warning" : "section-card__badge--success";
+};
+
 export default function MoviesAll() {
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +55,7 @@ export default function MoviesAll() {
         <div className="section-page__container">
           <h1 className="section-page__title">Danh sách phim</h1>
           <p className="section-page__subtitle">
-            Dữ liệu lấy từ getAll phim trong hệ thống.
+            Dữ liệu lấy từ toàn bộ phim trong hệ thống.
           </p>
 
           <div className="section-page__toolbar">
@@ -83,7 +89,7 @@ export default function MoviesAll() {
                     Trạng thái: {movie.status || "-"}
                   </p>
                   {movie.rating ? (
-                    <span className="section-card__badge">
+                    <span className={`section-card__badge ${getRatingClass(movie.rating)}`}>
                       Rating {movie.rating}
                     </span>
                   ) : null}
