@@ -160,11 +160,78 @@ exports.getSeatmapByShowtime = async (req, res) => {
       }
     }
     
-    console.log("Final seatmap:", seatmap?._id);
-    console.log("Seats count:", seatmap?.seats?.length);
-    console.log("Seats array:", seatmap?.seats);
-    
-    res.json(seatmap);
+    // FIX: If seatmap exists but has NO seats or wrong count, auto-generate seats!
+    if (seatmap) {
+      const Showtime = require("../models/showtime");
+      const showtime = await Showtime.findById(showtimeId);
+      
+      // Get room to know capacity - fetch fresh data!
+      const Room = require("../models/room");
+      const room = showtime?.roomId ? await Room.findById(showtime.roomId) : null;
+      const expectedCapacity = room?.capacity || 60;
+      console.log("Seatmap controller - Room capacity:", expectedCapacity, "Current seats:", seatmap.seats?.length);
+      
+      if (!seatmap.seats || seatmap.seats.length === 0 || seatmap.seats.length !== expectedCapacity) {
+        console.log(`Seatmap has ${seatmap.seats?.length || 0} seats but expected ${expectedCapacity}! Regenerating...`);
+        
+        // Delete old seats first
+        if (seatmap.seats?.length > 0) {
+          await Seat.deleteMany({ _id: { $in: seatmap.seats } });
+        }
+        
+        // Generate seats (inline version to avoid circular require)
+        const effectiveCapacity = Math.max(Number(expectedCapacity) || 0, 50);
+        const seatsPerRow = 10;
+        const rowCount = Math.ceil(effectiveCapacity / seatsPerRow);
+        const seatsData = [];
+        
+        for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+          const rowLetter = String.fromCharCode(65 + rowIndex);
+          const isLastRow = rowIndex === rowCount - 1;
+          const seatsInThisRow = Math.min(seatsPerRow, effectiveCapacity - rowIndex * seatsPerRow);
+          
+          if (isLastRow && seatsInThisRow > 0) {
+            for (let i = 0; i < seatsInThisRow; i += 2) {
+              seatsData.push({
+                row: rowLetter,
+                number: i + 1,
+                type: "Couple",
+                status: "Available"
+              });
+            }
+          } else {
+            for (let seatNum = 1; seatNum <= seatsInThisRow; seatNum++) {
+              seatsData.push({
+                row: rowLetter,
+                number: seatNum,
+                type: rowIndex >= 3 ? "VIP" : "Standard",
+                status: "Available"
+              });
+            }
+          }
+        }
+        
+        const createdSeats = await Seat.insertMany(seatsData);
+        
+        // Update seatmap with new seats
+        seatmap.seats = createdSeats.map(s => s._id);
+        await seatmap.save();
+        
+        // Reload with populated seats
+        seatmap = await Seatmap.findById(seatmap._id).populate("seats");
+        console.log("Auto-generated seats:", seatmap.seats.length);
+      }
+      
+      console.log("Final seatmap:", seatmap?._id);
+      console.log("Seats count:", seatmap?.seats?.length);
+      console.log("Seats array:", seatmap?.seats);
+      
+      res.json(seatmap);
+    } else {
+      // No seatmap found at all
+      console.log("No seatmap found for showtime:", showtimeId);
+      res.json(null);
+    }
   } catch (error) {
     console.error("Error getting seatmap:", error);
     res.status(500).json({ message: error.message });

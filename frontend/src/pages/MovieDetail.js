@@ -222,6 +222,7 @@ export default function MovieDetail() {
       })
       .catch((err) => {
         console.error("Error loading seatmap:", err);
+        console.error("Error details:", err.response?.data || err.message);
       })
       .finally(() => {
         setSeatModalLoading(false);
