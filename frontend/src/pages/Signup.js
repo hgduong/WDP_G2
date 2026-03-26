@@ -368,7 +368,8 @@ function Signup() {
   };
 
   return (
-    <div className="signup-wrapper">
+    <div className="signup-container">
+      <div className="signup-wrapper">
       <h2 className="signup-title">
         Đăng ký tài khoản
       </h2>
@@ -555,6 +556,7 @@ function Signup() {
           Đã có tài khoản? <a href="/login">Đăng nhập ngay</a>
         </p>
       </div>
+    </div>
     </div>
   );
 }

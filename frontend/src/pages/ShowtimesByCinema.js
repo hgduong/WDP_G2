@@ -34,6 +34,15 @@ const getRoomLabel = (room) => {
   return String(room);
 };
 
+const getRoomKey = (room) => {
+  if (!room) return "-";
+  if (typeof room === "string") return room;
+  if (typeof room === "object") {
+    return room._id || room.name || room.type || "-";
+  }
+  return String(room);
+};
+
 export default function ShowtimesByCinema() {
   const [showtimes, setShowtimes] = useState([]);
   const [movies, setMovies] = useState([]);
@@ -103,16 +112,51 @@ export default function ShowtimesByCinema() {
     });
   }, [showtimes, query, cinemaMap, movieMap]);
 
+  const groupedShowtimes = useMemo(() => {
+    const grouped = new Map();
+    filteredShowtimes.forEach((showtime) => {
+      const key = [
+        getId(showtime.cinemaId),
+        getId(showtime.movieId),
+        getRoomKey(showtime.roomId),
+        showtime.price ?? "-",
+        showtime.language ?? "-",
+        showtime.status ?? "-",
+      ].join("|");
+
+      const existing = grouped.get(key);
+      if (!existing) {
+        grouped.set(key, {
+          ...showtime,
+          startTimes: showtime.startTime ? [showtime.startTime] : [],
+          groupKey: key,
+        });
+        return;
+      }
+
+      if (showtime.startTime) {
+        existing.startTimes.push(showtime.startTime);
+      }
+    });
+
+    return Array.from(grouped.values()).map((item) => ({
+      ...item,
+      startTimes: item.startTimes
+        .filter(Boolean)
+        .sort((a, b) => new Date(a) - new Date(b)),
+    }));
+  }, [filteredShowtimes]);
+
   const pageSize = 10;
 
   const totalPages = useMemo(() => {
-    if (filteredShowtimes.length === 0) return 1;
-    return Math.max(1, Math.ceil(filteredShowtimes.length / pageSize));
-  }, [filteredShowtimes.length]);
+    if (groupedShowtimes.length === 0) return 1;
+    return Math.max(1, Math.ceil(groupedShowtimes.length / pageSize));
+  }, [groupedShowtimes.length]);
 
   const currentPage = Math.min(page, totalPages);
   const startIndex = (currentPage - 1) * pageSize;
-  const pagedShowtimes = filteredShowtimes.slice(
+  const pagedShowtimes = groupedShowtimes.slice(
     startIndex,
     startIndex + pageSize
   );
@@ -131,7 +175,7 @@ export default function ShowtimesByCinema() {
               <span className="section-page__status">Đang tải dữ liệu...</span>
             ) : (
               <span className="section-page__status">
-                {filteredShowtimes.length} suất chiếu
+                {groupedShowtimes.length} suất chiếu
               </span>
             )}
             {error ? (
@@ -140,7 +184,7 @@ export default function ShowtimesByCinema() {
             <div className="section-search">
               <input
                 type="text"
-                placeholder="Tìm kiếm realtime..."
+                placeholder="Tìm kiếm phim..."
                 value={query}
                 onChange={(event) => {
                   setQuery(event.target.value);
@@ -150,13 +194,13 @@ export default function ShowtimesByCinema() {
             </div>
           </div>
 
-          {!loading && filteredShowtimes.length === 0 ? (
+          {!loading && groupedShowtimes.length === 0 ? (
             <div className="section-page__empty">
               Chưa có suất chiếu nào.
             </div>
           ) : null}
 
-          {filteredShowtimes.length > 0 ? (
+          {groupedShowtimes.length > 0 ? (
             <table className="section-table">
               <thead>
                 <tr>
@@ -174,11 +218,21 @@ export default function ShowtimesByCinema() {
                   const cinema = cinemaMap.get(getId(showtime.cinemaId));
                   const movie = movieMap.get(getId(showtime.movieId));
                   return (
-                    <tr key={getId(showtime)}>
+                    <tr key={showtime.groupKey || getId(showtime)}>
                       <td>{startIndex + index + 1}</td>
                       <td>{movie?.title || getId(showtime.movieId) || "-"}</td>
                       <td>{getRoomLabel(showtime.roomId)}</td>
-                      <td>{formatDateTime(showtime.startTime)}</td>
+                      <td>
+                        <div className="showtime-list">
+                          {showtime.startTimes?.length
+                            ? showtime.startTimes.map((time, timeIndex) => (
+                                <span key={`${time}-${timeIndex}`} className="showtime-chip">
+                                  {formatDateTime(time)}
+                                </span>
+                              ))
+                            : "-"}
+                        </div>
+                      </td>
                       <td>{formatMoney(showtime.price)}</td>
                       <td>{showtime.language || "-"}</td>
                       <td>{showtime.status || "-"}</td>
@@ -189,7 +243,7 @@ export default function ShowtimesByCinema() {
             </table>
           ) : null}
 
-          {filteredShowtimes.length > 0 ? (
+          {groupedShowtimes.length > 0 ? (
             <div className="section-pagination">
               {Array.from({ length: totalPages }, (_, idx) => {
                 const pageNumber = idx + 1;
