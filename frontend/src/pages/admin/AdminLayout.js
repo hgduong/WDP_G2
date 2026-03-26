@@ -7,6 +7,7 @@ const AdminLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [expandedItems, setExpandedItems] = useState({});
   const { logout, role } = useContext(UserContext);
 
   const allMenuItems = [
@@ -19,7 +20,14 @@ const AdminLayout = ({ children }) => {
     { path: "/admin/users", label: "Quản lý Người Dùng" },
     { path: "/admin/voucher", label: "Quản lý Voucher" },
     { path: "/admin/point", label: "Quản lý Point" },
-
+    {
+      path: "/admin/schedules",
+      label: "Quản lý Lịch làm việc",
+      children: [
+        { path: "/admin/schedules/attendance", label: "Theo dõi điểm danh" },
+        { path: "/admin/schedules/create", label: "Tạo lịch làm việc" }
+      ]
+    }
   ];
 
   const menuItems =
@@ -38,6 +46,18 @@ const AdminLayout = ({ children }) => {
 
   const isActive = (path) => location.pathname === path;
 
+  const toggleExpand = (path) => {
+    setExpandedItems((prev) => ({
+      ...prev,
+      [path]: !prev[path]
+    }));
+  };
+
+  const hasActiveChild = (item) => {
+    if (!item.children) return false;
+    return item.children.some((child) => location.pathname === child.path);
+  };
+
   return (
     <div className="admin-layout">
       <div className={`admin-sidebar ${sidebarOpen ? "open" : "closed"}`}>
@@ -53,18 +73,61 @@ const AdminLayout = ({ children }) => {
 
         <nav className="sidebar-nav">
           {menuItems.map((item) => (
-            <a
-              key={item.path}
-              href={item.path}
-              className={`nav-item ${isActive(item.path) ? "active" : ""}`}
-              onClick={(e) => {
-                e.preventDefault();
-                navigate(item.path);
-              }}
-            >
-              <span className="nav-icon">{item.icon}</span>
-              {sidebarOpen && <span className="nav-label">{item.label}</span>}
-            </a>
+            <div key={item.path}>
+              {item.children ? (
+                <>
+                  <a
+                    href={item.path}
+                    className={`nav-item ${hasActiveChild(item) ? "active" : ""}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toggleExpand(item.path);
+                    }}
+                  >
+                    <span className="nav-icon">{item.icon}</span>
+                    {sidebarOpen && (
+                      <>
+                        <span className="nav-label">{item.label}</span>
+                        <span className="nav-arrow">
+                          {expandedItems[item.path] ? "▼" : "▶"}
+                        </span>
+                      </>
+                    )}
+                  </a>
+                  {sidebarOpen && expandedItems[item.path] && (
+                    <div className="nav-children">
+                      {item.children.map((child) => (
+                        <a
+                          key={child.path}
+                          href={child.path}
+                          className={`nav-item nav-child ${isActive(child.path) ? "active" : ""}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            navigate(child.path);
+                          }}
+                        >
+                          <span className="nav-icon"></span>
+                          <span className="nav-label">{child.label}</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <a
+                  key={item.path}
+                  href={item.path}
+                  className={`nav-item ${isActive(item.path) ? "active" : ""}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate(item.path);
+                  }}
+                >
+                  <span className="nav-icon">{item.icon}</span>
+                  {sidebarOpen && <span className="nav-label">{item.label}</span>}
+                </a>
+              )}
+            </div>
           ))}
         </nav>
 
