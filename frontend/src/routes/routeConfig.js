@@ -33,6 +33,7 @@ import ShowtimeManagement from "../pages/admin/ShowtimeManagement";
 import StaffRegistration from "../pages/admin/StaffRegistration";
 import StaffManagement from "../pages/admin/StaffManagement";
 import VoucherManagement from "../pages/admin/VoucherManagement";
+import ScheduleManagement from "../pages/admin/ScheduleManagement";
 
 export const routesConfig = [
   {
@@ -158,6 +159,11 @@ export const routesConfig = [
   {
     path: "/admin/voucher",
     element: <VoucherManagement />,
+    allowedRoles: ["Admin"],
+  },
+  {
+    path: "/admin/schedules/create",
+    element: <ScheduleManagement />,
     allowedRoles: ["Admin"],
   },
   

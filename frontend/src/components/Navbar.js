@@ -131,9 +131,9 @@ export default function Navbar() {
             </div>
           ) : (
             <>
-              <Link to="/login">{lang === "vi" ? "Dang nhap" : "Login"}</Link>
+              <Link to="/login">{lang === "vi" ? "Đăng nhập" : "Login"}</Link>
               <Link to="/signup">
-                {lang === "vi" ? "Dang ky" : "Register"}
+                {lang === "vi" ? "Đăng ký" : "Register"}
               </Link>
             </>
           )}
