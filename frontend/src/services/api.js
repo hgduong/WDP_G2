@@ -732,4 +732,59 @@ export const refund = async (data) => {
   }
 };
 
+// Schedules
+export const getAllSchedules = async (params = {}) => {
+  try {
+    const response = await API.get("/api/schedules", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getScheduleById = async (id) => {
+  try {
+    const response = await API.get(`/api/schedules/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const createSchedule = async (scheduleData) => {
+  try {
+    const response = await API.post("/api/schedules", scheduleData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateSchedule = async (id, scheduleData) => {
+  try {
+    const response = await API.put(`/api/schedules/${id}`, scheduleData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getStaffList = async () => {
+  try {
+    const response = await API.get("/api/schedules/staffs");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getShiftDetails = async (date) => {
+  try {
+    const response = await API.get(`/api/schedules/shifts/${date}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export default API;
