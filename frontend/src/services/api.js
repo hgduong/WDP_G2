@@ -426,6 +426,78 @@ export const createStaffBookingOrder = async (payload) => {
   }
 };
 
+export const getStaffDashboardStats = async () => {
+  try {
+    const response = await API.get("/staff/dashboard/stats");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getStaffBookings = async (params = {}) => {
+  try {
+    const response = await API.get("/staff/bookings", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getAllBookings = async (params = {}) => {
+  try {
+    const response = await API.get("/staff/bookings/all", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const verifyTicket = async (payload) => {
+  try {
+    const response = await API.post("/staff/tickets/verify", payload);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const overrideSeatStatus = async (payload) => {
+  try {
+    const response = await API.post("/staff/seats/override", payload);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const unlockInternalSeats = async (showtimeId) => {
+  try {
+    const response = await API.post("/staff/seats/unlock-internal", { showtimeId });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateBookingPayment = async (bookingId, payload) => {
+  try {
+    const response = await API.patch(`/staff/bookings/${bookingId}/payment`, payload);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getAuditLogs = async (params = {}) => {
+  try {
+    const response = await API.get("/staff/audit-logs", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 //Staff
 export const getAllStaff = async () => {
   try {

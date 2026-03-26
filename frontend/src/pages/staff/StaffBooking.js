@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   createStaffBookingOrder,
   getAllMovies,
+  getAllCinemas,
   getStaffBookingSeatMap,
   getStaffBookingShowtimes,
   applyVoucher,
@@ -32,7 +33,9 @@ const toDateInputValue = () => {
 
 function StaffBooking() {
   const [movies, setMovies] = useState([]);
+  const [cinemas, setCinemas] = useState([]);
   const [showtimes, setShowtimes] = useState([]);
+  const [selectedCinemaId, setSelectedCinemaId] = useState("");
   const [selectedMovieId, setSelectedMovieId] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedShowtimeId, setSelectedShowtimeId] = useState("");
@@ -59,16 +62,20 @@ function StaffBooking() {
   const [voucherSuccess, setVoucherSuccess] = useState("");
 
   useEffect(() => {
-    const loadMovies = async () => {
+    const loadData = async () => {
       try {
-        const movieData = await getAllMovies();
+        const [movieData, cinemaData] = await Promise.all([
+          getAllMovies(),
+          getAllCinemas()
+        ]);
         setMovies(Array.isArray(movieData) ? movieData : []);
+        setCinemas(Array.isArray(cinemaData) ? cinemaData : []);
       } catch (err) {
-        setError(err?.message || "Không tải được danh sách phim.");
+        setError(err?.message || "Không tải được dữ liệu.");
       }
     };
 
-    loadMovies();
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -88,6 +95,7 @@ function StaffBooking() {
         const data = await getStaffBookingShowtimes({
           date: selectedDate,
           movieId: selectedMovieId || undefined,
+          cinemaId: selectedCinemaId || undefined,
         });
 
         setShowtimes(Array.isArray(data) ? data : []);
@@ -99,7 +107,7 @@ function StaffBooking() {
     };
 
     loadShowtimes();
-  }, [selectedDate, selectedMovieId]);
+  }, [selectedDate, selectedMovieId, selectedCinemaId]);
 
   useEffect(() => {
     const loadSeatMap = async () => {
@@ -275,6 +283,21 @@ function StaffBooking() {
               value={selectedDate}
               onChange={(event) => setSelectedDate(event.target.value)}
             />
+          </label>
+
+          <label>
+            Rạp
+            <select
+              value={selectedCinemaId}
+              onChange={(event) => setSelectedCinemaId(event.target.value)}
+            >
+              <option value="">Tất cả rạp</option>
+              {cinemas.map((cinema) => (
+                <option key={cinema._id} value={cinema._id}>
+                  {cinema.name}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label>
