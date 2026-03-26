@@ -584,9 +584,9 @@ export const bookSeats = async (showtimeId, seatIds) => {
  * Lấy lịch sử giao dịch của user hiện tại
  * @param {Object} params - Query params { page, limit, type, status, startDate, endDate }
  */
-export const getUserTransactions = async () => {
+export const getUserTransactions = async (params = {}) => {
   try {
-    const response = await API.get("/transactions");
+    const response = await API.get("/transactions", { params });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;

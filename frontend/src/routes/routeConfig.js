@@ -22,6 +22,7 @@ import TicketPrices from "../pages/TicketPrices";
 import NewsOffers from "../pages/NewsOffers";
 import TopUp from "../pages/TopUp";
 import TopUpPayment from "../pages/TopUpPayment";
+import TransactionDetail from "../pages/TransactionDetail";
 
 //Staff pages
 
@@ -61,6 +62,11 @@ export const routesConfig = [
   {
     path: "/topup/payment",
     element: <TopUpPayment />,
+    allowedRoles: ["Customer", "Admin", "Staff"],
+  },
+  {
+    path: "/transaction/:id",
+    element: <TransactionDetail />,
     allowedRoles: ["Customer", "Admin", "Staff"],
   },
   { path: "/login", element: <Login />, allowedRoles: ["Guest"] },
