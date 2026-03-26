@@ -699,6 +699,114 @@ const createPaymentLink = async (req, res) => {
   }
 };
 
+/**
+ * Xác nhận đã thanh toán (Customer)
+ * PUT /api/transactions/:id/confirm
+ */
+const confirmPayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const transaction = await Transaction.findOne({
+      _id: id,
+      userId: userId,
+    });
+
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy giao dịch",
+      });
+    }
+
+    // Chỉ có thể xác nhận giao dịch đang chờ
+    if (transaction.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ có thể xác nhận giao dịch đang chờ xử lý",
+      });
+    }
+
+    // Cập nhật trạng thái
+    transaction.status = "completed";
+    await transaction.save();
+
+    // Cập nhật ví nếu là giao dịch nạp tiền
+    if (transaction.type === "deposit") {
+      const wallet = await Wallet.findById(transaction.walletId);
+      if (wallet) {
+        await wallet.deposit(
+          transaction.amount,
+          transaction.description || "Nạp tiền",
+          transaction._id,
+          "topup",
+          transaction.paymentMethod
+        );
+        transaction.balanceAfter = wallet.balance;
+        await transaction.save();
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Xác nhận thanh toán thành công",
+      data: transaction,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Hủy giao dịch đang chờ (Customer)
+ * PUT /api/transactions/:id/cancel-user
+ */
+const cancelUserTransaction = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const transaction = await Transaction.findOne({
+      _id: id,
+      userId: userId,
+    });
+
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy giao dịch",
+      });
+    }
+
+    // Chỉ có thể hủy giao dịch đang chờ
+    if (transaction.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ có thể hủy giao dịch đang chờ xử lý",
+      });
+    }
+
+    // Cập nhật trạng thái
+    transaction.status = "cancelled";
+    await transaction.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Hủy giao dịch thành công",
+      data: transaction,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getUserTransactions,
   getTransactionById,
@@ -708,6 +816,8 @@ module.exports = {
   pay,
   refund,
   cancelTransaction,
+  cancelUserTransaction,
+  confirmPayment,
   getAllTransactions,
   getAllTransactionStats,
   createPaymentLink,

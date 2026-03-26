@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getTransactionById } from "../services/api";
+import { generateQRCodeUrl } from "../utils/orderUtils";
+import { toast } from "react-toastify";
 import "../assets/styles/TransactionDetail.css";
 
 function TransactionDetail() {
@@ -9,6 +11,7 @@ function TransactionDetail() {
   const [transaction, setTransaction] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const fetchTransaction = async () => {
@@ -94,6 +97,18 @@ function TransactionDetail() {
     return colorMap[status] || "#757575";
   };
 
+  const handleCopyTransactionId = async () => {
+    try {
+      await navigator.clipboard.writeText(transaction._id);
+      setCopied(true);
+      toast.success("Đã sao chép mã giao dịch!");
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      toast.error("Không thể sao chép mã giao dịch");
+    }
+  };
+
   if (loading) {
     return (
       <div className="transaction-detail-container">
@@ -171,11 +186,39 @@ function TransactionDetail() {
           </span>
         </div>
 
+        {/* QR Code Section */}
+        {transaction.paymentMethod === "payos" && transaction.status === "pending" && (
+          <div className="transaction-qr-section">
+            <h3>Mã QR thanh toán</h3>
+            <div className="qr-code-container">
+              <img
+                src={generateQRCodeUrl({
+                  transactionId: transaction._id,
+                  amount: transaction.amount,
+                  description: transaction.description
+                })}
+                alt="QR Code"
+                className="qr-code-image"
+              />
+            </div>
+            <p className="qr-instruction">Quét mã QR để thanh toán</p>
+          </div>
+        )}
+
         {/* Transaction Details */}
         <div className="transaction-detail-info">
           <div className="info-row">
             <span className="info-label">Mã giao dịch</span>
-            <span className="info-value">{transaction._id}</span>
+            <div className="info-value-with-copy">
+              <span className="info-value">{transaction._id}</span>
+              <button
+                className={`copy-button ${copied ? "copied" : ""}`}
+                onClick={handleCopyTransactionId}
+                title="Sao chép mã giao dịch"
+              >
+                {copied ? "✓" : "📋"}
+              </button>
+            </div>
           </div>
           <div className="info-row">
             <span className="info-label">Mô tả</span>

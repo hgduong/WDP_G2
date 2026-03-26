@@ -13,6 +13,8 @@ const {
   pay,
   refund,
   cancelTransaction,
+  cancelUserTransaction,
+  confirmPayment,
   getAllTransactions,
   getAllTransactionStats,
   createPaymentLink,
@@ -124,6 +126,30 @@ router.put(
   authenticateToken,
   authorizeRoles(["Admin"]),
   cancelTransaction,
+);
+
+/**
+ * @route   PUT /api/transactions/:id/cancel-user
+ * @desc    Hủy giao dịch đang chờ (Customer)
+ * @access  Private (User)
+ */
+router.put(
+  "/:id/cancel-user",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  cancelUserTransaction,
+);
+
+/**
+ * @route   PUT /api/transactions/:id/confirm
+ * @desc    Xác nhận đã thanh toán (Customer)
+ * @access  Private (User)
+ */
+router.put(
+  "/:id/confirm",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  confirmPayment,
 );
 
 /**

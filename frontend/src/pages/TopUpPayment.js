@@ -1,16 +1,29 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { deposit } from "../services/api";
+import { deposit, cancelUserTransaction, checkPaymentStatus, getQRCodeImage } from "../services/api";
 import "../assets/styles/TopUpPayment.css";
 
 function TopUpPayment() {
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [paymentData, setPaymentData] = useState(null);
+  const [paymentData, setPaymentData] = useState(() => {
+    // Try to load payment data from sessionStorage
+    const saved = sessionStorage.getItem('topupPaymentData');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [qrCodeImage, setQRCodeImage] = useState(() => {
+    // Try to load QR code image from sessionStorage
+    return sessionStorage.getItem('topupQRImage') || null;
+  });
   const [error, setError] = useState(null);
-  const [countdown, setCountdown] = useState(900); // 15 minutes
+  const [countdown, setCountdown] = useState(() => {
+    // Try to load countdown from sessionStorage
+    const saved = sessionStorage.getItem('topupCountdown');
+    return saved ? parseInt(saved, 10) : 900;
+  });
+  const [copied, setCopied] = useState(false);
   const depositInitiated = useRef(false);
 
   const amount = location.state?.amount;
@@ -18,6 +31,11 @@ function TopUpPayment() {
   useEffect(() => {
     if (!amount) {
       navigate("/topup");
+      return;
+    }
+
+    // If payment data already exists in sessionStorage, don't create new deposit
+    if (paymentData) {
       return;
     }
 
@@ -39,7 +57,22 @@ function TopUpPayment() {
 
         if (response.success) {
           setPaymentData(response.data);
+          // Save to sessionStorage to persist across page refresh
+          sessionStorage.setItem('topupPaymentData', JSON.stringify(response.data));
           toast.success("Tạo yêu cầu nạp tiền thành công!");
+          
+          // Fetch QR code image if qrData is available
+          if (response.data?.payment?.qrData) {
+            try {
+              const qrResponse = await getQRCodeImage(response.data.payment.qrData);
+              if (qrResponse.success) {
+                setQRCodeImage(qrResponse.data);
+                sessionStorage.setItem('topupQRImage', qrResponse.data);
+              }
+            } catch (qrErr) {
+              console.error("Error fetching QR code:", qrErr);
+            }
+          }
         } else {
           setError(response.message || "Không thể tạo yêu cầu nạp tiền");
           toast.error(response.message || "Không thể tạo yêu cầu nạp tiền");
@@ -54,7 +87,7 @@ function TopUpPayment() {
     };
 
     createDeposit();
-  }, [amount, navigate]);
+  }, [amount, navigate, paymentData]);
 
   // Countdown timer
   useEffect(() => {
@@ -65,8 +98,14 @@ function TopUpPayment() {
         if (prev <= 1) {
           clearInterval(timer);
           toast.warning("Hết thời gian thanh toán. Vui lòng thử lại.");
+          // Clear sessionStorage when countdown expires
+          sessionStorage.removeItem('topupPaymentData');
+          sessionStorage.removeItem('topupCountdown');
+          sessionStorage.removeItem('topupQRImage');
           return 0;
         }
+        // Save countdown to sessionStorage
+        sessionStorage.setItem('topupCountdown', prev - 1);
         return prev - 1;
       });
     }, 1000);
@@ -87,17 +126,105 @@ function TopUpPayment() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const handleCopyTransactionId = async () => {
+    if (!paymentData?.transactionId) return;
+    try {
+      await navigator.clipboard.writeText(paymentData.transactionId);
+      setCopied(true);
+      toast.success("Đã sao chép mã giao dịch!");
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      toast.error("Không thể sao chép mã giao dịch");
+    }
+  };
+
   const handleBack = () => {
+    // Clear sessionStorage when user cancels
+    sessionStorage.removeItem('topupPaymentData');
+    sessionStorage.removeItem('topupCountdown');
+    sessionStorage.removeItem('topupQRImage');
     navigate("/profile");
   };
 
   const handleCheckPayment = async () => {
-    // In a real implementation, you would check the payment status
-    // For now, we'll simulate a successful payment
-    toast.success("Nạp tiền thành công! Số dư ví đã được cập nhật.");
-    setTimeout(() => {
-      navigate("/profile");
-    }, 2000);
+    if (!paymentData?.transaction?._id) {
+      toast.error("Không tìm thấy thông tin giao dịch");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await checkPaymentStatus(paymentData.transaction._id);
+      
+      if (response.success) {
+        const transaction = response.data;
+        
+        if (transaction.status === "completed") {
+          toast.success("Nạp tiền thành công! Số dư ví đã được cập nhật.");
+          // Clear sessionStorage after successful payment
+          sessionStorage.removeItem('topupPaymentData');
+          sessionStorage.removeItem('topupCountdown');
+          sessionStorage.removeItem('topupQRImage');
+          setTimeout(() => {
+            navigate("/profile");
+          }, 2000);
+        } else if (transaction.status === "pending") {
+          toast.info("Giao dịch đang chờ xử lý. Vui lòng hoàn thành thanh toán.");
+        } else if (transaction.status === "cancelled") {
+          toast.warning("Giao dịch đã bị hủy.");
+          sessionStorage.removeItem('topupPaymentData');
+          sessionStorage.removeItem('topupCountdown');
+          sessionStorage.removeItem('topupQRImage');
+          setTimeout(() => {
+            navigate("/profile");
+          }, 2000);
+        } else {
+          toast.error("Giao dịch thất bại.");
+          sessionStorage.removeItem('topupPaymentData');
+          sessionStorage.removeItem('topupCountdown');
+          sessionStorage.removeItem('topupQRImage');
+          setTimeout(() => {
+            navigate("/profile");
+          }, 2000);
+        }
+      }
+    } catch (err) {
+      console.error("Error checking payment status:", err);
+      toast.error("Không thể kiểm tra trạng thái thanh toán");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelPayment = async () => {
+    if (!paymentData?.transaction?._id) {
+      toast.error("Không tìm thấy thông tin giao dịch");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await cancelUserTransaction(paymentData.transaction._id);
+      
+      if (response.success) {
+        toast.success("Hủy giao dịch thành công!");
+        // Clear sessionStorage
+        sessionStorage.removeItem('topupPaymentData');
+        sessionStorage.removeItem('topupCountdown');
+        sessionStorage.removeItem('topupQRImage');
+        setTimeout(() => {
+          navigate("/profile");
+        }, 2000);
+      } else {
+        toast.error(response.message || "Không thể hủy giao dịch");
+      }
+    } catch (err) {
+      console.error("Error canceling transaction:", err);
+      toast.error(err.message || "Không thể hủy giao dịch");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!amount) {
@@ -149,15 +276,31 @@ function TopUpPayment() {
               {formatTime(countdown)}
             </span>
           </div>
+
+          {paymentData?.transactionId && (
+            <div className="payment-transaction-id">
+              <span className="label">Mã giao dịch</span>
+              <div className="transaction-id-container">
+                <span className="transaction-id">{paymentData.transactionId}</span>
+                <button
+                  className={`copy-button ${copied ? "copied" : ""}`}
+                  onClick={handleCopyTransactionId}
+                  title="Sao chép mã giao dịch"
+                >
+                  {copied ? "✓" : "📋"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="qr-section">
           <h2>Quét mã QR để thanh toán</h2>
 
-          {paymentData?.payment?.qrData ? (
+          {qrCodeImage ? (
             <div className="qr-code-container">
               <img
-                src={paymentData.payment.qrData}
+                src={qrCodeImage}
                 alt="QR Code"
                 className="qr-code"
               />
@@ -198,7 +341,7 @@ function TopUpPayment() {
           >
             Tôi đã thanh toán
           </button>
-          <button className="cancel-button" onClick={handleBack}>
+          <button className="cancel-button" onClick={handleCancelPayment}>
             Hủy giao dịch
           </button>
         </div>

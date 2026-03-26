@@ -671,6 +671,58 @@ export const cancelTransaction = async (id) => {
   }
 };
 
+/**
+ * Hủy giao dịch đang chờ (Customer)
+ * @param {string} id - Transaction ID
+ */
+export const cancelUserTransaction = async (id) => {
+  try {
+    const response = await API.put(`/transactions/${id}/cancel-user`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Xác nhận đã thanh toán (Customer)
+ * @param {string} id - Transaction ID
+ */
+export const confirmPayment = async (id) => {
+  try {
+    const response = await API.put(`/transactions/${id}/confirm`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Kiểm tra trạng thái thanh toán
+ * @param {string} id - Transaction ID
+ */
+export const checkPaymentStatus = async (id) => {
+  try {
+    const response = await API.get(`/transactions/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+/**
+ * Lấy ảnh QR code từ backend
+ * @param {string} data - Dữ liệu để tạo QR code
+ */
+export const getQRCodeImage = async (data) => {
+  try {
+    const response = await API.post("/qrcode/generate", { data });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 // ==================== ADMIN TRANSACTION API ====================
 
 /**

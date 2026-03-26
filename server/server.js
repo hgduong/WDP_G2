@@ -80,6 +80,9 @@ const uploadRoutes = require("./routes/upload.route");
 app.use("/api", uploadRoutes);
 app.use("/upload", express.static("public/upload"));
 
+const qrcodeRoutes = require("./routes/qrcode.routes");
+app.use("/qrcode", qrcodeRoutes);
+
 const authRoutes = require("./routes/auth.routes");
 const userRoutes = require("./routes/user.routes");
 const moviesRoutes = require("./routes/movies.route");
@@ -106,5 +109,6 @@ app.use(staffRoutes);
 
 // Đăng ký voucher routes tại /vouchers (cùng cấp với các routes khác)
 app.use("/vouchers", voucherRoutes);
+
 const PORT = process.env.PORT || 9999;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
