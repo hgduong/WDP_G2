@@ -8,7 +8,7 @@ export default function MovieCard({ movie }) {
         <img
           src={movie.posterUrl}
           alt={movie.title}
-          style={{ width: '100%', height: '150px', objectFit: 'cover' }}
+          style={{ width: '100%', height: '500px', objectFit: 'cover' }}
         />
 
         <div className="p-3">

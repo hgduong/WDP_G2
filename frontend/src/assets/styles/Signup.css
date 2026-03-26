@@ -1,13 +1,13 @@
 /* Signup Page Styles */
 
-/* .signup-container {
+.signup-container {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
   background: linear-gradient(135deg, #f5f7fa 0%, #e4ecf3 100%);
-} */
+}
 
 .signup-wrapper {
   width: 100%;
