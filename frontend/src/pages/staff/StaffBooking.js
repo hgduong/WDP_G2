@@ -153,7 +153,13 @@ function StaffBooking() {
     return seats.filter((seat) => selectedSeatIds.includes(seat._id));
   }, [seatMapData, selectedSeatIds]);
 
-  const totalPrice = selectedSeats.length * Number(selectedShowtime?.price || 0);
+  const totalPrice = selectedSeats.reduce((sum, seat) => {
+    const price = Number(selectedShowtime?.price || 0);
+    if (seat.type === "Couple") {
+      return sum + price * 2;
+    }
+    return sum + price;
+  }, 0);
   const finalPrice = Math.max(0, totalPrice - discountAmount);
 
   const toggleSeat = (seat) => {
@@ -170,10 +176,24 @@ function StaffBooking() {
 
   const handleFormChange = (event) => {
     const { name, value, type, checked } = event.target;
-    setFormData((current) => ({
-      ...current,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    if (type === "checkbox") {
+      setFormData((current) => ({ ...current, [name]: checked }));
+      return;
+    }
+
+    if (name === "customerName") {
+      const cleaned = value.replace(/[^a-zA-ZÀ-ỹ\s]/g, "").slice(0, 100);
+      setFormData((current) => ({ ...current, [name]: cleaned }));
+      return;
+    }
+
+    if (name === "customerPhone") {
+      const cleaned = value.replace(/[^0-9]/g, "").slice(0, 11);
+      setFormData((current) => ({ ...current, [name]: cleaned }));
+      return;
+    }
+
+    setFormData((current) => ({ ...current, [name]: value }));
   };
 
   const handleApplyVoucher = async () => {
@@ -217,6 +237,17 @@ function StaffBooking() {
     if (selectedSeatIds.length === 0) {
       setError("Hãy chọn ít nhất một ghế.");
       return;
+    }
+
+    if (formData.customerPhone) {
+      if (!formData.customerPhone.startsWith("0")) {
+        setError("Số điện thoại phải bắt đầu bằng số 0.");
+        return;
+      }
+      if (formData.customerPhone.length < 9 || formData.customerPhone.length > 11) {
+        setError("Số điện thoại phải từ 9 đến 11 số.");
+        return;
+      }
     }
 
     try {
@@ -374,12 +405,18 @@ function StaffBooking() {
             <div className="empty-state">Đang tải sơ đồ ghế...</div>
           ) : (
             <>
+              <div className="room-info">
+                <span className="room-name">{selectedShowtime.roomId?.name || "Phòng chiếu"}</span>
+                <span className="room-type">{selectedShowtime.roomId?.type || "Standard"}</span>
+                <span className="room-capacity">Sức chứa: {selectedShowtime.roomId?.capacity || 0} ghế</span>
+              </div>
               <div className="screen-indicator">Màn hình</div>
               <div className="seat-legend">
-                <span><i className="available" /> Trong</span>
+                <span><i className="available" /> Trống</span>
                 <span><i className="selected" /> Đang chọn</span>
                 <span><i className="booked" /> Đã đặt</span>
                 <span><i className="vip" /> VIP</span>
+                <span><i className="couple" /> Đôi</span>
               </div>
 
               <div className="seat-map">
@@ -393,6 +430,7 @@ function StaffBooking() {
                           "seat-button",
                           seat.status.toLowerCase(),
                           seat.type === "VIP" ? "vip" : "",
+                          seat.type === "Couple" ? "couple" : "",
                           isSelected ? "selected" : "",
                         ]
                           .filter(Boolean)
@@ -442,10 +480,11 @@ function StaffBooking() {
         </div>
 
         <form className="staff-booking-form" onSubmit={handleSubmit}>
-          <div className="form-grid">
-            <label>
-              Họ tên khách *
+          <div className="customer-form-grid">
+            <div className="form-group">
+              <label htmlFor="customerName">Họ tên khách *</label>
               <input
+                id="customerName"
                 type="text"
                 name="customerName"
                 value={formData.customerName}
@@ -453,11 +492,12 @@ function StaffBooking() {
                 placeholder="Nhập họ tên"
                 required
               />
-            </label>
+            </div>
 
-            <label>
-              Số điện thoại *
+            <div className="form-group">
+              <label htmlFor="customerPhone">Số điện thoại *</label>
               <input
+                id="customerPhone"
                 type="tel"
                 name="customerPhone"
                 value={formData.customerPhone}
@@ -465,22 +505,24 @@ function StaffBooking() {
                 placeholder="090..."
                 required
               />
-            </label>
+            </div>
 
-            <label>
-              Email
+            <div className="form-group">
+              <label htmlFor="customerEmail">Email</label>
               <input
+                id="customerEmail"
                 type="email"
                 name="customerEmail"
                 value={formData.customerEmail}
                 onChange={handleFormChange}
                 placeholder="khachhang@email.com"
               />
-            </label>
+            </div>
 
-            <label>
-              Thanh toan
+            <div className="form-group">
+              <label htmlFor="paymentStatus">Thanh toán</label>
               <select
+                id="paymentStatus"
                 name="paymentStatus"
                 value={formData.paymentStatus}
                 onChange={handleFormChange}
@@ -489,69 +531,70 @@ function StaffBooking() {
                 <option value="Paid">Đã thanh toán</option>
                 <option value="Unpaid">Giữ chỗ, thanh toán sau</option>
               </select>
-            </label>
+            </div>
           </div>
 
-          <label>
-            Ghi chu
+          <div className="form-group">
+            <label htmlFor="notes">Ghi chú</label>
             <textarea
+              id="notes"
               name="notes"
               value={formData.notes}
               onChange={handleFormChange}
-              rows="3"
+              rows="2"
               placeholder="Ghi chú thêm nếu cần"
             />
-          </label>
+          </div>
 
-          <div className="voucher-section" style={{ marginTop: '1rem', marginBottom: '1rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Mã giảm giá</label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="voucher-group">
+            <label htmlFor="voucherInput">Mã giảm giá</label>
+            <div className="voucher-row">
               <input
+                id="voucherInput"
                 type="text"
                 value={voucherCode}
                 onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
                 placeholder="Nhập mã voucher"
-                style={{ flex: 1, padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '4px' }}
-                disabled={selectedSeatIds.length === 0}
               />
-              <button 
-                type="button" 
-                onClick={handleApplyVoucher} 
-                disabled={checkingVoucher || !voucherCode || selectedSeatIds.length === 0}
-                style={{ padding: '0.5rem 1rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', opacity: (checkingVoucher || !voucherCode || selectedSeatIds.length === 0) ? 0.5 : 1 }}
+              <button
+                type="button"
+                className="voucher-btn"
+                onClick={handleApplyVoucher}
+                disabled={checkingVoucher || !voucherCode}
               >
-                {checkingVoucher ? "Đang ktra..." : "Áp dụng"}
+                {checkingVoucher ? "Đang kiểm tra..." : "Áp dụng"}
               </button>
             </div>
-            {voucherError && <div style={{ color: '#ef4444', fontSize: '0.875rem', marginTop: '0.5rem' }}>{voucherError}</div>}
-            {voucherSuccess && <div style={{ color: '#10b981', fontSize: '0.875rem', marginTop: '0.5rem' }}>{voucherSuccess}</div>}
+            {voucherError && <p className="voucher-error">{voucherError}</p>}
+            {voucherSuccess && <p className="voucher-success">{voucherSuccess}</p>}
           </div>
 
-          <label className="checkbox-line">
+          <div className="checkbox-group">
             <input
               type="checkbox"
+              id="sendEmail"
               name="sendEmail"
               checked={formData.sendEmail}
               onChange={handleFormChange}
             />
-            Gửi email xác nhận nếu khách có cung cấp email
-          </label>
+            <label htmlFor="sendEmail">Gửi email xác nhận nếu khách có cung cấp email</label>
+          </div>
 
           <div className="checkout-bar">
-            <div>
+            <div className="checkout-info">
               <span>Suất chiếu / Phim</span>
               <strong>
                 {selectedShowtime ? `${selectedShowtime.movieId?.title || 'Phim'} - ${selectedShowtime.roomId?.name}` : "Chưa chọn"}
               </strong>
             </div>
-            <div>
+            <div className="checkout-info">
               <span>Tổng tiền</span>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                {discountAmount > 0 && <span style={{ textDecoration: 'line-through', fontSize: '0.85rem', color: '#64748b' }}>{formatMoney(totalPrice)}</span>}
-                <strong style={{ color: '#10b981', fontSize: '1.25rem' }}>{formatMoney(finalPrice)}</strong>
+              <div className="price-block">
+                {discountAmount > 0 && <span className="original-price">{formatMoney(totalPrice)}</span>}
+                <strong className="final-price">{formatMoney(finalPrice)}</strong>
               </div>
             </div>
-            <button type="submit" disabled={submitting || !selectedShowtime || selectedSeatIds.length === 0}>
+            <button type="submit" className="checkout-btn" disabled={submitting || !selectedShowtime || selectedSeatIds.length === 0}>
               {submitting ? "Đang xác nhận..." : "Xác nhận đặt chỗ"}
             </button>
           </div>

@@ -3,41 +3,38 @@ const Seat = require("../models/seat");
 const Room = require("../models/room");
 
 // Helper function to build seat layout (can be used by other controllers)
-// Each row has 10 seats, last row is couple seats
+// Each row has 10 seats, last row is always couple seats
 exports.buildSeatLayout = (totalSeats) => {
-  const effectiveCapacity = Math.max(Number(totalSeats) || 0, 50); // Default 50 if 0
+  const effectiveCapacity = Math.max(Number(totalSeats) || 0, 50);
   const seatsPerRow = 10;
-  const rowCount = Math.ceil(effectiveCapacity / seatsPerRow);
+  // Reserve last row for couple seats (5 couple seats = 10 normal seats)
+  const coupleRowSeats = 10;
+  const normalCapacity = effectiveCapacity - coupleRowSeats;
+  const fullRows = Math.max(1, Math.floor(normalCapacity / seatsPerRow));
   const seats = [];
 
-  for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
-    const rowLetter = String.fromCharCode(65 + rowIndex); // A, B, C, D, E...
-    const isLastRow = rowIndex === rowCount - 1;
-    const seatsInThisRow = Math.min(seatsPerRow, effectiveCapacity - rowIndex * seatsPerRow);
-
-    if (isLastRow && seatsInThisRow > 0) {
-      // Last row: couple seats (2 at a time)
-      // E1-2, E3-4, E5-6, E7-8, E9-10
-      for (let i = 0; i < seatsInThisRow; i += 2) {
-        seats.push({
-          row: rowLetter,
-          number: i + 1,
-          type: "Couple",
-          status: "Available"
-        });
-      }
-    } else {
-      // Other rows: standard seats (10 per row)
-      // A1-A10, B1-B10, C1-C10, D1-D10...
-      for (let seatNum = 1; seatNum <= seatsInThisRow; seatNum++) {
-        seats.push({
-          row: rowLetter,
-          number: seatNum,
-          type: rowIndex >= 3 ? "VIP" : "Standard",
-          status: "Available"
-        });
-      }
+  // Standard rows (each with 10 seats)
+  for (let rowIndex = 0; rowIndex < fullRows; rowIndex++) {
+    const rowLetter = String.fromCharCode(65 + rowIndex);
+    for (let seatNum = 1; seatNum <= seatsPerRow; seatNum++) {
+      seats.push({
+        row: rowLetter,
+        number: seatNum,
+        type: rowIndex >= 3 ? "VIP" : "Standard",
+        status: "Available"
+      });
     }
+  }
+
+  // Last row: always couple seats (5 couple pairs = 10 seats)
+  const rowLetter = String.fromCharCode(65 + fullRows);
+  for (let i = 0; i < 5; i++) {
+    seats.push({
+      row: rowLetter,
+      number: (i * 2) + 1,
+      type: "Couple",
+      status: "Available"
+    });
   }
 
   return seats;
