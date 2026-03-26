@@ -1,4 +1,4 @@
-/* src/layouts/MainLayout.css */
+﻿/* src/layouts/MainLayout.css */
 .layout {
   min-height: 100vh;        /* chiếm toàn bộ chiều cao màn hình */
   display: flex;
@@ -9,7 +9,15 @@
 
 .main {
   flex: 1;                  /* nội dung chiếm hết khoảng trống */
-  max-width: 1200px;        /* giới hạn chiều rộng */
+  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;           /* căn giữa */
-  padding: 24px;            /* khoảng cách trong */
+  padding: 0;               
+  box-sizing: border-box;
+}
+
+@media (max-width: 1200px) {
+  .main {
+    max-width: 100%;
+  }
 }
