@@ -613,7 +613,14 @@ exports.createStaffBooking = async (req, res) => {
       ? paymentStatus
       : "PayAtCounter";
 
-    let totalPrice = Number(showtime.price || 0) * selectedSeats.length;
+    let totalPrice = 0;
+    selectedSeats.forEach(seat => {
+      if (seat.type === "Couple") {
+        totalPrice += Number(showtime.price || 0) * 2;
+      } else {
+        totalPrice += Number(showtime.price || 0);
+      }
+    });
     let discountAmount = 0;
     let appliedVoucher = null;
 
