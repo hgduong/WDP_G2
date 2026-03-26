@@ -1,6 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const { authenticateToken, authorizeRoles } = require("../config/auth.middleware");
+const {
+  authenticateToken,
+  authorizeRoles,
+} = require("../config/auth.middleware");
 const {
   getUserTransactions,
   getTransactionById,
@@ -21,7 +24,9 @@ const {
  */
 router.get(
   "/",
-  getUserTransactions
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  getUserTransactions,
 );
 
 /**
@@ -31,7 +36,9 @@ router.get(
  */
 router.get(
   "/stats",
-  getUserTransactionStats
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  getUserTransactionStats,
 );
 
 /**
@@ -41,7 +48,9 @@ router.get(
  */
 router.get(
   "/:id",
-  getTransactionById
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  getTransactionById,
 );
 
 /**
@@ -51,7 +60,9 @@ router.get(
  */
 router.post(
   "/deposit",
-  deposit
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  deposit,
 );
 
 /**
@@ -61,7 +72,9 @@ router.post(
  */
 router.post(
   "/withdraw",
-  withdraw
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  withdraw,
 );
 
 /**
@@ -71,7 +84,9 @@ router.post(
  */
 router.post(
   "/pay",
-  pay
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  pay,
 );
 
 /**
@@ -81,7 +96,9 @@ router.post(
  */
 router.post(
   "/refund",
-  refund
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer"]),
+  refund,
 );
 
 /**
@@ -91,7 +108,9 @@ router.post(
  */
 router.put(
   "/:id/cancel",
-  cancelTransaction
+  authenticateToken,
+  authorizeRoles(["Admin"]),
+  cancelTransaction,
 );
 
 /**
@@ -107,7 +126,9 @@ router.put(
  */
 router.get(
   "/admin/all",
-  getAllTransactions
+  authenticateToken,
+  authorizeRoles(["Admin"]),
+  getAllTransactions,
 );
 
 /**
@@ -117,7 +138,9 @@ router.get(
  */
 router.get(
   "/admin/stats",
-  getAllTransactionStats
+  authenticateToken,
+  authorizeRoles(["Admin"]),
+  getAllTransactionStats,
 );
 
 module.exports = router;
