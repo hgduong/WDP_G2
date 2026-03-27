@@ -34,6 +34,7 @@ import StaffRegistration from "../pages/admin/StaffRegistration";
 import StaffManagement from "../pages/admin/StaffManagement";
 import VoucherManagement from "../pages/admin/VoucherManagement";
 import ScheduleManagement from "../pages/admin/ScheduleManagement";
+import AttendanceTracking from "../pages/admin/AttendanceTracking";
 
 export const routesConfig = [
   {
@@ -164,6 +165,11 @@ export const routesConfig = [
   {
     path: "/admin/schedules/create",
     element: <ScheduleManagement />,
+    allowedRoles: ["Admin"],
+  },
+  {
+    path: "/admin/schedules/attendance",
+    element: <AttendanceTracking />,
     allowedRoles: ["Admin"],
   },
   

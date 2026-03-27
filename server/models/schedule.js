@@ -35,6 +35,20 @@ const scheduleSchema = new mongoose.Schema(
     isDeleted: {
       type: Boolean,
       default: false
+    },
+    // Attendance fields
+    checkInTime: {
+      type: Date,
+      default: null
+    },
+    checkOutTime: {
+      type: Date,
+      default: null
+    },
+    attendanceStatus: {
+      type: String,
+      enum: ["not-yet", "attended", "absent"],
+      default: "not-yet"
     }
   },
   {

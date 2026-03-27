@@ -868,4 +868,31 @@ export const deleteSchedule = async (id) => {
   }
 };
 
+export const checkInSchedule = async (scheduleId) => {
+  try {
+    const response = await API.post(`/api/schedules/${scheduleId}/check-in`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const checkOutSchedule = async (scheduleId) => {
+  try {
+    const response = await API.post(`/api/schedules/${scheduleId}/check-out`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getAttendanceByWeek = async (params = {}) => {
+  try {
+    const response = await API.get("/api/schedules/attendance/week", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export default API;
