@@ -24,18 +24,18 @@ function TopUpFailure() {
 
     // Auto redirect to topup after countdown
     const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          navigate("/topup");
-          return 0;
-        }
-        return prev - 1;
-      });
+      setCountdown((prev) => prev - 1);
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [navigate, failureReason]);
+  }, [failureReason]);
+
+  // Handle navigation when countdown reaches 0
+  useEffect(() => {
+    if (countdown <= 0) {
+      navigate("/topup");
+    }
+  }, [countdown, navigate]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("vi-VN", {

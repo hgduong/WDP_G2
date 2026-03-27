@@ -1,8 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import "../assets/styles/TopUp.css";
+import { getUserTransactions, createPendingDeposit } from "../services/api";
 
 const DENOMINATIONS = [
+  { value: 10000, label: "10.000đ" },
+  { value: 20000, label: "20.000đ" },
   { value: 50000, label: "50.000đ" },
   { value: 100000, label: "100.000đ" },
   { value: 200000, label: "200.000đ" },
@@ -13,18 +17,60 @@ const DENOMINATIONS = [
 
 function TopUp() {
   const [selectedAmount, setSelectedAmount] = useState(null);
+  const [hasPendingTransaction, setHasPendingTransaction] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkPendingTransactions = async () => {
+      try {
+        const response = await getUserTransactions({ status: "pending" });
+        if (response.data && response.data.length > 0) {
+          setHasPendingTransaction(true);
+        }
+      } catch (error) {
+        console.error("Lỗi khi kiểm tra giao dịch pending:", error);
+      }
+    };
+    checkPendingTransactions();
+  }, []);
 
   const handleSelectAmount = (amount) => {
     setSelectedAmount(amount);
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!selectedAmount) {
-      alert("Vui lòng chọn mệnh giá nạp tiền");
+      toast.warning("Vui lòng chọn mệnh giá nạp tiền");
       return;
     }
-    navigate("/topup/payment", { state: { amount: selectedAmount } });
+    if (hasPendingTransaction) {
+      toast.warning("Bạn đang có giao dịch đang chờ xử lý. Vui lòng hoàn tất hoặc hủy giao dịch trước khi nạp tiền mới.");
+      return;
+    }
+
+    try {
+      // Tạo pending transaction trước khi chuyển sang trang thanh toán
+      const response = await createPendingDeposit({
+        amount: selectedAmount,
+        description: `Nạp tiền vào ví - ${formatCurrency(selectedAmount)}`,
+        paymentMethod: "payos",
+      });
+
+      if (response.success) {
+        // Chuyển sang trang thanh toán với dữ liệu transaction
+        navigate("/topup/payment", {
+          state: {
+            amount: selectedAmount,
+            paymentData: response.data,
+          },
+        });
+      } else {
+        toast.error(response.message || "Không thể tạo yêu cầu nạp tiền");
+      }
+    } catch (err) {
+      console.error("Error creating pending deposit:", err);
+      toast.error(err.message || "Đã xảy ra lỗi khi tạo yêu cầu nạp tiền");
+    }
   };
 
   const formatCurrency = (amount) => {
@@ -70,10 +116,16 @@ function TopUp() {
           </div>
         )}
 
+        {hasPendingTransaction && (
+          <div className="pending-warning">
+            <p>⚠️ Bạn đang có giao dịch đang chờ xử lý. Vui lòng hoàn tất hoặc hủy giao dịch trước khi nạp tiền mới.</p>
+          </div>
+        )}
+
         <button
           className="continue-button"
           onClick={handleContinue}
-          disabled={!selectedAmount}
+          disabled={!selectedAmount || hasPendingTransaction}
         >
           Tiếp tục
         </button>
