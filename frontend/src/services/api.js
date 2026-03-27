@@ -559,6 +559,43 @@ export const changeStaffPassword = async (id, passwordData) => {
   }
 };
 
+// User Management (Admin)
+export const getAllUsers = async () => {
+  try {
+    const response = await API.get("/admin/users");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateUserStatus = async (id, status) => {
+  try {
+    const response = await API.patch(`/admin/users/${id}/status`, { status });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateUserRole = async (id, role) => {
+  try {
+    const response = await API.patch(`/admin/users/${id}/role`, { role });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getUserBookings = async (id) => {
+  try {
+    const response = await API.get(`/admin/users/${id}/bookings`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 // Vouchers
 export const getAllVouchers = async () => {
   try {
