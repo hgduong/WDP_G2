@@ -1,7 +1,8 @@
 import React, { useContext, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { UserContext } from "../../context/UserContext";
 import { getStaffDashboardStats } from "../../services/api";
+import { toast } from "react-toastify";
 import "../../assets/styles/StaffDashboard.css";
 
 const quickActions = [
@@ -39,9 +40,17 @@ const quickActions = [
 
 function StaffDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useContext(UserContext);
   const [stats, setStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
+
+  useEffect(() => {
+    if (location.state?.staffLoginSuccess) {
+      toast.success("Đăng nhập Staff thành công");
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   useEffect(() => {
     const fetchStats = async () => {

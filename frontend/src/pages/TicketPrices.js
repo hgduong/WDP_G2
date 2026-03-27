@@ -9,7 +9,7 @@ const priceRules = [
   {
     title: "22+ to U70",
     description: "Áp dụng cho khách hàng từ 22 tuổi đến dưới 70 tuổi.",
-    badge: "Giá vé 75.000 VND",
+    badge: "Giá vé 100.000 VND",
   },
   {
     title: "70+",

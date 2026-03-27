@@ -1,7 +1,14 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const Unauthorized = () => {
-  return <div>Không có quyền truy cập</div>;
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    navigate("/", { replace: true });
+  }, [navigate]);
+
+  return null;
 };
 
 export default Unauthorized;

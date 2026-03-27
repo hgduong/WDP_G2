@@ -55,15 +55,32 @@ function StaffLogin() {
 
     try {
       const result = await verifyStaffLoginOtp({ email, otp });
-      const userRole = result?.data?.user?.role;
+      const userFromResponse =
+        result?.data?.user ||
+        result?.data?.data?.user ||
+        result?.data?.payload?.user ||
+        null;
+      const userRole =
+        userFromResponse?.role ||
+        result?.data?.role ||
+        result?.data?.userRole ||
+        null;
 
       if (!STAFF_ROLES.includes(userRole)) {
         setError("Tài khoản không thuộc nhóm staff.");
         return;
       }
 
-      login(result?.data?.user, () => {
-        navigate(userRole === "Admin" ? "/admin/dashboard" : "/staff/dashboard");
+      const loginUserData =
+        userFromResponse || (userRole ? { role: userRole, email } : null);
+      login(loginUserData, () => {
+        if (userRole === "Admin") {
+          navigate("/admin/dashboard");
+          return;
+        }
+        navigate("/staff/dashboard", {
+          state: { staffLoginSuccess: true },
+        });
       });
     } catch (err) {
       const errorMessage = err?.message || "Xác thực OTP thất bại.";
