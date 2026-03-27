@@ -9,7 +9,10 @@ function TopUpPayment() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [paymentData, setPaymentData] = useState(() => {
-    // Try to load payment data from sessionStorage
+    // Try to load payment data from location state first, then sessionStorage
+    if (location.state?.paymentData) {
+      return location.state.paymentData;
+    }
     const saved = sessionStorage.getItem('topupPaymentData');
     return saved ? JSON.parse(saved) : null;
   });
@@ -35,8 +38,26 @@ function TopUpPayment() {
       return;
     }
 
-    // If payment data already exists in sessionStorage, don't create new deposit
+    // If payment data already exists (from TopUp.js or sessionStorage), don't create new deposit
     if (paymentData) {
+      // Save to sessionStorage to persist across page refresh
+      sessionStorage.setItem('topupPaymentData', JSON.stringify(paymentData));
+      
+      // Fetch QR code image if qrData is available
+      if (paymentData?.payment?.qrData) {
+        const fetchQRCode = async () => {
+          try {
+            const qrResponse = await getQRCodeImage(paymentData.payment.qrData);
+            if (qrResponse.success) {
+              setQRCodeImage(qrResponse.data);
+              sessionStorage.setItem('topupQRImage', qrResponse.data);
+            }
+          } catch (qrErr) {
+            console.error("Error fetching QR code:", qrErr);
+          }
+        };
+        fetchQRCode();
+      }
       return;
     }
 
@@ -44,7 +65,7 @@ function TopUpPayment() {
     if (depositInitiated.current) return;
     depositInitiated.current = true;
 
-    // Create deposit request
+    // Create deposit request (fallback if paymentData not provided)
     const createDeposit = async () => {
       try {
         setLoading(true);
@@ -115,17 +136,13 @@ function TopUpPayment() {
       }
     };
 
-    // Detect route changes (navigation)
-    const unlisten = () => {
-      // This will be called when component unmounts due to navigation
-    };
-
     window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      // Cancel transaction when component unmounts (user navigated away)
-      cancelTransactionOnExit();
+      // NOTE: Do NOT cancel transaction here - this cleanup runs on every re-render
+      // Transaction should only be cancelled when user explicitly navigates away
+      // or closes the tab (handled by beforeunload event above)
     };
   }, [paymentData, cancelTransactionOnExit]);
 
