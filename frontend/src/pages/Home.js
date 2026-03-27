@@ -127,7 +127,7 @@ export default function Home() {
         {/* Search and Filter bar */}
         <div className="search-filter-bar">
           <div className="search-box">
-            <span className="search-icon">🔍</span>
+            <span className="search-icon"></span>
             <input
               type="text"
               placeholder={lang === "vi" ? "Tìm kiếm phim..." : "Search movies..."}
