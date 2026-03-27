@@ -20,6 +20,7 @@ const {
   updateBookingPayment,
   getAuditLogs,
 } = require("../controllers/staff.controller");
+const voucherController = require("../controllers/voucher.controller");
 const {
   authenticateToken,
   authorizeRoles,
@@ -45,6 +46,7 @@ staffWorkRouter.post("/staff/seats/override", overrideSeatStatus);
 staffWorkRouter.post("/staff/seats/unlock-internal", unlockInternalSeats);
 staffWorkRouter.patch("/staff/bookings/:id/payment", updateBookingPayment);
 staffWorkRouter.get("/staff/audit-logs", getAuditLogs);
+staffWorkRouter.post("/staff/vouchers/apply", voucherController.applyVoucher);
 
 router.use(staffWorkRouter);
 

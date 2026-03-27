@@ -30,21 +30,21 @@ export const useOrder = () => {
       const data = location.state?.orderData;
       
       if (data) {
-        // If booking already exists (created from Checkout), use it directly
-        if (data._id || data.bookingCode) {
+        // If booking already exists in DB (has _id from MongoDB), use it directly
+        if (data._id) {
           setOrderData(data);
           setBookingId(data._id);
           setPaymentStatus(data.paymentStatus || "Unpaid");
           localStorage.setItem("lastOrder", JSON.stringify(data));
         } else {
-          // Fallback: create booking if data doesn't have booking info
+          // Booking not yet saved to DB — create it now
           try {
             const bookingRequestData = {
               userId: user?._id || user?.id || null,
               showtimeId: data.showtimeId || data.showtime?._id,
-              cinemaId: data.cinemaId || data.cinema?._id,
-              roomId: data.roomId || data.room?._id,
-              seats: data.seats || [],
+              cinemaId: data.cinemaId || data.cinema?._id || data.showtime?.cinemasId?._id,
+              roomId: data.roomId || data.room?._id || data.showtime?.roomId?._id,
+              seats: (data.seats || []).map(s => ({ _id: s._id || s.id, label: s.label })).filter(s => s._id),
               totalPrice: data.totalPrice,
               customerInfo: data.customerInfo || {
                 fullName: user?.fullName || "",
@@ -58,10 +58,11 @@ export const useOrder = () => {
             
             if (response.booking || response.message === "Đặt vé thành công") {
               const savedBooking = response.booking;
-              setOrderData(savedBooking);
+              const mergedData = { ...data, ...savedBooking, _id: savedBooking._id };
+              setOrderData(mergedData);
               setBookingId(savedBooking._id);
               setPaymentStatus(savedBooking.paymentStatus || "Unpaid");
-              localStorage.setItem("lastOrder", JSON.stringify(savedBooking));
+              localStorage.setItem("lastOrder", JSON.stringify(mergedData));
             } else {
               setOrderData(data);
               setPaymentStatus(data.paymentStatus || "Unpaid");
