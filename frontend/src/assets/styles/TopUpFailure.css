@@ -1,0 +1,213 @@
+.topup-failure-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+  padding: 20px;
+}
+
+.topup-failure-content {
+  background: white;
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.failure-icon {
+  width: 100px;
+  height: 100px;
+  margin: 0 auto 24px;
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: scaleIn 0.5s ease-out 0.2s both;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.failure-icon svg {
+  width: 50px;
+  height: 50px;
+  color: white;
+}
+
+.topup-failure-content h1 {
+  margin: 0 0 16px 0;
+  font-size: 28px;
+  color: #333;
+  font-weight: 700;
+}
+
+.failure-reason {
+  margin-bottom: 16px;
+}
+
+.failure-reason p {
+  margin: 0;
+  font-size: 18px;
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.failure-details {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.failure-details .detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.failure-details .detail-row .label {
+  font-size: 14px;
+  color: #666;
+}
+
+.failure-details .detail-row .value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.failure-message {
+  margin-bottom: 24px;
+}
+
+.failure-message p {
+  margin: 0;
+  color: #666;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.failure-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.failure-actions .primary-button {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.failure-actions .primary-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.failure-actions .secondary-button {
+  width: 100%;
+  padding: 16px;
+  background: white;
+  color: #666;
+  border: 2px solid #ddd;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.failure-actions .secondary-button:hover {
+  border-color: #007bff;
+  color: #007bff;
+}
+
+.failure-actions .tertiary-button {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  color: #999;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.failure-actions .tertiary-button:hover {
+  color: #666;
+  text-decoration: underline;
+}
+
+.auto-redirect-note {
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.auto-redirect-note p {
+  margin: 0;
+  color: #999;
+  font-size: 13px;
+}
+
+.auto-redirect-note .countdown {
+  color: #dc3545;
+  font-weight: 700;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .topup-failure-content {
+    padding: 30px 20px;
+  }
+
+  .failure-icon {
+    width: 80px;
+    height: 80px;
+  }
+
+  .failure-icon svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .topup-failure-content h1 {
+    font-size: 24px;
+  }
+
+  .failure-reason p {
+    font-size: 16px;
+  }
+}

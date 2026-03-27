@@ -1,5 +1,7 @@
 const Transaction = require("../models/transaction");
 const Wallet = require("../models/wallet");
+const payos = require("../config/payos");
+const crypto = require("crypto");
 
 /**
  * Lấy lịch sử giao dịch của user hiện tại
@@ -153,8 +155,60 @@ const deposit = async (req, res) => {
       paymentMethod: paymentMethod,
     });
 
-    // Thực hiện nạp tiền (trong thực tế sẽ gọi payment gateway ở đây)
-    // Giả lập thành công ngay lập tức
+    // Nếu user chọn phương thức thanh toán qua PayOS (QR), tạo payment request và trả về dữ liệu QR
+    if (paymentMethod === "payos" || paymentMethod === "qr" || paymentMethod === "banking") {
+      try {
+        const YOUR_DOMAIN = process.env.CLIENT_URL || "http://localhost:3000";
+        const orderCode = Number(String(Date.now()).slice(-6));
+
+        const payload = {
+          orderCode: orderCode,
+          amount: amount,
+          description: description || "Nạp tiền vào ví",
+          cancelUrl: `${YOUR_DOMAIN}/profile`,
+          returnUrl: `${YOUR_DOMAIN}/topup-payment?status=success`,
+          signature: "",
+        };
+
+        const payosResponse = await payos.paymentRequests.create(payload);
+
+        // Lưu orderCode vào metadata để webhook có thể tìm thấy
+        transaction.metadata = {
+          ...transaction.metadata,
+          payosOrderCode: orderCode,
+          payosPaymentLinkId: payosResponse?.paymentLinkId || null,
+        };
+        await transaction.save();
+
+        // Extract payment URL and QR data
+        const paymentUrl = payosResponse?.checkoutUrl || payosResponse?.paymentUrl || payosResponse?.url || null;
+        const qrData = payosResponse?.qrCode || payosResponse?.qr || null;
+
+        return res.status(200).json({
+          success: true,
+          message: "Yêu cầu nạp tiền đã được tạo. Hoàn thành thanh toán qua QR.",
+          data: {
+            transaction: transaction,
+            payment: {
+              raw: payosResponse,
+              paymentUrl,
+              qrData,
+            },
+          },
+        });
+      } catch (err) {
+        // Nếu gọi PayOS fail, huỷ pending transaction và báo lỗi
+        transaction.status = "cancelled";
+        await transaction.save();
+
+        return res.status(502).json({
+          success: false,
+          message: "Không thể tạo yêu cầu thanh toán PayOS: " + err.message,
+        });
+      }
+    }
+
+    // Trường hợp offline / instant (giữ luồng cũ): thực hiện nạp tiền ngay lập tức
     await wallet.deposit(
       amount,
       description || "Nạp tiền",
@@ -613,6 +667,296 @@ const getAllTransactionStats = async (req, res) => {
   }
 };
 
+/**
+ * Tạo payment link qua PayOS
+ * POST /api/transactions/create-payment-link
+ */
+const createPaymentLink = async (req, res) => {
+  try {
+    const { amount, description, orderCode } = req.body;
+
+    // Validate input
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Số tiền phải lớn hơn 0",
+      });
+    }
+
+    const YOUR_DOMAIN = process.env.CLIENT_URL || "http://localhost:3000";
+    const body = {
+      orderCode: orderCode || Number(String(Date.now()).slice(-6)),
+      amount: amount,
+      description: description || "Thanh toan don hang",
+      cancelUrl: `${YOUR_DOMAIN}`,
+      returnUrl: `${YOUR_DOMAIN}`,
+      signature: "",
+    };
+
+    const paymentLinkResponse = await payOS.paymentRequests.create(body);
+
+    res.status(200).json({
+      success: true,
+      data: paymentLinkResponse,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Không thể tạo payment link: " + error.message,
+    });
+  }
+};
+
+/**
+ * Xác nhận đã thanh toán (Customer)
+ * PUT /api/transactions/:id/confirm
+ */
+const confirmPayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const transaction = await Transaction.findOne({
+      _id: id,
+      userId: userId,
+    });
+
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy giao dịch",
+      });
+    }
+
+    // Chỉ có thể xác nhận giao dịch đang chờ
+    if (transaction.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ có thể xác nhận giao dịch đang chờ xử lý",
+      });
+    }
+
+    // Cập nhật trạng thái
+    transaction.status = "completed";
+    await transaction.save();
+
+    // Cập nhật ví nếu là giao dịch nạp tiền
+    if (transaction.type === "deposit") {
+      const wallet = await Wallet.findById(transaction.walletId);
+      if (wallet) {
+        await wallet.deposit(
+          transaction.amount,
+          transaction.description || "Nạp tiền",
+          transaction._id,
+          "topup",
+          transaction.paymentMethod
+        );
+        transaction.balanceAfter = wallet.balance;
+        await transaction.save();
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Xác nhận thanh toán thành công",
+      data: transaction,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Hủy giao dịch đang chờ (Customer)
+ * PUT /api/transactions/:id/cancel-user
+ */
+const cancelUserTransaction = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const transaction = await Transaction.findOne({
+      _id: id,
+      userId: userId,
+    });
+
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy giao dịch",
+      });
+    }
+
+    // Chỉ có thể hủy giao dịch đang chờ
+    if (transaction.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ có thể hủy giao dịch đang chờ xử lý",
+      });
+    }
+
+    // Cập nhật trạng thái
+    transaction.status = "cancelled";
+    await transaction.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Hủy giao dịch thành công",
+      data: transaction,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Xác minh chữ ký từ payOS
+ * @param {Object} data - Dữ liệu từ payOS
+ * @param {string} signature - Chữ ký cần xác minh
+ * @returns {boolean} - true nếu chữ ký hợp lệ
+ */
+const verifyPayOSSignature = (data, signature) => {
+  const checksumKey = process.env.PAYOS_CHECKSUM_KEY;
+  if (!checksumKey) {
+    console.warn("PAYOS_CHECKSUM_KEY không được cấu hình");
+    return false;
+  }
+
+  // Tạo chuỗi dữ liệu theo thứ tự alphabet
+  const sortedData = Object.keys(data)
+    .filter(key => key !== "signature")
+    .sort()
+    .map(key => `${key}=${data[key]}`)
+    .join("&");
+
+  // Tạo chữ ký HMAC-SHA256
+  const expectedSignature = crypto
+    .createHmac("sha256", checksumKey)
+    .update(sortedData)
+    .digest("hex");
+
+  return signature === expectedSignature;
+};
+
+/**
+ * Webhook nhận thông tin thanh toán từ payOS
+ * POST /api/payos-webhook
+ */
+const handlePayOSWebhook = async (req, res) => {
+  try {
+    const { code, desc, success, data, signature } = req.body;
+
+    console.log("PayOS Webhook received:", { code, desc, success, orderCode: data?.orderCode });
+
+    // Xác minh chữ ký
+    if (!verifyPayOSSignature(data, signature)) {
+      console.error("PayOS Webhook: Chữ ký không hợp lệ");
+      // Vẫn trả 200 để payOS không retry
+      return res.status(200).json({
+        success: false,
+        message: "Chữ ký không hợp lệ",
+      });
+    }
+
+    // Kiểm tra thanh toán thành công
+    if (!success || code !== "00") {
+      console.log("PayOS Webhook: Thanh toán không thành công", { code, desc });
+      return res.status(200).json({
+        success: true,
+        message: "Đã nhận thông báo thanh toán không thành công",
+      });
+    }
+
+    // Tìm transaction bằng payOS orderCode trong metadata
+    const orderCode = data.orderCode;
+    const transaction = await Transaction.findOne({
+      "metadata.payosOrderCode": orderCode,
+      type: "deposit",
+    });
+
+    if (!transaction) {
+      console.error("PayOS Webhook: Không tìm thấy transaction với orderCode:", orderCode);
+      return res.status(200).json({
+        success: false,
+        message: "Không tìm thấy giao dịch",
+      });
+    }
+
+    // Kiểm tra transaction đã được xử lý chưa (idempotency)
+    if (transaction.status === "completed") {
+      console.log("PayOS Webhook: Transaction đã được xử lý trước đó", { orderCode, transactionId: transaction._id });
+      return res.status(200).json({
+        success: true,
+        message: "Giao dịch đã được xử lý trước đó",
+      });
+    }
+
+    // Kiểm tra số tiền có khớp không
+    if (transaction.amount !== data.amount) {
+      console.error("PayOS Webhook: Số tiền không khớp", {
+        expected: transaction.amount,
+        received: data.amount,
+      });
+      return res.status(200).json({
+        success: false,
+        message: "Số tiền không khớp",
+      });
+    }
+
+    // Cập nhật transaction
+    transaction.status = "completed";
+    transaction.metadata = {
+      ...transaction.metadata,
+      payosTransactionId: data.reference,
+      payosTransactionDateTime: data.transactionDateTime,
+      payosAccountNumber: data.accountNumber,
+      payosCounterAccountBankId: data.counterAccountBankId,
+      payosCounterAccountBankName: data.counterAccountBankName,
+      payosCounterAccountName: data.counterAccountName,
+      payosCounterAccountNumber: data.counterAccountNumber,
+      payosVirtualAccountName: data.virtualAccountName,
+      payosVirtualAccountNumber: data.virtualAccountNumber,
+    };
+    await transaction.save();
+
+    // Cập nhật ví
+    const wallet = await Wallet.findById(transaction.walletId);
+    if (wallet) {
+      await wallet.deposit(
+        transaction.amount,
+        transaction.description || "Nạp tiền qua PayOS",
+        transaction._id,
+        "topup",
+        transaction.paymentMethod
+      );
+      transaction.balanceAfter = wallet.balance;
+      await transaction.save();
+    }
+
+    console.log("PayOS Webhook: Xử lý thành công", { orderCode, transactionId: transaction._id });
+
+    // Trả về 200 OK để payOS biết đã nhận thành công
+    return res.status(200).json({
+      success: true,
+      message: "Xử lý webhook thành công",
+    });
+  } catch (error) {
+    console.error("PayOS Webhook Error:", error);
+    // Vẫn trả 200 để payOS không retry liên tục
+    return res.status(200).json({
+      success: false,
+      message: "Lỗi xử lý webhook",
+    });
+  }
+};
+
 module.exports = {
   getUserTransactions,
   getTransactionById,
@@ -622,6 +966,10 @@ module.exports = {
   pay,
   refund,
   cancelTransaction,
+  cancelUserTransaction,
+  confirmPayment,
   getAllTransactions,
   getAllTransactionStats,
+  createPaymentLink,
+  handlePayOSWebhook,
 };
