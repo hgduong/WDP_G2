@@ -87,6 +87,112 @@ const StaffSchedule = () => {
     );
   };
 
+  // Get shift start time
+  const getShiftStartTime = (date, shift) => {
+    const shiftDate = new Date(date);
+    let hours, minutes;
+    
+    switch (shift) {
+      case "Sáng":
+        hours = 6;
+        minutes = 30;
+        break;
+      case "Chiều":
+        hours = 12;
+        minutes = 30;
+        break;
+      case "Tối":
+        hours = 17;
+        minutes = 30;
+        break;
+      default:
+        hours = 0;
+        minutes = 0;
+    }
+    
+    shiftDate.setHours(hours, minutes, 0, 0);
+    return shiftDate;
+  };
+
+  // Get shift end time
+  const getShiftEndTime = (date, shift) => {
+    const shiftDate = new Date(date);
+    let hours, minutes;
+    
+    switch (shift) {
+      case "Sáng":
+        hours = 12;
+        minutes = 0;
+        break;
+      case "Chiều":
+        hours = 17;
+        minutes = 0;
+        break;
+      case "Tối":
+        hours = 22;
+        minutes = 0;
+        break;
+      default:
+        hours = 0;
+        minutes = 0;
+    }
+    
+    shiftDate.setHours(hours, minutes, 0, 0);
+    return shiftDate;
+  };
+
+  // Check if check-in is available
+  const isCheckInAvailable = (schedule) => {
+    if (!schedule || schedule.attendanceStatus !== "not-yet") {
+      return false;
+    }
+    
+    const now = new Date();
+    const shiftStart = getShiftStartTime(schedule.date, schedule.shift);
+    const checkInStart = new Date(shiftStart);
+    checkInStart.setMinutes(checkInStart.getMinutes() - 10);
+    const checkInEnd = new Date(shiftStart);
+    checkInEnd.setMinutes(checkInEnd.getMinutes() + 10);
+    
+    return now >= checkInStart && now <= checkInEnd;
+  };
+
+  // Check if check-out is available
+  const isCheckOutAvailable = (schedule) => {
+    if (!schedule || schedule.attendanceStatus !== "attended" || schedule.checkOutTime) {
+      return false;
+    }
+    
+    const now = new Date();
+    const shiftEnd = getShiftEndTime(schedule.date, schedule.shift);
+    const checkOutStart = new Date(shiftEnd);
+    const checkOutEnd = new Date(shiftEnd);
+    checkOutEnd.setMinutes(checkOutEnd.getMinutes() + 10);
+    
+    return now >= checkOutStart && now <= checkOutEnd;
+  };
+
+  // Get check-in window text
+  const getCheckInWindow = (schedule) => {
+    const shiftStart = getShiftStartTime(schedule.date, schedule.shift);
+    const checkInStart = new Date(shiftStart);
+    checkInStart.setMinutes(checkInStart.getMinutes() - 10);
+    const checkInEnd = new Date(shiftStart);
+    checkInEnd.setMinutes(checkInEnd.getMinutes() + 10);
+    
+    return `${checkInStart.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${checkInEnd.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`;
+  };
+
+  // Get check-out window text
+  const getCheckOutWindow = (schedule) => {
+    const shiftEnd = getShiftEndTime(schedule.date, schedule.shift);
+    const checkOutStart = new Date(shiftEnd);
+    const checkOutEnd = new Date(shiftEnd);
+    checkOutEnd.setMinutes(checkOutEnd.getMinutes() + 10);
+    
+    return `${checkOutStart.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${checkOutEnd.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`;
+  };
+
   // Handle check-in
   const handleCheckIn = async (scheduleId) => {
     try {
@@ -244,6 +350,8 @@ const StaffSchedule = () => {
                   const schedule = getScheduleForSlot(day, shift);
                   const isPastDay = isPast(day);
                   const isTodayDay = isToday(day);
+                  const canCheckIn = isCheckInAvailable(schedule);
+                  const canCheckOut = isCheckOutAvailable(schedule);
 
                   return (
                     <td
@@ -257,50 +365,66 @@ const StaffSchedule = () => {
                           <div className="schedule-status">
                             {getAttendanceBadge(schedule.attendanceStatus)}
                           </div>
-                          <div className="schedule-actions">
-                            {isTodayDay && schedule.attendanceStatus === "not-yet" && (
-                              <>
-                                <button
-                                  className="action-btn check-in-btn"
-                                  onClick={() => handleCheckIn(schedule._id)}
-                                >
-                                  Check-in
-                                </button>
-                              </>
+                          
+                          {/* Check-in Section */}
+                          <div className="check-section check-in-section">
+                            <div className="check-header">
+                              <span className="check-icon">🟢</span>
+                              <span className="check-title">Check-in</span>
+                            </div>
+                            <div className="check-window">
+                              {getCheckInWindow(schedule)}
+                            </div>
+                            {schedule.checkInTime ? (
+                              <div className="check-time">
+                                <span className="time-label">Đã check-in:</span>
+                                <span className="time-value">
+                                  {new Date(schedule.checkInTime).toLocaleTimeString(
+                                    "vi-VN",
+                                    { hour: "2-digit", minute: "2-digit" }
+                                  )}
+                                </span>
+                              </div>
+                            ) : (
+                              <button
+                                className={`action-btn check-in-btn ${!canCheckIn ? "disabled" : ""}`}
+                                onClick={() => handleCheckIn(schedule._id)}
+                                disabled={!canCheckIn}
+                              >
+                                {canCheckIn ? "Check-in" : "Chưa đến giờ"}
+                              </button>
                             )}
-                            {isTodayDay &&
-                              schedule.attendanceStatus === "attended" &&
-                              !schedule.checkOutTime && (
-                                <button
-                                  className="action-btn check-out-btn"
-                                  onClick={() => handleCheckOut(schedule._id)}
-                                >
-                                  Check-out
-                                </button>
-                              )}
                           </div>
-                          {schedule.checkInTime && (
-                            <div className="time-info">
-                              <span className="time-label">Vào:</span>
-                              <span className="time-value">
-                                {new Date(schedule.checkInTime).toLocaleTimeString(
-                                  "vi-VN",
-                                  { hour: "2-digit", minute: "2-digit" }
-                                )}
-                              </span>
+
+                          {/* Check-out Section */}
+                          <div className="check-section check-out-section">
+                            <div className="check-header">
+                              <span className="check-icon">🔴</span>
+                              <span className="check-title">Check-out</span>
                             </div>
-                          )}
-                          {schedule.checkOutTime && (
-                            <div className="time-info">
-                              <span className="time-label">Ra:</span>
-                              <span className="time-value">
-                                {new Date(schedule.checkOutTime).toLocaleTimeString(
-                                  "vi-VN",
-                                  { hour: "2-digit", minute: "2-digit" }
-                                )}
-                              </span>
+                            <div className="check-window">
+                              {getCheckOutWindow(schedule)}
                             </div>
-                          )}
+                            {schedule.checkOutTime ? (
+                              <div className="check-time">
+                                <span className="time-label">Đã check-out:</span>
+                                <span className="time-value">
+                                  {new Date(schedule.checkOutTime).toLocaleTimeString(
+                                    "vi-VN",
+                                    { hour: "2-digit", minute: "2-digit" }
+                                  )}
+                                </span>
+                              </div>
+                            ) : (
+                              <button
+                                className={`action-btn check-out-btn ${!canCheckOut ? "disabled" : ""}`}
+                                onClick={() => handleCheckOut(schedule._id)}
+                                disabled={!canCheckOut}
+                              >
+                                {canCheckOut ? "Check-out" : "Chưa đến giờ"}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ) : (
                         <div className="empty-slot">
