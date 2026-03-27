@@ -81,22 +81,7 @@ export default function Navbar() {
           >
             {lang === "vi" ? "TIN MỚI & ƯU ĐÃI" : "NEWS & OFFERS"}
           </NavLink>
-          <NavLink
-            to="/franchise"
-            className={({ isActive }) =>
-              isActive ? "navbar-link navbar-link--active" : "navbar-link"
-            }
-          >
-            {lang === "vi" ? "NHƯỢNG QUYỀN" : "FRANCHISE"}
-          </NavLink>
-          <NavLink
-            to="/members"
-            className={({ isActive }) =>
-              isActive ? "navbar-link navbar-link--active" : "navbar-link"
-            }
-          >
-            {lang === "vi" ? "THÀNH VIÊN" : "MEMBERS"}
-          </NavLink>
+         
         </nav>
 
         <div className="navbar-right">

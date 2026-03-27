@@ -619,22 +619,23 @@ const ShowtimeManagement = () => {
                     </div>
                   ) : (
                     <select
-                      value={selectedMovie}
-                      onChange={(e) => {
-                        setSelectedMovie(e.target.value);
-                        setSelectedRoom('');
-                        setGeneratedSlots([]);
-                        setSelectedSlots([]);
-                      }}
-                      required
-                    >
-                      <option value="">Chọn phim</option>
-                      {getAvailableMovies().map(movie => (
-                        <option key={movie._id} value={movie._id}>
-                          {movie.title} {movie.duration ? `(${movie.duration} phút)` : ''}
-                        </option>
-                      ))}
-                    </select>
+  value={selectedMovie}
+  onChange={(e) => {
+    setSelectedMovie(e.target.value);
+    setSelectedRoom('');
+    setGeneratedSlots([]);
+    setSelectedSlots([]);
+  }}
+  required
+  style={{ width: '100%', maxWidth: '300px' }}
+>
+  <option value="">Chọn phim</option>
+  {getAvailableMovies().map(movie => (
+    <option key={movie._id} value={movie._id}>
+      {movie.title} {movie.duration ? `(${movie.duration} phút)` : ''}
+    </option>
+  ))}
+</select>
                   )}
                 </div>
               </div>
@@ -901,16 +902,17 @@ const ShowtimeManagement = () => {
                 <div className="form-group">
                   <label>Phim</label>
                   <select 
-                    name="movieId" 
-                    value={editFormData.movieId} 
-                    onChange={(e) => setEditFormData({...editFormData, movieId: e.target.value})}
-                    required
-                  >
-                    <option value="">-- Chọn phim --</option>
-                    {movies.map(movie => (
-                      <option key={movie._id} value={movie._id}>{movie.title}</option>
-                    ))}
-                  </select>
+  name="movieId" 
+  value={editFormData.movieId} 
+  onChange={(e) => setEditFormData({...editFormData, movieId: e.target.value})}
+  required
+  style={{ width: '100%', maxWidth: '300px' }}
+>
+  <option value="">-- Chọn phim --</option>
+  {movies.map(movie => (
+    <option key={movie._id} value={movie._id}>{movie.title}</option>
+  ))}
+</select>
                 </div>
 
                 <div className="form-group">
@@ -931,13 +933,14 @@ const ShowtimeManagement = () => {
                 <div className="form-group">
                   <label>Giá vé (VNĐ)</label>
                   <input
-                    type="number"
-                    name="price"
-                    value={editFormData.price}
-                    onChange={(e) => setEditFormData({...editFormData, price: e.target.value})}
-                    required
-                    min="0"
-                  />
+  type="number"
+  name="price"
+  value={editFormData.price}
+  onChange={(e) => setEditFormData({...editFormData, price: e.target.value})}
+  required
+  min="0"
+  style={{ MozAppearance: 'textfield' }}
+/>
                 </div>
 
                 <div className="form-group">

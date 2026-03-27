@@ -7,9 +7,9 @@ import slider2 from "../assets/images/slider2.png";
 import slider3 from "../assets/images/slider3.png";
 import MovieCard from "../components/MovieCard";
 const slides = [
-  { id: 1, title_vi: "Avengers", title_en: "Avengers", image: slider1 },
-  { id: 2, title_vi: "Batman", title_en: "Batman", image: slider2 },
-  { id: 3, title_vi: "Người Nhện", title_en: "Spiderman", image: slider3 },
+  { id: 1, title_vi: "Rạp chiếu phim hiện đại", title_en: "Modern Movie Theater", image: slider1 },
+  { id: 2, title_vi: "Phòng IMAX cực lớn", title_en: "Large IMAX Theater", image: slider2 },
+  { id: 3, title_vi: "Nhân viên hỗ trợ nhiệt tình", title_en: "Friendly Staff", image: slider3 },
 ];
 
 export default function Home() {
