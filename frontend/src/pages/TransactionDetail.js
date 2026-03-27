@@ -55,11 +55,8 @@ function TransactionDetail() {
   // Fetch QR code image
   const fetchQRCode = async (transactionData) => {
     try {
-      const qrResponse = await getQRCodeImage({
-        orderCode: transactionData.metadata.payosOrderCode,
-        amount: transactionData.amount,
-        description: transactionData.description || "Nạp tiền vào ví"
-      });
+      // Sử dụng qrData từ metadata thay vì tạo object mới
+      const qrResponse = await getQRCodeImage(transactionData.metadata.qrData);
       
       if (qrResponse.success) {
         setQRCodeImage(qrResponse.data);

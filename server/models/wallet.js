@@ -62,28 +62,32 @@ walletSchema.virtual("availableBalance").get(function () {
 });
 
 // Instance method: thêm tiền vào ví
-walletSchema.methods.deposit = async function (amount, description = "Nạp tiền", referenceId = null, referenceType = "topup", paymentMethod = "wallet") {
+walletSchema.methods.deposit = async function (amount, description = "Nạp tiền", referenceId = null, referenceType = "topup", paymentMethod = "wallet", status = "completed") {
   if (amount <= 0) {
     throw new Error("Số tiền nạp phải lớn hơn 0");
   }
 
   const previousBalance = this.balance;
-  this.balance += amount;
-  this.totalDeposited += amount;
-  this.lastTransactionAt = new Date();
-  await this.save();
+  
+  // Chỉ cập nhật số dư nếu giao dịch completed
+  if (status === "completed") {
+    this.balance += amount;
+    this.totalDeposited += amount;
+    this.lastTransactionAt = new Date();
+    await this.save();
+  }
 
-  // Tạo transaction record riêng
+  // Tạo transaction record
   await Transaction.createTransaction({
     userId: this.userId,
     walletId: this._id,
     type: "deposit",
     amount: amount,
-    balanceAfter: this.balance,
+    balanceAfter: status === "completed" ? this.balance : previousBalance,
     description: description,
     referenceId: referenceId,
     referenceType: referenceType,
-    status: "completed",
+    status: status,
     paymentMethod: paymentMethod,
   });
 
