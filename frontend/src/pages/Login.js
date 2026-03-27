@@ -157,16 +157,7 @@ function Login() {
               Đăng ký ngay
             </button>
           </p>
-          <p>
-            TÃ i khoáº£n staff?{" "}
-            <button
-              type="button"
-              className="link-btn"
-              onClick={() => navigate("/staff-login")}
-            >
-              ÄÄƒng nháº­p staff
-            </button>
-          </p>
+          
         </div>
 
         <div className="social-login">
