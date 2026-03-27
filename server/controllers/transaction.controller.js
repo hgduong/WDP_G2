@@ -114,6 +114,116 @@ const getUserTransactionStats = async (req, res) => {
 };
 
 /**
+ * Tạo giao dịch nạp tiền pending (chưa xử lý)
+ * POST /api/transactions/create-pending-deposit
+ */
+const createPendingDeposit = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { amount, description, paymentMethod = "banking" } = req.body;
+
+    // Validate input
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Số tiền nạp phải lớn hơn 0",
+      });
+    }
+
+    // Tìm hoặc tạo ví
+    let wallet = await Wallet.findOrCreateByUserId(userId);
+
+    // Kiểm tra ví có đang hoạt động không
+    if (wallet.status !== "Active") {
+      return res.status(400).json({
+        success: false,
+        message: "Ví không hoạt động, không thể nạp tiền",
+      });
+    }
+
+    // Tạo pending transaction
+    const transaction = await Transaction.createTransaction({
+      userId: wallet.userId,
+      walletId: wallet._id,
+      type: "deposit",
+      amount: amount,
+      balanceAfter: wallet.balance,
+      description: description || "Nạp tiền",
+      referenceType: "topup",
+      status: "pending",
+      paymentMethod: paymentMethod,
+    });
+
+    // Nếu user chọn phương thức thanh toán qua PayOS (QR), tạo payment request và trả về dữ liệu QR
+    if (paymentMethod === "payos" || paymentMethod === "qr" || paymentMethod === "banking") {
+      try {
+        const YOUR_DOMAIN = process.env.CLIENT_URL || "http://localhost:3000";
+        const orderCode = Number(String(Date.now()).slice(-6));
+
+        const payload = {
+          orderCode: orderCode,
+          amount: amount,
+          description: description || "Nạp tiền vào ví",
+          cancelUrl: `${YOUR_DOMAIN}/topup-failure?reason=cancelled`,
+          returnUrl: `${YOUR_DOMAIN}/topup-payment?status=success&transactionId=${transaction._id}`,
+          signature: "",
+        };
+
+        const payosResponse = await payos.paymentRequests.create(payload);
+
+        // Lưu orderCode vào metadata để có thể tìm thấy
+        transaction.metadata = {
+          ...transaction.metadata,
+          payosOrderCode: orderCode,
+          payosPaymentLinkId: payosResponse?.paymentLinkId || null,
+        };
+        await transaction.save();
+
+        // Extract payment URL and QR data
+        const paymentUrl = payosResponse?.checkoutUrl || payosResponse?.paymentUrl || payosResponse?.url || null;
+        const qrData = payosResponse?.qrCode || payosResponse?.qr || null;
+
+        return res.status(200).json({
+          success: true,
+          message: "Yêu cầu nạp tiền đã được tạo. Hoàn thành thanh toán qua QR.",
+          data: {
+            transaction: transaction,
+            payment: {
+              raw: payosResponse,
+              paymentUrl,
+              qrData,
+            },
+          },
+        });
+      } catch (err) {
+        // Nếu gọi PayOS fail, huỷ pending transaction và báo lỗi
+        transaction.status = "cancelled";
+        await transaction.save();
+
+        return res.status(502).json({
+          success: false,
+          message: "Không thể tạo yêu cầu thanh toán PayOS: " + err.message,
+        });
+      }
+    }
+
+    // Trường hợp offline / instant: trả về transaction pending
+    return res.status(200).json({
+      success: true,
+      message: "Yêu cầu nạp tiền đã được tạo",
+      data: {
+        transaction: transaction,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
  * Nạp tiền vào ví
  * POST /api/transactions/deposit
  */
@@ -985,6 +1095,7 @@ module.exports = {
   getUserTransactions,
   getTransactionById,
   getUserTransactionStats,
+  createPendingDeposit,
   deposit,
   withdraw,
   pay,

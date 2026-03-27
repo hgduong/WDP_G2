@@ -712,6 +712,19 @@ export const getTransactionById = async (id) => {
 };
 
 /**
+ * Tạo giao dịch nạp tiền pending (chưa xử lý)
+ * @param {Object} data - { amount, description, paymentMethod }
+ */
+export const createPendingDeposit = async (data) => {
+  try {
+    const response = await API.post("/transactions/create-pending-deposit", data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+/**
  * Nạp tiền vào ví
  * @param {Object} data - { amount, description, paymentMethod }
  */

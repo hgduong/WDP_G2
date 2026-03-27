@@ -8,6 +8,7 @@ const {
   getUserTransactions,
   getTransactionById,
   getUserTransactionStats,
+  createPendingDeposit,
   deposit,
   withdraw,
   pay,
@@ -55,6 +56,18 @@ router.get(
   authenticateToken,
   authorizeRoles(["Admin", "Customer", "Staff"]),
   getTransactionById,
+);
+
+/**
+ * @route   POST /api/transactions/create-pending-deposit
+ * @desc    Tạo giao dịch nạp tiền pending (chưa xử lý)
+ * @access  Private (User)
+ */
+router.post(
+  "/create-pending-deposit",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  createPendingDeposit,
 );
 
 /**
