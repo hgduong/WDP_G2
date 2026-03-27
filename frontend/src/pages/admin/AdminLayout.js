@@ -19,7 +19,6 @@ const AdminLayout = ({ children }) => {
     { path: "/admin/staffs", label: "Quản lý Nhân Viên" },
     { path: "/admin/users", label: "Quản lý Người Dùng" },
     { path: "/admin/voucher", label: "Quản lý Voucher" },
-    { path: "/admin/point", label: "Quản lý Point" },
     {
       path: "/admin/schedules",
       label: "Quản lý Lịch làm việc",
