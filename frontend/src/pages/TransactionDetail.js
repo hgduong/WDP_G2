@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getTransactionById } from "../services/api";
-import { generateQRCodeUrl } from "../utils/orderUtils";
+import { getTransactionById, getQRCodeImage, checkPayOSPaymentStatus, cancelUserTransaction } from "../services/api";
 import { toast } from "react-toastify";
 import "../assets/styles/TransactionDetail.css";
 
@@ -12,6 +11,9 @@ function TransactionDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [qrCodeImage, setQRCodeImage] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
+  const statusCheckInterval = useRef(null);
 
   useEffect(() => {
     const fetchTransaction = async () => {
@@ -20,6 +22,13 @@ function TransactionDetail() {
         const response = await getTransactionById(id);
         if (response.success) {
           setTransaction(response.data);
+          
+          // Fetch QR code if transaction is pending and has PayOS metadata
+          if (response.data.status === "pending" && 
+              response.data.paymentMethod === "payos" &&
+              response.data.metadata?.payosOrderCode) {
+            fetchQRCode(response.data);
+          }
         } else {
           setError(response.message || "Không tìm thấy giao dịch");
         }
@@ -34,7 +43,144 @@ function TransactionDetail() {
     if (id) {
       fetchTransaction();
     }
+
+    // Cleanup interval on unmount
+    return () => {
+      if (statusCheckInterval.current) {
+        clearInterval(statusCheckInterval.current);
+      }
+    };
   }, [id]);
+
+  // Fetch QR code image
+  const fetchQRCode = async (transactionData) => {
+    try {
+      const qrResponse = await getQRCodeImage({
+        orderCode: transactionData.metadata.payosOrderCode,
+        amount: transactionData.amount,
+        description: transactionData.description || "Nạp tiền vào ví"
+      });
+      
+      if (qrResponse.success) {
+        setQRCodeImage(qrResponse.data);
+      }
+    } catch (qrErr) {
+      console.error("Error fetching QR code:", qrErr);
+    }
+  };
+
+  // Start polling for payment status when QR code is displayed
+  useEffect(() => {
+    if (transaction?.status === "pending" && 
+        transaction.paymentMethod === "payos" && 
+        qrCodeImage) {
+      // Check immediately
+      checkPaymentStatus();
+      
+      // Then check every 5 seconds
+      statusCheckInterval.current = setInterval(() => {
+        checkPaymentStatus();
+      }, 5000);
+    }
+
+    return () => {
+      if (statusCheckInterval.current) {
+        clearInterval(statusCheckInterval.current);
+      }
+    };
+  }, [transaction, qrCodeImage]);
+
+  const checkPaymentStatus = async () => {
+    if (!transaction?._id) return;
+
+    try {
+      const response = await checkPayOSPaymentStatus(transaction._id);
+      
+      if (response.success) {
+        const updatedTransaction = response.data;
+        
+        if (updatedTransaction.status === "completed") {
+          // Clear interval
+          if (statusCheckInterval.current) {
+            clearInterval(statusCheckInterval.current);
+          }
+          
+          toast.success("Thanh toán thành công!");
+          navigate("/topup-success", {
+            state: {
+              amount: transaction.amount,
+              transactionId: transaction._id
+            }
+          });
+        } else if (updatedTransaction.status === "cancelled") {
+          // Clear interval
+          if (statusCheckInterval.current) {
+            clearInterval(statusCheckInterval.current);
+          }
+          
+          toast.warning("Giao dịch đã bị hủy.");
+          navigate("/topup-failure", {
+            state: {
+              reason: "cancelled",
+              amount: transaction.amount
+            }
+          });
+        } else if (updatedTransaction.status === "failed") {
+          // Clear interval
+          if (statusCheckInterval.current) {
+            clearInterval(statusCheckInterval.current);
+          }
+          
+          toast.error("Giao dịch thất bại.");
+          navigate("/topup-failure", {
+            state: {
+              reason: "failed",
+              amount: transaction.amount
+            }
+          });
+        }
+        // If status is still "pending", continue polling
+      }
+    } catch (err) {
+      console.error("Error checking payment status:", err);
+    }
+  };
+
+  const handleCancelTransaction = async () => {
+    if (!transaction?._id) {
+      toast.error("Không tìm thấy thông tin giao dịch");
+      return;
+    }
+
+    try {
+      setCancelling(true);
+      const response = await cancelUserTransaction(transaction._id);
+      
+      if (response.success) {
+        toast.success("Hủy giao dịch thành công!");
+        
+        // Clear polling interval
+        if (statusCheckInterval.current) {
+          clearInterval(statusCheckInterval.current);
+        }
+        
+        // Navigate to failure page
+        navigate("/topup-failure", {
+          state: {
+            reason: "cancelled",
+            amount: transaction.amount
+          }
+        });
+      } else {
+        toast.error(response.message || "Không thể hủy giao dịch");
+      }
+    } catch (err) {
+      console.error("Error canceling transaction:", err);
+      toast.error(err.message || "Không thể hủy giao dịch");
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -186,22 +332,29 @@ function TransactionDetail() {
           </span>
         </div>
 
-        {/* QR Code Section */}
+        {/* QR Code Section for Pending PayOS Transactions */}
         {transaction.paymentMethod === "payos" && transaction.status === "pending" && (
           <div className="transaction-qr-section">
             <h3>Mã QR thanh toán</h3>
-            <div className="qr-code-container">
-              <img
-                src={generateQRCodeUrl({
-                  transactionId: transaction._id,
-                  amount: transaction.amount,
-                  description: transaction.description
-                })}
-                alt="QR Code"
-                className="qr-code-image"
-              />
-            </div>
-            <p className="qr-instruction">Quét mã QR để thanh toán</p>
+            {qrCodeImage ? (
+              <div className="qr-code-container">
+                <img
+                  src={qrCodeImage}
+                  alt="QR Code"
+                  className="qr-code-image"
+                />
+              </div>
+            ) : (
+              <div className="qr-placeholder">
+                <p>Đang tải mã QR...</p>
+              </div>
+            )}
+            <p className="qr-instruction">
+              Quét mã QR bằng ứng dụng ngân hàng để thanh toán
+            </p>
+            <p className="qr-note">
+              Hệ thống sẽ tự động kiểm tra trạng thái thanh toán mỗi 5 giây
+            </p>
           </div>
         )}
 
@@ -273,6 +426,19 @@ function TransactionDetail() {
             </span>
           </div>
         </div>
+
+        {/* Cancel Button for Pending Transactions */}
+        {transaction.status === "pending" && (
+          <div className="transaction-actions">
+            <button 
+              className="cancel-transaction-button" 
+              onClick={handleCancelTransaction}
+              disabled={cancelling}
+            >
+              {cancelling ? "Đang hủy..." : "Hủy giao dịch"}
+            </button>
+          </div>
+        )}
 
         {/* Wallet Info */}
         {transaction.walletId && (
