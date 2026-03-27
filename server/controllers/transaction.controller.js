@@ -1,6 +1,7 @@
 const Transaction = require("../models/transaction");
 const Wallet = require("../models/wallet");
 const payos = require("../config/payos");
+const crypto = require("crypto");
 
 /**
  * Lấy lịch sử giao dịch của user hiện tại
@@ -170,6 +171,14 @@ const deposit = async (req, res) => {
         };
 
         const payosResponse = await payos.paymentRequests.create(payload);
+
+        // Lưu orderCode vào metadata để webhook có thể tìm thấy
+        transaction.metadata = {
+          ...transaction.metadata,
+          payosOrderCode: orderCode,
+          payosPaymentLinkId: payosResponse?.paymentLinkId || null,
+        };
+        await transaction.save();
 
         // Extract payment URL and QR data
         const paymentUrl = payosResponse?.checkoutUrl || payosResponse?.paymentUrl || payosResponse?.url || null;
@@ -807,6 +816,147 @@ const cancelUserTransaction = async (req, res) => {
   }
 };
 
+/**
+ * Xác minh chữ ký từ payOS
+ * @param {Object} data - Dữ liệu từ payOS
+ * @param {string} signature - Chữ ký cần xác minh
+ * @returns {boolean} - true nếu chữ ký hợp lệ
+ */
+const verifyPayOSSignature = (data, signature) => {
+  const checksumKey = process.env.PAYOS_CHECKSUM_KEY;
+  if (!checksumKey) {
+    console.warn("PAYOS_CHECKSUM_KEY không được cấu hình");
+    return false;
+  }
+
+  // Tạo chuỗi dữ liệu theo thứ tự alphabet
+  const sortedData = Object.keys(data)
+    .filter(key => key !== "signature")
+    .sort()
+    .map(key => `${key}=${data[key]}`)
+    .join("&");
+
+  // Tạo chữ ký HMAC-SHA256
+  const expectedSignature = crypto
+    .createHmac("sha256", checksumKey)
+    .update(sortedData)
+    .digest("hex");
+
+  return signature === expectedSignature;
+};
+
+/**
+ * Webhook nhận thông tin thanh toán từ payOS
+ * POST /api/payos-webhook
+ */
+const handlePayOSWebhook = async (req, res) => {
+  try {
+    const { code, desc, success, data, signature } = req.body;
+
+    console.log("PayOS Webhook received:", { code, desc, success, orderCode: data?.orderCode });
+
+    // Xác minh chữ ký
+    if (!verifyPayOSSignature(data, signature)) {
+      console.error("PayOS Webhook: Chữ ký không hợp lệ");
+      // Vẫn trả 200 để payOS không retry
+      return res.status(200).json({
+        success: false,
+        message: "Chữ ký không hợp lệ",
+      });
+    }
+
+    // Kiểm tra thanh toán thành công
+    if (!success || code !== "00") {
+      console.log("PayOS Webhook: Thanh toán không thành công", { code, desc });
+      return res.status(200).json({
+        success: true,
+        message: "Đã nhận thông báo thanh toán không thành công",
+      });
+    }
+
+    // Tìm transaction bằng payOS orderCode trong metadata
+    const orderCode = data.orderCode;
+    const transaction = await Transaction.findOne({
+      "metadata.payosOrderCode": orderCode,
+      type: "deposit",
+    });
+
+    if (!transaction) {
+      console.error("PayOS Webhook: Không tìm thấy transaction với orderCode:", orderCode);
+      return res.status(200).json({
+        success: false,
+        message: "Không tìm thấy giao dịch",
+      });
+    }
+
+    // Kiểm tra transaction đã được xử lý chưa (idempotency)
+    if (transaction.status === "completed") {
+      console.log("PayOS Webhook: Transaction đã được xử lý trước đó", { orderCode, transactionId: transaction._id });
+      return res.status(200).json({
+        success: true,
+        message: "Giao dịch đã được xử lý trước đó",
+      });
+    }
+
+    // Kiểm tra số tiền có khớp không
+    if (transaction.amount !== data.amount) {
+      console.error("PayOS Webhook: Số tiền không khớp", {
+        expected: transaction.amount,
+        received: data.amount,
+      });
+      return res.status(200).json({
+        success: false,
+        message: "Số tiền không khớp",
+      });
+    }
+
+    // Cập nhật transaction
+    transaction.status = "completed";
+    transaction.metadata = {
+      ...transaction.metadata,
+      payosTransactionId: data.reference,
+      payosTransactionDateTime: data.transactionDateTime,
+      payosAccountNumber: data.accountNumber,
+      payosCounterAccountBankId: data.counterAccountBankId,
+      payosCounterAccountBankName: data.counterAccountBankName,
+      payosCounterAccountName: data.counterAccountName,
+      payosCounterAccountNumber: data.counterAccountNumber,
+      payosVirtualAccountName: data.virtualAccountName,
+      payosVirtualAccountNumber: data.virtualAccountNumber,
+    };
+    await transaction.save();
+
+    // Cập nhật ví
+    const wallet = await Wallet.findById(transaction.walletId);
+    if (wallet) {
+      await wallet.deposit(
+        transaction.amount,
+        transaction.description || "Nạp tiền qua PayOS",
+        transaction._id,
+        "topup",
+        transaction.paymentMethod
+      );
+      transaction.balanceAfter = wallet.balance;
+      await transaction.save();
+    }
+
+    console.log("PayOS Webhook: Xử lý thành công", { orderCode, transactionId: transaction._id });
+
+    // Trả về 200 OK để payOS biết đã nhận thành công
+    return res.status(200).json({
+      success: true,
+      message: "Xử lý webhook thành công",
+    });
+  } catch (error) {
+    console.error("PayOS Webhook Error:", error);
+    // Vẫn trả 200 để payOS không retry liên tục
+    return res.status(200).json({
+      success: false,
+      message: "Lỗi xử lý webhook",
+    });
+  }
+};
+
 module.exports = {
   getUserTransactions,
   getTransactionById,
@@ -821,4 +971,5 @@ module.exports = {
   getAllTransactions,
   getAllTransactionStats,
   createPaymentLink,
+  handlePayOSWebhook,
 };
