@@ -12,11 +12,6 @@ const formatDateTime = (value) => {
   });
 };
 
-const formatMoney = (value) => {
-  if (value === null || value === undefined) return "-";
-  return Number(value).toLocaleString("vi-VN") + " VND";
-};
-
 const getId = (value) => {
   if (!value) return value;
   return value._id || value;
@@ -205,9 +200,7 @@ export default function ShowtimesByCinema() {
                   <th>Phim</th>
                   <th>Phòng</th>
                   <th>Giờ chiếu</th>
-                  <th>Giá vé</th>
                   <th>Ngôn ngữ</th>
-                  <th>Trạng thái</th>
                 </tr>
               </thead>
               <tbody>
@@ -230,9 +223,7 @@ export default function ShowtimesByCinema() {
                             : "-"}
                         </div>
                       </td>
-                      <td>{formatMoney(showtime.price)}</td>
                       <td>{showtime.language || "-"}</td>
-                      <td>{showtime.status || "-"}</td>
                     </tr>
                   );
                 })}
