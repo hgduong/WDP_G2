@@ -171,17 +171,18 @@ const createPendingDeposit = async (req, res) => {
 
         const payosResponse = await payos.paymentRequests.create(payload);
 
-        // Lưu orderCode vào metadata để có thể tìm thấy
+        // Extract payment URL and QR data
+        const paymentUrl = payosResponse?.checkoutUrl || payosResponse?.paymentUrl || payosResponse?.url || null;
+        const qrData = payosResponse?.qrCode || payosResponse?.qr || null;
+
+        // Lưu orderCode và qrData vào metadata để có thể tìm thấy
         transaction.metadata = {
           ...transaction.metadata,
           payosOrderCode: orderCode,
           payosPaymentLinkId: payosResponse?.paymentLinkId || null,
+          qrData: qrData,
         };
         await transaction.save();
-
-        // Extract payment URL and QR data
-        const paymentUrl = payosResponse?.checkoutUrl || payosResponse?.paymentUrl || payosResponse?.url || null;
-        const qrData = payosResponse?.qrCode || payosResponse?.qr || null;
 
         return res.status(200).json({
           success: true,
@@ -281,17 +282,18 @@ const deposit = async (req, res) => {
 
         const payosResponse = await payos.paymentRequests.create(payload);
 
-        // Lưu orderCode vào metadata để có thể tìm thấy
+        // Extract payment URL and QR data
+        const paymentUrl = payosResponse?.checkoutUrl || payosResponse?.paymentUrl || payosResponse?.url || null;
+        const qrData = payosResponse?.qrCode || payosResponse?.qr || null;
+
+        // Lưu orderCode và qrData vào metadata để có thể tìm thấy
         transaction.metadata = {
           ...transaction.metadata,
           payosOrderCode: orderCode,
           payosPaymentLinkId: payosResponse?.paymentLinkId || null,
+          qrData: qrData,
         };
         await transaction.save();
-
-        // Extract payment URL and QR data
-        const paymentUrl = payosResponse?.checkoutUrl || payosResponse?.paymentUrl || payosResponse?.url || null;
-        const qrData = payosResponse?.qrCode || payosResponse?.qr || null;
 
         return res.status(200).json({
           success: true,
@@ -318,24 +320,33 @@ const deposit = async (req, res) => {
     }
 
     // Trường hợp offline / instant (giữ luồng cũ): thực hiện nạp tiền ngay lập tức
+    // Hủy pending transaction trước đó vì wallet.deposit sẽ tạo transaction mới
+    transaction.status = "cancelled";
+    await transaction.save();
+
+    // Thực hiện nạp tiền - wallet.deposit sẽ tạo transaction với status completed
     await wallet.deposit(
       amount,
       description || "Nạp tiền",
-      transaction._id,
+      null,
       "topup",
-      paymentMethod
+      paymentMethod,
+      "completed"
     );
 
-    // Cập nhật transaction thành completed
-    transaction.status = "completed";
-    transaction.balanceAfter = wallet.balance;
-    await transaction.save();
+    // Lấy transaction vừa tạo
+    const completedTransaction = await Transaction.findOne({
+      userId: wallet.userId,
+      walletId: wallet._id,
+      type: "deposit",
+      status: "completed",
+    }).sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
       message: "Nạp tiền thành công",
       data: {
-        transaction: transaction,
+        transaction: completedTransaction,
         wallet: {
           balance: wallet.balance,
           totalDeposited: wallet.totalDeposited,
@@ -854,13 +865,12 @@ const confirmPayment = async (req, res) => {
     if (transaction.type === "deposit") {
       const wallet = await Wallet.findById(transaction.walletId);
       if (wallet) {
-        await wallet.deposit(
-          transaction.amount,
-          transaction.description || "Nạp tiền",
-          transaction._id,
-          "topup",
-          transaction.paymentMethod
-        );
+        // Cập nhật trực tiếp số dư ví thay vì gọi wallet.deposit() để tránh tạo transaction trùng lặp
+        wallet.balance += transaction.amount;
+        wallet.totalDeposited += transaction.amount;
+        wallet.lastTransactionAt = new Date();
+        await wallet.save();
+        
         transaction.balanceAfter = wallet.balance;
         await transaction.save();
       }
@@ -1030,13 +1040,12 @@ const checkPayOSPaymentStatus = async (req, res) => {
         // Cập nhật ví
         const wallet = await Wallet.findById(transaction.walletId);
         if (wallet) {
-          await wallet.deposit(
-            transaction.amount,
-            transaction.description || "Nạp tiền qua PayOS",
-            transaction._id,
-            "topup",
-            transaction.paymentMethod
-          );
+          // Cập nhật trực tiếp số dư ví thay vì gọi wallet.deposit() để tránh tạo transaction trùng lặp
+          wallet.balance += transaction.amount;
+          wallet.totalDeposited += transaction.amount;
+          wallet.lastTransactionAt = new Date();
+          await wallet.save();
+          
           transaction.balanceAfter = wallet.balance;
           await transaction.save();
         }
