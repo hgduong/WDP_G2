@@ -498,6 +498,34 @@ export const getAuditLogs = async (params = {}) => {
   }
 };
 
+// Staff Schedule
+export const getMySchedule = async (params = {}) => {
+  try {
+    const response = await API.get("/staff/schedule", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const staffCheckIn = async (scheduleId) => {
+  try {
+    const response = await API.post(`/staff/schedule/${scheduleId}/check-in`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const staffCheckOut = async (scheduleId) => {
+  try {
+    const response = await API.post(`/staff/schedule/${scheduleId}/check-out`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 //Staff
 export const getAllStaff = async () => {
   try {
