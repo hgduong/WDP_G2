@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from "react";
-import "../assets/styles/SectionPages.css";
+import { useNavigate } from "react-router-dom";
+import "../assets/styles/MoviesAll.css";
 import { getAllMovies } from "../services/api";
 
 const formatDate = (value) => {
@@ -13,16 +14,24 @@ const formatDate = (value) => {
   });
 };
 
-const getRatingClass = (rating) => {
-  const value = Number(rating);
-  if (Number.isNaN(value)) return "";
-  return value < 8 ? "section-card__badge--warning" : "section-card__badge--success";
+const getStatusBadge = (status) => {
+  switch (status) {
+    case "NowShowing":
+      return { text: "Đang chiếu", className: "movie-card__badge--now-showing" };
+    case "ComingSoon":
+      return { text: "Sắp chiếu", className: "movie-card__badge--coming-soon" };
+    case "Special":
+      return { text: "Đặc biệt", className: "movie-card__badge--special" };
+    default:
+      return { text: status || "-", className: "" };
+  }
 };
 
 export default function MoviesAll() {
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     let isMounted = true;
@@ -36,7 +45,7 @@ export default function MoviesAll() {
         setMovies(Array.isArray(data) ? data : []);
       } catch (err) {
         if (!isMounted) return;
-        setError(err?.message || "Khong the tai danh sach phim.");
+        setError(err?.message || "Không thể tải danh sách phim.");
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -49,56 +58,143 @@ export default function MoviesAll() {
     };
   }, []);
 
+  const handleMovieClick = (movieId) => {
+    navigate(`/movie/${movieId}`);
+  };
+
   return (
-    <div>
-      <section className="section-page">
-        <div className="section-page__container">
-          <h1 className="section-page__title">Danh sách phim</h1>
-          <p className="section-page__subtitle">
-            Dữ liệu lấy từ toàn bộ phim trong hệ thống.
+    <div className="movies-all">
+      <div className="movies-all__container">
+        {/* Hero Section */}
+        <div className="movies-all__hero">
+          <h1 className="movies-all__title">Tất Cả Phim</h1>
+          <p className="movies-all__subtitle">
+            Khám phá bộ sưu tập phim đa dạng với nhiều thể loại hấp dẫn
           </p>
-
-          <div className="section-page__toolbar">
-            {loading ? (
-              <span className="section-page__status">Đang tải dữ liệu...</span>
-            ) : (
-              <span className="section-page__status">{movies.length} phim</span>
-            )}
-            {error ? (
-              <span className="section-page__status">{error}</span>
-            ) : null}
-          </div>
-
-          {!loading && movies.length === 0 ? (
-            <div className="section-page__empty">Chưa có phim nào.</div>
-          ) : null}
-
-          {movies.length > 0 ? (
-            <div className="section-page__grid">
-              {movies.map((movie) => (
-                <article key={movie._id} className="section-card">
-                  <h3 className="section-card__title">{movie.title}</h3>
-                  <p className="section-card__meta">Thể loại: {movie.genre}</p>
-                  <p className="section-card__meta">
-                    Thời lượng: {movie.duration} phút
-                  </p>
-                  <p className="section-card__meta">
-                    Khởi chiếu: {formatDate(movie.releaseDate)}
-                  </p>
-                  <p className="section-card__meta">
-                    Trạng thái: {movie.status || "-"}
-                  </p>
-                  {movie.rating ? (
-                    <span className={`section-card__badge ${getRatingClass(movie.rating)}`}>
-                      Rating {movie.rating}
-                    </span>
-                  ) : null}
-                </article>
-              ))}
-            </div>
-          ) : null}
         </div>
-      </section>
+
+        {/* Stats Bar */}
+        {!loading && !error && (
+          <div className="movies-all__stats">
+            <div className="movies-all__stat">
+              <div>
+                <div className="movies-all__stat-value">{movies.length}</div>
+                <div className="movies-all__stat-label">Phim</div>
+              </div>
+            </div>
+            <div className="movies-all__stat">
+              <div>
+                <div className="movies-all__stat-value">
+                  {movies.filter(m => m.status === "NowShowing").length}
+                </div>
+                <div className="movies-all__stat-label">Đang Chiếu</div>
+              </div>
+            </div>
+            <div className="movies-all__stat">
+              <div>
+                <div className="movies-all__stat-value">
+                  {movies.filter(m => m.status === "ComingSoon").length}
+                </div>
+                <div className="movies-all__stat-label">Sắp Chiếu</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <div className="movies-all__loading">
+            <div className="movies-all__spinner"></div>
+            <div className="movies-all__loading-text">Đang tải dữ liệu phim...</div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="movies-all__error">
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && !error && movies.length === 0 && (
+          <div className="movies-all__empty">
+            <h3 className="movies-all__empty-title">Chưa có phim nào</h3>
+            <p className="movies-all__empty-text">
+              Danh sách phim sẽ sớm được cập nhật
+            </p>
+          </div>
+        )}
+
+        {/* Movie Grid */}
+        {!loading && !error && movies.length > 0 && (
+          <div className="movies-all__grid">
+            {movies.map((movie) => {
+              const statusBadge = getStatusBadge(movie.status);
+              return (
+                <article 
+                  key={movie._id} 
+                  className="movie-card"
+                  onClick={() => handleMovieClick(movie._id)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {/* Card Header with Poster */}
+                  <div className="movie-card__header">
+                    {movie.posterUrl && (
+                      <img 
+                        src={movie.posterUrl} 
+                        alt={movie.title}
+                        className="movie-card__poster"
+                      />
+                    )}
+                    <div className="movie-card__overlay"></div>
+                    {statusBadge.text && (
+                      <span className={`movie-card__badge ${statusBadge.className}`}>
+                        {statusBadge.text}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="movie-card__body">
+                    <h3 className="movie-card__title">{movie.title}</h3>
+                    
+                    <div className="movie-card__info">
+                      {movie.genre && (
+                        <div className="movie-card__info-item">
+                          <span className="movie-card__info-label">Thể loại:</span>
+                          <span>{Array.isArray(movie.genre) ? movie.genre.join(", ") : movie.genre}</span>
+                        </div>
+                      )}
+                      
+                      {movie.duration && (
+                        <div className="movie-card__info-item">
+                          <span className="movie-card__info-label">Thời lượng:</span>
+                          <span>{movie.duration} phút</span>
+                        </div>
+                      )}
+                      
+                      {movie.releaseDate && (
+                        <div className="movie-card__info-item">
+                          <span className="movie-card__info-label">Khởi chiếu:</span>
+                          <span>{formatDate(movie.releaseDate)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Card Footer */}
+                  <div className="movie-card__footer">
+                    <button className="movie-card__action">
+                      Đặt Vé Ngay
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

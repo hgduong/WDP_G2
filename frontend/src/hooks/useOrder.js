@@ -22,7 +22,7 @@ export const useOrder = () => {
   const [orderData, setOrderData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [paymentStatus, setPaymentStatus] = useState("Unpaid");
+  const [paymentStatus, setPaymentStatus] = useState("Pending");
   const [bookingId, setBookingId] = useState(null);
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export const useOrder = () => {
         if (data._id) {
           setOrderData(data);
           setBookingId(data._id);
-          setPaymentStatus(data.paymentStatus || "Unpaid");
+          setPaymentStatus(data.paymentStatus || "Pending");
           localStorage.setItem("lastOrder", JSON.stringify(data));
         } else {
           // Booking not yet saved to DB — create it now
@@ -51,7 +51,7 @@ export const useOrder = () => {
                 email: user?.email || "",
                 phone: user?.phone || ""
               },
-              paymentStatus: "Unpaid"
+              paymentStatus: "Pending"
             };
 
             const response = await createBooking(bookingRequestData);
@@ -65,12 +65,12 @@ export const useOrder = () => {
               localStorage.setItem("lastOrder", JSON.stringify(mergedData));
             } else {
               setOrderData(data);
-              setPaymentStatus(data.paymentStatus || "Unpaid");
+              setPaymentStatus(data.paymentStatus || "Pending");
             }
           } catch (err) {
             console.error("Error creating booking:", err);
             setOrderData(data);
-            setPaymentStatus(data.paymentStatus || "Unpaid");
+            setPaymentStatus(data.paymentStatus || "Pending");
           }
         }
       } else {
@@ -79,7 +79,7 @@ export const useOrder = () => {
           try {
             const parsedOrder = JSON.parse(storedOrder);
             setOrderData(parsedOrder);
-            setPaymentStatus(parsedOrder.paymentStatus || "Unpaid");
+            setPaymentStatus(parsedOrder.paymentStatus || "Pending");
             setBookingId(parsedOrder._id);
           } catch (e) {
             setError("Không tìm thấy thông tin đơn hàng");

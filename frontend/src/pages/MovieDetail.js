@@ -2,7 +2,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import "../assets/styles/MovieDetail.css";
 import { getImageUrl } from "../utils/imageUtils";
-import { holdSeats, releaseSeats, getHeldSeats, bookSeats, getStaffBookingSeatMap } from "../services/api";
+import { holdSeats, releaseSeats, getHeldSeats, bookSeats, getStaffBookingSeatMap, createStaffBookingOrder } from "../services/api";
+import { createBooking } from "../services/bookingService";
 import { useContext } from "react";
 import { UserContext } from "../context/UserContext";
 import { io } from "socket.io-client";
@@ -404,22 +405,35 @@ export default function MovieDetail() {
   };
 
   // Handle booking confirmation and navigate to Order page
-  const handleBookingConfirmation = () => {
+  const handleBookingConfirmation = async () => {
     if (selectedSeats.length === 0) {
       alert("Vui lòng chọn ít nhất một ghế!");
       return;
     }
 
-    // Generate booking code
-    const bookingCode = "BK" + Date.now().toString().slice(-8);
-    
-    // Generate ticket data with QR codes
-    const tickets = selectedSeats.map((seat, index) => ({
-      ticketCode: `TK${Date.now().toString().slice(-8)}${index}`,
-      seat: seat.label,
-      seatLabel: seat.label,
-      qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(seat.label + "-" + bookingCode)}`
-    }));
+    try {
+      // Save booking to database with Pending status
+      const bookingResult = await createBooking({
+        showtimeId: selectedShowtime._id,
+        seatIds: selectedSeats.map(s => s.id),
+        customerName: user?.fullName || "",
+        customerPhone: user?.phone || "",
+        customerEmail: user?.email || "",
+        paymentStatus: "Pending",
+        notes: "Đặt vé qua trang chi tiết phim"
+      });
+
+      // Generate booking code from database result or fallback
+      const bookingCode = bookingResult?.booking?.bookingCode || "BK" + Date.now().toString().slice(-8);
+      const bookingId = bookingResult?.booking?._id;
+      
+      // Generate ticket data with QR codes
+      const tickets = selectedSeats.map((seat, index) => ({
+        ticketCode: `TK${Date.now().toString().slice(-8)}${index}`,
+        seat: seat.label,
+        seatLabel: seat.label,
+        qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(seat.label + "-" + bookingCode)}`
+      }));
 
     // Prepare order data to send to Order page
     const orderData = {
@@ -454,15 +468,19 @@ export default function MovieDetail() {
       purchaseDate: new Date().toISOString()
     };
 
-    // Also store in localStorage as backup
-    localStorage.setItem("lastOrder", JSON.stringify(orderData));
+      // Also store in localStorage as backup
+      localStorage.setItem("lastOrder", JSON.stringify(orderData));
 
-    // Close seat modal first
-    closeSeatModal();
-    setShowBooking(false);
+      // Close seat modal first
+      closeSeatModal();
+      setShowBooking(false);
 
-    // Navigate to Order page with order data
-    navigate("/order", { state: { orderData } });
+      // Navigate to Order page with order data
+      navigate("/order", { state: { orderData } });
+    } catch (error) {
+      console.error("Error saving booking:", error);
+      alert("Có lỗi xảy ra khi lưu đặt vé. Vui lòng thử lại!");
+    }
   };
 
   if (loading) return <p>Đang tải...</p>;

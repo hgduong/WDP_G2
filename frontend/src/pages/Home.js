@@ -123,7 +123,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="movie-section">
+      <section className="movie-section" id="movie-section">
         {/* Search and Filter bar */}
         <div className="search-filter-bar">
           <div className="search-box">
@@ -175,12 +175,7 @@ export default function Home() {
           >
             {lang === "vi" ? "Phim đang chiếu" : "NOW SHOWING"}
           </h2>
-          <h2
-            className={activeTab === "special" ? "active" : ""}
-            onClick={() => setActiveTab("special")}
-          >
-            {lang === "vi" ? "Suất chiếu đặc biệt" : "SPECIAL SHOWINGS"}
-          </h2>
+          
         </div>
 
         {/* Movie grid */}
