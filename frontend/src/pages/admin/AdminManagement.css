@@ -1,4 +1,9 @@
-/* Admin Management Styles */
+.modal-large {
+    width: 90%;
+    max-width: 1000px; /* Tăng từ mức mặc định lên 1000px hoặc 1200px */
+    max-height: 90vh;
+    overflow-y: auto;
+}/* Admin Management Styles */
 
 .admin-management {
   padding: 20px;
@@ -323,7 +328,7 @@
 }
 
 .movie-title {
-  max-width: 200px;
+  max-width: 500px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
