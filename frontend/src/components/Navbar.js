@@ -99,17 +99,17 @@ export default function Navbar() {
                   {dashboardPath ? (
                     <li>
                       <Link to={dashboardPath} onClick={handleDropdownLinkClick}>
-                        {user.role === "Admin" ? "Trang quan tri" : "Trang staff"}
+                        {user.role === "Admin" ? "Trang quản trị" : "Trang nhân viên"}
                       </Link>
                     </li>
                   ) : null}
                   <li>
                     <Link to="/profile" onClick={handleDropdownLinkClick}>
-                      Trang ca nhan
+                      Trang cá nhân
                     </Link>
                   </li>
                   <li>
-                    <button onClick={handleLogout}>Dang xuat</button>
+                    <button onClick={handleLogout}>Đăng xuất</button>
                   </li>
                 </ul>
               )}

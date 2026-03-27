@@ -118,9 +118,10 @@ const ensureShowtimeSeatmap = async (showtimeInput) => {
         // Create new seats with correct capacity
         const seats = await Seat.insertMany(buildSeatBlueprint(expectedCapacity));
         
-        // Update seatmap
-        existingSeatmap.seats = seats.map(s => s._id);
-        await existingSeatmap.save();
+        // Update seatmap using findByIdAndUpdate to avoid VersionError
+        await Seatmap.findByIdAndUpdate(existingSeatmap._id, {
+          $set: { seats: seats.map(s => s._id) }
+        });
         
         // Reload with populated seats
         return await populateSeatmap(existingSeatmap._id);
@@ -143,14 +144,17 @@ const ensureShowtimeSeatmap = async (showtimeInput) => {
       console.log(`Staff: Found seatmap has ${seatmap.seats?.length || 0} seats! Generating...`, seatmap._id);
       
       const seats = await Seat.insertMany(buildSeatBlueprint(expectedCapacity));
-      seatmap.seats = seats.map(s => s._id);
-      await seatmap.save();
+      
+      // Update seatmap using findByIdAndUpdate to avoid VersionError
+      await Seatmap.findByIdAndUpdate(seatmap._id, {
+        $set: { seats: seats.map(s => s._id) }
+      });
+      
       seatmap = await populateSeatmap(seatmap._id);
     }
     
     if (!showtime.seatMap || showtime.seatMap.toString() !== seatmap._id.toString()) {
-      showtime.seatMap = seatmap._id;
-      await showtime.save();
+      await Showtime.findByIdAndUpdate(showtime._id, { $set: { seatMap: seatmap._id } });
     }
     return seatmap;
   }

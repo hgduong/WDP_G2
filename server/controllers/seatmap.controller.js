@@ -233,9 +233,10 @@ exports.getSeatmapByShowtime = async (req, res) => {
         
         const createdSeats = await Seat.insertMany(seatsData);
         
-        // Update seatmap with new seats
-        seatmap.seats = createdSeats.map(s => s._id);
-        await seatmap.save();
+        // Update seatmap with new seats using findByIdAndUpdate to avoid VersionError
+        await Seatmap.findByIdAndUpdate(seatmap._id, {
+          $set: { seats: createdSeats.map(s => s._id) }
+        });
         
         // Reload with populated seats
         seatmap = await Seatmap.findById(seatmap._id).populate("seats");
