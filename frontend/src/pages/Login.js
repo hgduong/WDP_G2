@@ -58,6 +58,15 @@ function Login() {
         return;
       }
       
+      if (errorData?.useStaffLogin) {
+        toast.info(errorMessage);
+        navigate("/staff-login", {
+          replace: true,
+          state: { email: username },
+        });
+        return;
+      }
+
       toast.error(errorMessage);
     }
   };
@@ -148,6 +157,7 @@ function Login() {
               Đăng ký ngay
             </button>
           </p>
+          
         </div>
 
         <div className="social-login">

@@ -1,3 +1,4 @@
+require('node:dns').setServers(['8.8.8.8', '8.8.4.4']);
 const express = require("express");
 const cors = require("cors");
 const passport = require("passport");
@@ -18,7 +19,7 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
   }),
@@ -95,6 +96,7 @@ const voucherRoutes = require("./routes/voucher.routes");
 // const seatsRoutes = require("./routes/seats.route");
 // const bookingRoutes = require("./routes/booking.route");
 const transactionRoutes = require("./routes/transaction.routes");
+const scheduleRoutes = require("./routes/schedule.routes");
 
 app.use(authRoutes);
 
@@ -107,9 +109,8 @@ app.use(cinemaRoutes);
 app.use("/transactions", transactionRoutes);
 
 app.use(staffRoutes);
-
-// app.use("/api", seatsRoutes);
-
+app.use("/api", seatsRoutes);
+app.use("/api/schedules", scheduleRoutes);
 // Đăng ký voucher routes tại /vouchers (cùng cấp với các routes khác)
 app.use("/vouchers", voucherRoutes);
 

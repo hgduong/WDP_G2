@@ -24,20 +24,11 @@ const sanitizeStaff = (staff) => {
   return staffObject;
 };
 
-const DEFAULT_SEATS_PER_ROW = 8;
+const seatmapController = require("./seatmap.controller");
 
 const buildSeatBlueprint = (capacity = 0) => {
-  const totalSeats = Math.max(Number(capacity) || 0, 0);
-  return Array.from({ length: totalSeats }, (_, index) => {
-    const rowIndex = Math.floor(index / DEFAULT_SEATS_PER_ROW);
-    const seatNumber = (index % DEFAULT_SEATS_PER_ROW) + 1;
-    return {
-      row: String.fromCharCode(65 + rowIndex),
-      number: seatNumber,
-      type: rowIndex >= 3 ? "VIP" : "Standard",
-      status: "Available",
-    };
-  });
+  // Use the shared function from seatmapController
+  return seatmapController.buildSeatLayout(capacity);
 };
 
 const createBookingCode = () =>
@@ -67,22 +58,36 @@ const cloneRoomSeatmapToShowtime = async (roomSeatmap, showtimeId) => {
 };
 
 const createSeatmapForShowtime = async (showtime, room) => {
-  if (room.seatmapId) {
-    const roomSeatmap = await Seatmap.findById(room.seatmapId).populate("seats");
-    if (roomSeatmap) {
+  // Ensure we have the latest room data with correct capacity
+  // If room is already populated, use it; otherwise fetch fresh data
+  let roomData = room;
+  if (!roomData?.capacity || roomData.capacity === 0) {
+    const roomId = roomData?._id || roomData;
+    if (roomId) {
+      roomData = await Room.findById(roomId);
+    }
+  }
+  
+  const actualCapacity = roomData?.capacity || 60; // Default to 60 if still 0
+  console.log("Creating seatmap with capacity:", actualCapacity);
+  
+  if (roomData?.seatmapId) {
+    const roomSeatmap = await Seatmap.findById(roomData.seatmapId).populate("seats");
+    if (roomSeatmap && roomSeatmap.seats?.length > 0) {
       return cloneRoomSeatmapToShowtime(roomSeatmap, showtime._id);
     }
   }
 
-  const seats = await Seat.insertMany(buildSeatBlueprint(room.capacity));
+  const seats = await Seat.insertMany(buildSeatBlueprint(actualCapacity));
   return Seatmap.create({
-    roomId: room._id,
+    roomId: roomData._id,
     showtimes: showtime._id,
     seats: seats.map((seat) => seat._id),
   });
 };
 
 const ensureShowtimeSeatmap = async (showtimeInput) => {
+  console.log("=== ensureShowtimeSeatmap DEBUG ===");
   const showtime =
     showtimeInput?.populate && typeof showtimeInput.populate === "function"
       ? showtimeInput
@@ -94,15 +99,65 @@ const ensureShowtimeSeatmap = async (showtimeInput) => {
     throw error;
   }
 
+  console.log("Showtime ID:", showtime._id);
+  console.log("Showtime seatMap:", showtime.seatMap);
+  console.log("Showtime roomId:", showtime.roomId);
+
   if (showtime.seatMap) {
+    console.log("Method 1: Checking showtime.seatMap field...");
     const existingSeatmap = await populateSeatmap(showtime.seatMap);
     if (existingSeatmap) {
+      // FIX: Check if seatmap has seats, if not generate them!
+      // Also check if number of seats matches room capacity
+      const room = await Room.findById(showtime.roomId);
+      const expectedCapacity = room?.capacity || 60;
+      
+      if (!existingSeatmap.seats || existingSeatmap.seats.length === 0 || existingSeatmap.seats.length !== expectedCapacity) {
+        console.log(`Staff: Seatmap has ${existingSeatmap.seats?.length || 0} seats but expected ${expectedCapacity}! Regenerating...`, existingSeatmap._id);
+        
+        // Delete old seats first
+        if (existingSeatmap.seats?.length > 0) {
+          await Seat.deleteMany({ _id: { $in: existingSeatmap.seats } });
+        }
+        
+        // Create new seats with correct capacity
+        const seats = await Seat.insertMany(buildSeatBlueprint(expectedCapacity));
+        
+        // Update seatmap
+        existingSeatmap.seats = seats.map(s => s._id);
+        await existingSeatmap.save();
+        
+        // Reload with populated seats
+        return await populateSeatmap(existingSeatmap._id);
+      }
       return existingSeatmap;
     }
   }
 
   let seatmap = await Seatmap.findOne({ showtimes: showtime._id }).populate("seats");
+  console.log("Method 2: Finding by showtimes field:", seatmap ? "found" : "not found");
+  
   if (seatmap) {
+    // FIX: Also check if found seatmap has correct number of seats
+    console.log("Method 2: Seatmap found, checking capacity...");
+    const room = await Room.findById(showtime.roomId);
+    console.log("Method 2: Room found:", room ? "yes" : "no", "| capacity:", room?.capacity);
+    const expectedCapacity = room?.capacity || 60;
+    
+    if (!seatmap.seats || seatmap.seats.length === 0 || seatmap.seats.length !== expectedCapacity) {
+      console.log(`Staff: Found seatmap has ${seatmap.seats?.length || 0} seats but expected ${expectedCapacity}! Regenerating...`, seatmap._id);
+      
+      // Delete old seats first
+      if (seatmap.seats?.length > 0) {
+        await Seat.deleteMany({ _id: { $in: seatmap.seats } });
+      }
+      
+      const seats = await Seat.insertMany(buildSeatBlueprint(expectedCapacity));
+      seatmap.seats = seats.map(s => s._id);
+      await seatmap.save();
+      seatmap = await populateSeatmap(seatmap._id);
+    }
+    
     if (!showtime.seatMap || showtime.seatMap.toString() !== seatmap._id.toString()) {
       showtime.seatMap = seatmap._id;
       await showtime.save();
@@ -111,11 +166,15 @@ const ensureShowtimeSeatmap = async (showtimeInput) => {
   }
 
   const room = await Room.findById(showtime.roomId);
+  console.log("Method 4: Trying room.seatmapId:", room?.seatmapId || "none");
+  
   if (!room) {
     const error = new Error("Phòng chiếu không tồn tại");
     error.statusCode = 404;
     throw error;
   }
+  console.log("Method 4: Room found, capacity:", room.capacity);
+  console.log("Staff: Creating new seatmap with room capacity:", room.capacity);
 
   seatmap = await createSeatmapForShowtime(showtime, room);
   showtime.seatMap = seatmap._id;
@@ -124,7 +183,12 @@ const ensureShowtimeSeatmap = async (showtimeInput) => {
   return populateSeatmap(seatmap._id);
 };
 
-const formatSeatLabel = (seat) => `${seat.row}${seat.number}`;
+const formatSeatLabel = (seat) => {
+  if (seat.type === 'Couple') {
+    return `${seat.row}${seat.number}-${seat.number + 1}`;
+  }
+  return `${seat.row}${seat.number}`;
+};
 
 const mapSeatForClient = (seat) => ({
   _id: seat._id,
@@ -411,12 +475,15 @@ exports.getStaffBookingShowtimes = async (req, res) => {
     }
 
     if (date) {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(startOfDay);
-      endOfDay.setDate(endOfDay.getDate() + 1);
-      filter.startTime = { $gte: startOfDay, $lt: endOfDay };
+      // Parse the date in local UTC+7 timezone to avoid off-by-one day issues
+      const parts = date.split('-'); // YYYY-MM-DD
+      if (parts.length === 3) {
+        const startOfDay = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0));
+        const endOfDay = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) + 1, 0, 0, 0));
+        filter.startTime = { $gte: startOfDay, $lt: endOfDay };
+      }
     }
+    // If no date is provided, return ALL scheduled showtimes (sorted ascending)
 
     const showtimes = await Showtime.find(filter)
       .populate("movieId", "title duration posterUrl")
@@ -480,6 +547,16 @@ exports.getSeatMapForStaffBooking = async (req, res) => {
   }
 };
 
+const Voucher = require("../models/voucher");
+
+const checkAndUpdateVoucherStatus = async (voucher) => {
+  const now = new Date();
+  if (voucher.endDate && now > new Date(voucher.endDate)) {
+    voucher.isActive = false;
+    await voucher.save();
+  }
+};
+
 exports.createStaffBooking = async (req, res) => {
   try {
     const {
@@ -491,6 +568,7 @@ exports.createStaffBooking = async (req, res) => {
       notes,
       sendEmail = false,
       paymentStatus = "PayAtCounter",
+      voucherCode,
     } = req.body;
 
     if (!showtimeId || !Array.isArray(seatIds) || seatIds.length === 0) {
@@ -535,7 +613,39 @@ exports.createStaffBooking = async (req, res) => {
       ? paymentStatus
       : "PayAtCounter";
 
-    const totalPrice = Number(showtime.price || 0) * selectedSeats.length;
+    let totalPrice = 0;
+    selectedSeats.forEach(seat => {
+      if (seat.type === "Couple") {
+        totalPrice += Number(showtime.price || 0) * 2;
+      } else {
+        totalPrice += Number(showtime.price || 0);
+      }
+    });
+    let discountAmount = 0;
+    let appliedVoucher = null;
+
+    if (voucherCode) {
+      const voucher = await Voucher.findOne({ code: voucherCode });
+      if (voucher) {
+        await checkAndUpdateVoucherStatus(voucher);
+        const updatedVoucher = await Voucher.findById(voucher._id);
+        
+        if (updatedVoucher && updatedVoucher.isActive) {
+          const now = new Date();
+          if (now >= new Date(updatedVoucher.startDate) && now <= new Date(updatedVoucher.endDate)) {
+            if (updatedVoucher.usedCount < updatedVoucher.maxUsage && totalPrice >= updatedVoucher.minOrderValue) {
+              discountAmount = (totalPrice * updatedVoucher.discountPercent) / 100;
+              if (discountAmount > updatedVoucher.maxDiscount) {
+                discountAmount = updatedVoucher.maxDiscount;
+              }
+              appliedVoucher = updatedVoucher._id;
+              totalPrice = Math.max(0, totalPrice - discountAmount);
+            }
+          }
+        }
+      }
+    }
+
     const booking = await Booking.create({
       userId: null,
       bookedByStaffId: req.user?.id || null,
@@ -544,6 +654,9 @@ exports.createStaffBooking = async (req, res) => {
       roomId: showtime.roomId?._id || showtime.roomId,
       seats: selectedSeats.map((seat) => seat._id),
       totalPrice,
+      originalPrice: Number(showtime.price || 0) * selectedSeats.length,
+      discountAmount,
+      voucherId: appliedVoucher,
       bookingCode: createBookingCode(),
       status: "Confirmed",
       bookingSource: "Staff",
@@ -555,6 +668,10 @@ exports.createStaffBooking = async (req, res) => {
         notes: notes?.trim() || "",
       },
     });
+
+    if (appliedVoucher) {
+      await Voucher.findByIdAndUpdate(appliedVoucher, { $inc: { usedCount: 1 } });
+    }
 
     await Seat.updateMany(
       { _id: { $in: selectedSeats.map((seat) => seat._id) } },
@@ -592,5 +709,424 @@ exports.createStaffBooking = async (req, res) => {
   } catch (error) {
     console.error("Loi khi tao dat cho staff:", error);
     res.status(error.statusCode || 500).json({ message: error.message || "Loi server" });
+  }
+};
+
+exports.getStaffDashboardStats = async (req, res) => {
+  try {
+    const today = new Date();
+    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+
+    const todayShowtimes = await Showtime.find({
+      startTime: { $gte: startOfDay, $lt: endOfDay },
+      status: "Scheduled",
+    }).populate("movieId", "title").populate("cinemasId", "name");
+
+    const totalShowtimes = todayShowtimes.length;
+    const completedShowtimes = todayShowtimes.filter(s => new Date(s.startTime) < new Date()).length;
+    const upcomingShowtimes = totalShowtimes - completedShowtimes;
+
+    const activeBookingsCount = await Booking.countDocuments({
+      createdAt: { $gte: startOfDay, $lt: endOfDay },
+      bookingSource: "Staff",
+      status: { $ne: "Cancelled" },
+    });
+
+    const pendingPaymentsCount = await Booking.countDocuments({
+      createdAt: { $gte: startOfDay, $lt: endOfDay },
+      bookingSource: "Staff",
+      paymentStatus: { $in: ["PayAtCounter", "Unpaid"] },
+      status: { $ne: "Cancelled" },
+    });
+
+    const staffId = req.user?.id || req.user?._id;
+    const staffBookingsToday = staffId 
+      ? await Booking.countDocuments({
+          bookedByStaffId: staffId,
+          createdAt: { $gte: startOfDay, $lt: endOfDay },
+          status: { $ne: "Cancelled" },
+        })
+      : 0;
+
+    res.json({
+      openShifts: 1,
+      totalShowtimes,
+      completedShowtimes,
+      upcomingShowtimes,
+      activeBookings: activeBookingsCount,
+      pendingPayments: pendingPaymentsCount,
+      staffBookingsToday,
+      readyStatus: "Sẵn sàng phục vụ",
+    });
+  } catch (error) {
+    console.error("Loi khi lay dashboard stats:", error);
+    res.status(500).json({ message: "Loi server" });
+  }
+};
+
+// Get bookings created by staff (with optional filters)
+exports.getStaffBookings = async (req, res) => {
+  try {
+    const { date, status, paymentStatus, limit = 50 } = req.query;
+    const filter = { bookingSource: "Staff" };
+
+    if (date) {
+      const parts = date.split('-');
+      if (parts.length === 3) {
+        const startOfDay = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0));
+        const endOfDay = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) + 1, 0, 0, 0));
+        filter.createdAt = { $gte: startOfDay, $lt: endOfDay };
+      }
+    }
+
+    if (status) {
+      filter.status = status;
+    }
+
+    if (paymentStatus) {
+      filter.paymentStatus = paymentStatus;
+    }
+
+    const bookings = await Booking.find(filter)
+      .populate("showtimeId", "startTime price")
+      .populate("showtimeId.movieId", "title")
+      .populate("cinemaId", "name")
+      .populate("roomId", "name")
+      .populate("bookedByStaffId", "fullName")
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+
+    res.json(bookings);
+  } catch (error) {
+    console.error("Loi khi lay staff bookings:", error);
+    res.status(500).json({ message: "Loi server" });
+  }
+};
+
+// Get all bookings for ticket check-in (both Staff and Customer)
+exports.getAllBookings = async (req, res) => {
+  try {
+    const { bookingCode, ticketCode, phone, date, status, limit = 50 } = req.query;
+    const filter = {};
+
+    if (bookingCode) {
+      filter.bookingCode = bookingCode;
+    } else if (phone) {
+      filter["customerInfo.phone"] = phone;
+    }
+
+    if (date) {
+      const parts = date.split('-');
+      if (parts.length === 3) {
+        const startOfDay = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0));
+        const endOfDay = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) + 1, 0, 0, 0));
+        filter.createdAt = { $gte: startOfDay, $lt: endOfDay };
+      }
+    }
+
+    if (status) {
+      filter.status = status;
+    }
+
+    const bookings = await Booking.find(filter)
+      .populate({
+        path: "showtimeId",
+        populate: { path: "movieId", select: "title" }
+      })
+      .populate("cinemaId", "name address city")
+      .populate("roomId", "name")
+      .populate("tickets")
+      .populate("bookedByStaffId", "fullName")
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+
+    let results = bookings;
+
+    if (ticketCode) {
+      results = bookings.filter(b => 
+        b.tickets?.some(t => t.ticketCode === ticketCode)
+      );
+    }
+
+    res.json(results);
+  } catch (error) {
+    console.error("Loi khi lay bookings:", error);
+    res.status(500).json({ message: "Loi server" });
+  }
+};
+
+// Verify or check-in ticket by booking code or ticket code
+exports.verifyTicket = async (req, res) => {
+  try {
+    const { bookingCode, ticketCode, action = "verify" } = req.body;
+    const staffId = req.user?.id;
+
+    let booking;
+    let ticket;
+
+    if (bookingCode) {
+      booking = await Booking.findOne({ bookingCode })
+        .populate("showtimeId")
+        .populate("cinemaId")
+        .populate("roomId")
+        .populate("tickets");
+    } else if (ticketCode) {
+      ticket = await Ticket.findOne({ ticketCode })
+        .populate("showtimeId")
+        .populate("cinemaId")
+        .populate("roomId")
+        .populate("bookingId");
+      if (ticket) {
+        booking = await Booking.findById(ticket.bookingId)
+          .populate("showtimeId")
+          .populate("cinemaId")
+          .populate("roomId")
+          .populate("tickets");
+      }
+    }
+
+    if (!booking) {
+      return res.status(404).json({ message: "Không tìm thấy đơn đặt vé" });
+    }
+
+    const response = {
+      booking: {
+        bookingCode: booking.bookingCode,
+        status: booking.status,
+        paymentStatus: booking.paymentStatus,
+        customerInfo: booking.customerInfo,
+        showtime: booking.showtimeId,
+        cinema: booking.cinemaId,
+        room: booking.roomId,
+      },
+      tickets: [],
+      action,
+    };
+
+    if (action === "checkin" && ticket) {
+      if (ticket.status === "Used") {
+        return res.status(400).json({ message: "Vé đã được sử dụng", ticket });
+      }
+
+      if (ticket.status === "Cancelled") {
+        return res.status(400).json({ message: "Vé đã bị hủy", ticket });
+      }
+
+      ticket.status = "Used";
+      ticket.checkin = new Date().toISOString();
+      await ticket.save();
+
+      // Log the check-in action
+      await logStaffAction(staffId, "TICKET_CHECKIN", {
+        bookingCode: booking.bookingCode,
+        ticketCode: ticket.ticketCode,
+        showtimeId: booking.showtimeId?._id,
+      });
+
+      response.tickets = booking.tickets.map(t => ({
+        ticketCode: t.ticketCode,
+        status: t.status,
+        seatLabel: t.seatId?.label || t.seatId,
+      }));
+      response.message = "Check-in thành công";
+      response.checkedInTicket = ticket;
+    } else {
+      response.tickets = booking.tickets.map(t => ({
+        ticketCode: t.ticketCode,
+        status: t.status,
+        seatLabel: t.seatId?.label || t.seatId,
+      }));
+      response.message = "Xác thực thành công";
+    }
+
+    res.json(response);
+  } catch (error) {
+    console.error("Loi khi verify ticket:", error);
+    res.status(500).json({ message: "Loi server" });
+  }
+};
+
+// Override seat status (for supervisor/manager)
+exports.overrideSeatStatus = async (req, res) => {
+  try {
+    const { showtimeId, seatId, newStatus, reason } = req.body;
+    const staffId = req.user?.id;
+    const staffRole = req.user?.role;
+
+    if (!["Supervisor", "Manager", "Admin"].includes(staffRole)) {
+      return res.status(403).json({ message: "Không có quyền override ghế" });
+    }
+
+    const seat = await Seat.findById(seatId);
+    if (!seat) {
+      return res.status(404).json({ message: "Ghế không tồn tại" });
+    }
+
+    const previousStatus = seat.status;
+    seat.status = newStatus;
+    seat.updatedAt = new Date();
+    await seat.save();
+
+    // Log the override action
+    await logStaffAction(staffId, "SEAT_OVERRIDE", {
+      showtimeId,
+      seatId,
+      previousStatus,
+      newStatus,
+      reason,
+    });
+
+    res.json({
+      message: "Override ghế thành công",
+      seat: {
+        _id: seat._id,
+        row: seat.row,
+        number: seat.number,
+        type: seat.type,
+        status: seat.status,
+      },
+    });
+  } catch (error) {
+    console.error("Loi khi override seat:", error);
+    res.status(500).json({ message: "Loi server" });
+  }
+};
+
+// Unlock internal seats (for supervisor/manager)
+exports.unlockInternalSeats = async (req, res) => {
+  try {
+    const { showtimeId } = req.body;
+    const staffId = req.user?.id;
+    const staffRole = req.user?.role;
+
+    if (!["Supervisor", "Manager", "Admin"].includes(staffRole)) {
+      return res.status(403).json({ message: "Không có quyền mở khóa ghế nội bộ" });
+    }
+
+    const seatmap = await Seatmap.findOne({ showtimes: showtimeId });
+    if (!seatmap) {
+      return res.status(404).json({ message: "Không tìm thấy seatmap" });
+    }
+
+    const internalSeats = await Seat.find({
+      _id: { $in: seatmap.seats },
+      status: "Internal",
+    });
+
+    if (internalSeats.length === 0) {
+      return res.json({ message: "Không có ghế nội bộ nào để mở khóa" });
+    }
+
+    const seatIds = internalSeats.map(s => s._id);
+    await Seat.updateMany(
+      { _id: { $in: seatIds } },
+      { $set: { status: "Available", updatedAt: new Date() } }
+    );
+
+    // Log the unlock action
+    await logStaffAction(staffId, "UNLOCK_INTERNAL_SEATS", {
+      showtimeId,
+      seatCount: internalSeats.length,
+    });
+
+    res.json({
+      message: `Đã mở khóa ${internalSeats.length} ghế nội bộ`,
+      unlockedSeats: seatIds,
+    });
+  } catch (error) {
+    console.error("Loi khi unlock seats:", error);
+    res.status(500).json({ message: "Loi server" });
+  }
+};
+
+// Update booking payment status (for counter payment)
+exports.updateBookingPayment = async (req, res) => {
+  try {
+    const { bookingId, paymentStatus, paymentMethod } = req.body;
+    const staffId = req.user?.id;
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: "Đơn đặt vé không tồn tại" });
+    }
+
+    const previousStatus = booking.paymentStatus;
+    booking.paymentStatus = paymentStatus;
+    
+    if (paymentStatus === "Paid" && booking.status === "Pending") {
+      booking.status = "Confirmed";
+    }
+
+    booking.updatedAt = new Date();
+    await booking.save();
+
+    // Log the payment update
+    await logStaffAction(staffId, "PAYMENT_UPDATE", {
+      bookingId,
+      previousStatus,
+      newStatus: paymentStatus,
+      paymentMethod,
+    });
+
+    res.json({
+      message: "Cập nhật thanh toán thành công",
+      booking: {
+        _id: booking._id,
+        bookingCode: booking.bookingCode,
+        paymentStatus: booking.paymentStatus,
+        status: booking.status,
+      },
+    });
+  } catch (error) {
+    console.error("Loi khi cap nhat thanh toan:", error);
+    res.status(500).json({ message: "Loi server" });
+  }
+};
+
+// Get audit logs
+exports.getAuditLogs = async (req, res) => {
+  try {
+    const { staffId, action, startDate, endDate, limit = 100 } = req.query;
+    const filter = {};
+
+    if (staffId) {
+      filter.staffId = staffId;
+    }
+
+    if (action) {
+      filter.action = action;
+    }
+
+    if (startDate || endDate) {
+      filter.timestamp = {};
+      if (startDate) filter.timestamp.$gte = new Date(startDate);
+      if (endDate) filter.timestamp.$lte = new Date(endDate);
+    }
+
+    const logs = await AuditLog.find(filter)
+      .populate("staffId", "fullName email")
+      .sort({ timestamp: -1 })
+      .limit(parseInt(limit));
+
+    res.json(logs);
+  } catch (error) {
+    console.error("Loi khi lay audit logs:", error);
+    res.status(500).json({ message: "Loi server" });
+  }
+};
+
+// Helper: Log staff action
+const logStaffAction = async (staffId, action, details) => {
+  try {
+    const AuditLog = require("../models/auditLog");
+    await AuditLog.create({
+      staffId,
+      action,
+      details,
+      timestamp: new Date(),
+    });
+  } catch (error) {
+    console.error("Loi khi ghi audit log:", error);
   }
 };

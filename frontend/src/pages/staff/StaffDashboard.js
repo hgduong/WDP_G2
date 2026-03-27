@@ -1,6 +1,7 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { UserContext } from "../../context/UserContext";
+import { getStaffDashboardStats } from "../../services/api";
 import "../../assets/styles/StaffDashboard.css";
 
 const quickActions = [
@@ -9,6 +10,18 @@ const quickActions = [
     description: "Mở sơ đồ ghế, nhập thông tin khách và xác nhận booking nhanh.",
     path: "/staff/bookings",
     tone: "sunrise",
+  },
+  {
+    title: "Quản lý đơn hàng",
+    description: "Xem danh sách vé đã bán, kiểm tra trạng thái thanh toán.",
+    path: "/staff/orders",
+    tone: "ocean",
+  },
+  {
+    title: "Kiểm tra vé",
+    description: "Xác nhận mã vé, check-in cho khách hàng.",
+    path: "/staff/ticket-check",
+    tone: "ember",
   },
   {
     title: "Hồ sơ cá nhân",
@@ -22,17 +35,36 @@ const quickActions = [
     path: "/showtimes",
     tone: "ember",
   },
-  {
-    title: "Đăng nhập staff",
-    description: "Quay lại cổng staff để kiểm tra tài khoản và luồng truy cập.",
-    path: "/staff-login",
-    tone: "sunrise",
-  },
 ];
 
 function StaffDashboard() {
   const navigate = useNavigate();
   const { user } = useContext(UserContext);
+  const [stats, setStats] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await getStaffDashboardStats();
+        setStats(data);
+      } catch (err) {
+        console.error("Failed to load stats:", err);
+        setStats({
+          openShifts: 1,
+          totalShowtimes: 0,
+          activeBookings: 0,
+          pendingPayments: 0,
+          staffBookingsToday: 0,
+          readyStatus: "Sẵn sàng phục vụ",
+        });
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   return (
     <div className="staff-dashboard-page">
@@ -60,9 +92,9 @@ function StaffDashboard() {
           <p className="label">Vai trò</p>
           <strong>{user?.role || "Staff"}</strong>
           <p className="label">Email</p>
-          <strong>{user?.email || "staff@timecinemas.vn"}</strong>
+          <strong>{user?.email || "Chưa cập nhật"}</strong>
           <p className="label">Trạng thái ca trực</p>
-          <span className="status-pill">Sẵn sàng phục vụ</span>
+          <span className="status-pill">{stats?.readyStatus || "Sẵn sàng phục vụ"}</span>
         </div>
       </section>
 
@@ -80,16 +112,16 @@ function StaffDashboard() {
           <h2>Nhịp làm việc hôm nay</h2>
           <div className="staff-metrics">
             <div>
-              <span>01</span>
-              <p>Ca trực đang mở</p>
+              <span>{String(stats?.staffBookingsToday || 0).padStart(2, '0')}</span>
+              <p>Đơn đặt hôm nay</p>
             </div>
             <div>
-              <span>03</span>
-              <p>Điểm cần kiểm tra</p>
+              <span>{stats?.totalShowtimes || 0}</span>
+              <p>Suất chiếu hôm nay</p>
             </div>
             <div>
-              <span>100%</span>
-              <p>Sẵn sàng vào ca</p>
+              <span>{stats?.pendingPayments || 0}</span>
+              <p>Chờ thanh toán</p>
             </div>
           </div>
         </article>

@@ -1,12 +1,14 @@
 // controllers/showtime.controller.js
 const Showtime = require("../models/showtime");
 const Seatmap = require("../models/seatmap");
+const Seat = require("../models/seat");
 const Movie = require("../models/movie");
 const Cinema = require("../models/cinema");
 const Room = require("../models/room");
 // ensure related models are registered for populate
 require("../models/cinema");
 require("../models/room");
+require("../models/seat");
 
 const mongoose = require('mongoose');
 
@@ -62,10 +64,96 @@ exports.getShowtimesByMovie = async (req, res) => {
     const result = [];
     for (let s of showtimes) {
       try {
-        const seatmap = await Seatmap.findById(s.seatMap).populate("seats");
-        const availableSeats =
-          seatmap?.seats?.filter((seat) => seat.status === "Available").length ||
-          0;
+        // Use the same logic as ensureShowtimeSeatmap to auto-create seatmap if missing
+        let seatmap = null;
+        
+        // Method 1: Check showtime.seatMap
+        if (s.seatMap) {
+          seatmap = await Seatmap.findById(s.seatMap).populate("seats");
+        }
+        
+        // Method 2: Find by showtimes field
+        if (!seatmap) {
+          seatmap = await Seatmap.findOne({ showtimes: s._id }).populate("seats");
+        }
+        
+        // Method 3: Clone from room's seatmapId (if available)
+        if (!seatmap && s.roomId) {
+          const room = await Room.findById(s.roomId._id || s.roomId);
+          console.log("ShowtimesByMovie - Room capacity:", room?.capacity);
+          if (room?.seatmapId) {
+            const roomSeatmap = await Seatmap.findById(room.seatmapId).populate("seats");
+            if (roomSeatmap && roomSeatmap.seats?.length > 0) {
+              // Clone seats
+              const clonedSeats = await Seat.insertMany(
+                (roomSeatmap.seats || []).map((seat) => ({
+                  row: seat.row,
+                  number: seat.number,
+                  type: seat.type || "Standard",
+                  status: "Available",
+                }))
+              );
+              seatmap = await Seatmap.create({
+                roomId: roomSeatmap.roomId,
+                showtimes: s._id,
+                seats: clonedSeats.map((seat) => seat._id),
+              });
+              seatmap = await Seatmap.findById(seatmap._id).populate("seats");
+              
+              // Update showtime with seatMap reference
+              s.seatMap = seatmap._id;
+              await s.save();
+            }
+          }
+        }
+        
+        // Method 4: Create new seatmap from room capacity
+        if (!seatmap && s.roomId) {
+          const room = await Room.findById(s.roomId._id || s.roomId);
+          console.log("ShowtimesByMovie - Creating with capacity:", room?.capacity);
+          if (room) {
+            const seatmapController = require("./seatmap.controller");
+            const seatsData = seatmapController.buildSeatLayout(room.capacity || 50);
+            const createdSeats = await Seat.insertMany(seatsData);
+            seatmap = await Seatmap.create({
+              roomId: room._id,
+              showtimes: s._id,
+              seats: createdSeats.map((seat) => seat._id),
+            });
+            seatmap = await Seatmap.findById(seatmap._id).populate("seats");
+            
+            // Update showtime with seatMap reference
+            s.seatMap = seatmap._id;
+            await s.save();
+          }
+        }
+        
+        // Method 5: Check if existing seatmap has wrong number of seats vs room capacity
+        if (seatmap && s.roomId) {
+          const room = await Room.findById(s.roomId._id || s.roomId);
+          const expectedCapacity = room?.capacity || 60;
+          
+          if (seatmap.seats && seatmap.seats.length !== expectedCapacity) {
+            console.log(`ShowtimesByMovie: Regenerating - seatmap has ${seatmap.seats.length} seats but room capacity is ${expectedCapacity}`);
+            
+            // Delete old seats
+            await Seat.deleteMany({ _id: { $in: seatmap.seats } });
+            
+            // Create new seats
+            const seatmapController = require("./seatmap.controller");
+            const seatsData = seatmapController.buildSeatLayout(expectedCapacity);
+            const newSeats = await Seat.insertMany(seatsData);
+            
+            // Update seatmap
+            seatmap.seats = newSeats.map(seat => seat._id);
+            await seatmap.save();
+            
+            seatmap = await Seatmap.findById(seatmap._id).populate("seats");
+          }
+        }
+        
+        const seats = seatmap?.seats || [];
+        const availableSeats = seats.filter((seat) => seat.status === "Available").length;
 
         result.push({
           ...s.toObject(),

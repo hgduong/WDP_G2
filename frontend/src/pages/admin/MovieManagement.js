@@ -339,9 +339,9 @@ const MovieManagement = () => {
             <form onSubmit={handleSubmit} className="modal-form">
               <div className="form-row">
                 <div className="form-group">
-                  <label>Tên phim *</label>
-                  <input type="text" name="title" value={formData.title} onChange={handleInputChange} required />
-                </div>
+  <label>Tên phim *</label>
+  <input type="text" name="title" value={formData.title} onChange={handleInputChange} required style={{width: '100%', maxWidth: '500px'}} />
+</div>
                 <div className="form-group">
                   <label>Thể loại (chọn nhiều)</label>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "5px" }}>
@@ -361,13 +361,17 @@ const MovieManagement = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Thời lượng (phút)</label>
-                  <input type="number" name="duration" value={formData.duration} onChange={handleInputChange} />
-                </div>
+  <label>Thời lượng (phút)</label>
+  <input type="number" name="duration" value={formData.duration} onChange={handleInputChange} min="0" style={{ MozAppearance: 'textfield' }} />
+</div>
                 <div className="form-group">
-                  <label>Ngôn ngữ</label>
-                  <input type="text" name="language" value={formData.language} onChange={handleInputChange} />
-                </div>
+  <label>Ngôn ngữ</label>
+  <select name="language" value={formData.language} onChange={handleInputChange}>
+    <option value="Tiếng Việt">Tiếng Việt</option>
+    <option value="Tiếng Anh">Tiếng Anh</option>
+   
+  </select>
+</div>
               </div>
 
               <div className="form-row">

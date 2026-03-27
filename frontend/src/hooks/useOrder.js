@@ -30,38 +30,47 @@ export const useOrder = () => {
       const data = location.state?.orderData;
       
       if (data) {
-        try {
-          const bookingRequestData = {
-            userId: user?._id || user?.id || null,
-            showtimeId: data.showtimeId || data.showtime?._id,
-            cinemaId: data.cinemaId || data.cinema?._id,
-            roomId: data.roomId || data.room?._id,
-            seats: data.seats || [],
-            totalPrice: data.totalPrice,
-            customerInfo: data.customerInfo || {
-              fullName: user?.fullName || "",
-              email: user?.email || "",
-              phone: user?.phone || ""
-            },
-            paymentStatus: "Unpaid"
-          };
+        // If booking already exists (created from Checkout), use it directly
+        if (data._id || data.bookingCode) {
+          setOrderData(data);
+          setBookingId(data._id);
+          setPaymentStatus(data.paymentStatus || "Unpaid");
+          localStorage.setItem("lastOrder", JSON.stringify(data));
+        } else {
+          // Fallback: create booking if data doesn't have booking info
+          try {
+            const bookingRequestData = {
+              userId: user?._id || user?.id || null,
+              showtimeId: data.showtimeId || data.showtime?._id,
+              cinemaId: data.cinemaId || data.cinema?._id,
+              roomId: data.roomId || data.room?._id,
+              seats: data.seats || [],
+              totalPrice: data.totalPrice,
+              customerInfo: data.customerInfo || {
+                fullName: user?.fullName || "",
+                email: user?.email || "",
+                phone: user?.phone || ""
+              },
+              paymentStatus: "Unpaid"
+            };
 
-          const response = await createBooking(bookingRequestData);
-          
-          if (response.booking || response.message === "Đặt vé thành công") {
-            const savedBooking = response.booking;
-            setOrderData(savedBooking);
-            setBookingId(savedBooking._id);
-            setPaymentStatus(savedBooking.paymentStatus || "Unpaid");
-            localStorage.setItem("lastOrder", JSON.stringify(savedBooking));
-          } else {
+            const response = await createBooking(bookingRequestData);
+            
+            if (response.booking || response.message === "Đặt vé thành công") {
+              const savedBooking = response.booking;
+              setOrderData(savedBooking);
+              setBookingId(savedBooking._id);
+              setPaymentStatus(savedBooking.paymentStatus || "Unpaid");
+              localStorage.setItem("lastOrder", JSON.stringify(savedBooking));
+            } else {
+              setOrderData(data);
+              setPaymentStatus(data.paymentStatus || "Unpaid");
+            }
+          } catch (err) {
+            console.error("Error creating booking:", err);
             setOrderData(data);
             setPaymentStatus(data.paymentStatus || "Unpaid");
           }
-        } catch (err) {
-          console.error("Error creating booking:", err);
-          setOrderData(data);
-          setPaymentStatus(data.paymentStatus || "Unpaid");
         }
       } else {
         const storedOrder = localStorage.getItem("lastOrder");

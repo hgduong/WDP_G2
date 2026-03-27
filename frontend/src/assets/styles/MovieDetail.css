@@ -221,9 +221,9 @@
 
 .seat-grid-modal {
   display: grid;
-  grid-template-columns: repeat(10, 1fr);
-  gap: 6px 8px;
-  justify-items: center;
+  grid-template-columns: repeat(10, 35px);
+  gap: 4px;
+  justify-content: center;
   margin-bottom: 20px;
 }
 
@@ -251,6 +251,15 @@
   background: #ff69b4;
   border-color: #ff69b4;
   color: #fff;
+  width: 70px; /* 2x normal width */
+  grid-column: span 2;
+}
+
+.seat-grid-modal .seat.booked {
+  background: #999;
+  border-color: #777;
+  color: #fff;
+  cursor: not-allowed;
 }
 
 .seat-grid-modal .seat.holding {
@@ -300,10 +309,16 @@
 .legend-item .seat.couple {
   background: #ff69b4;
   color: #fff;
+  width: 40px;
 }
 
 .legend-item .seat.holding {
   background: #ff8c00;
+  color: #fff;
+}
+
+.legend-item .seat.booked {
+  background: #999;
   color: #fff;
 }
 

@@ -115,6 +115,10 @@ const userSchema = new mongoose.Schema({
     enum: ["Active", "Inactive", "Pending", "Banned"],
     default: "Pending",
   },
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
   authProvider: {
     type: String,
     enum: ["local", "google", "facebook"],

@@ -1,4 +1,9 @@
-/* Admin Management Styles */
+.modal-large {
+    width: 90%;
+    max-width: 1000px; /* Tăng từ mức mặc định lên 1000px hoặc 1200px */
+    max-height: 90vh;
+    overflow-y: auto;
+}/* Admin Management Styles */
 
 .admin-management {
   padding: 20px;
@@ -68,6 +73,15 @@
   background-color: #c82333;
 }
 
+.btn-seat {
+  background-color: #28a745;
+  color: white;
+}
+
+.btn-seat:hover {
+  background-color: #218838;
+}
+
 .btn-time {
   background-color: #17a2b8;
   color: white;
@@ -75,6 +89,248 @@
 
 .btn-time:hover {
   background-color: #138496;
+}
+
+/* Schedule Management Styles */
+.monday-picker {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  margin-right: 15px;
+  font-size: 14px;
+}
+
+.schedule-table-container {
+  margin-top: 20px;
+  overflow-x: auto;
+}
+
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.schedule-table th,
+.schedule-table td {
+  border: 1px solid #ddd;
+  padding: 12px;
+  text-align: center;
+}
+
+.schedule-table th {
+  background-color: #1a1a2e;
+  color: white;
+  font-weight: 500;
+}
+
+.schedule-table .shift-cell {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  text-align: left;
+  min-width: 150px;
+}
+
+.schedule-table .schedule-cell {
+  min-width: 120px;
+  vertical-align: top;
+}
+
+.schedule-item {
+  background-color: #e50914;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin: 4px 0;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.2s;
+}
+
+.schedule-item:hover {
+  background-color: #b2070f;
+}
+
+.staff-count {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-top: 8px;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 25px;
+  border-radius: 8px;
+  min-width: 400px;
+  max-width: 500px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-content h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-group select,
+.form-group input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+.date-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 10px;
+}
+
+.date-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.date-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.date-label {
+  font-size: 14px;
+  color: #333;
+}
+
+.error-text {
+  color: #dc3545;
+  font-size: 14px;
+  margin-top: 10px;
+  padding: 8px;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+}
+
+.success-text {
+  color: #155724;
+  font-size: 14px;
+  margin-top: 10px;
+  padding: 8px;
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  border-radius: 4px;
+}
+
+.warning-text {
+  color: #856404;
+  font-size: 13px;
+  margin-top: 5px;
+  padding: 6px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  border-radius: 4px;
+}
+
+.info-text {
+  color: #0c5460;
+  font-size: 13px;
+  margin-top: 5px;
+  padding: 6px;
+  background-color: #d1ecf1;
+  border: 1px solid #bee5eb;
+  border-radius: 4px;
+}
+
+.unavailable-staff-info {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.unavailable-staff-list {
+  margin: 5px 0 0 0;
+  padding-left: 20px;
+  font-size: 12px;
+}
+
+.unavailable-staff-list li {
+  margin-bottom: 5px;
+}
+
+.unavailable-staff-list ul {
+  margin: 2px 0 0 0;
+  padding-left: 15px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.detail-content p {
+  margin: 10px 0;
+  color: #333;
+}
+
+/* Alerts */
+.alert {
+  padding: 12px 15px;
+  border-radius: 5px;
+  margin-bottom: 15px;
+}
+
+.alert-error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.alert-success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
 }
 
 .btn-danger {
@@ -166,7 +422,7 @@
 }
 
 .movie-title {
-  max-width: 200px;
+  max-width: 500px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

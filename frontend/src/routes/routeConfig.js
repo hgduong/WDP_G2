@@ -8,6 +8,8 @@ import StaffDashboard from "../pages/staff/StaffDashboard";
 import StaffBooking from "../pages/staff/StaffBooking";
 import StaffLogin from "../pages/staff/StaffLogin";
 import StaffRegister from "../pages/staff/StaffRegister";
+import StaffOrder from "../pages/staff/StaffOrder";
+import TicketCheck from "../pages/staff/TicketCheck";
 import Signup from "../pages/Signup";
 import OtpVerify from "../pages/OtpVerify";
 import ForgotPassword from "../pages/ForgotPassword";
@@ -36,6 +38,7 @@ import ShowtimeManagement from "../pages/admin/ShowtimeManagement";
 import StaffRegistration from "../pages/admin/StaffRegistration";
 import StaffManagement from "../pages/admin/StaffManagement";
 import VoucherManagement from "../pages/admin/VoucherManagement";
+import ScheduleManagement from "../pages/admin/ScheduleManagement";
 
 export const routesConfig = [
   {
@@ -92,6 +95,16 @@ export const routesConfig = [
   {
     path: "/staff/bookings",
     element: <StaffBooking />,
+    allowedRoles: ["Staff", "Admin"],
+  },
+  {
+    path: "/staff/orders",
+    element: <StaffOrder />,
+    allowedRoles: ["Staff", "Admin"],
+  },
+  {
+    path: "/staff/ticket-check",
+    element: <TicketCheck />,
     allowedRoles: ["Staff", "Admin"],
   },
   { path: "/signup", element: <Signup />, allowedRoles: ["Guest"] },
@@ -176,6 +189,11 @@ export const routesConfig = [
   {
     path: "/admin/voucher",
     element: <VoucherManagement />,
+    allowedRoles: ["Admin"],
+  },
+  {
+    path: "/admin/schedules/create",
+    element: <ScheduleManagement />,
     allowedRoles: ["Admin"],
   },
   

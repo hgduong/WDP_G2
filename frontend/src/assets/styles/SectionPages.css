@@ -45,6 +45,15 @@
   color: #1a1a1a;
 }
 
+.section-card__poster {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  background: #f0f0f0;
+}
+
 .section-card__meta {
   color: #666;
   font-size: 14px;
@@ -59,6 +68,16 @@
   color: #fff;
   font-size: 12px;
   margin-top: auto;
+}
+
+.section-card__badge--warning {
+  background: #f59e0b;
+  color: #111;
+}
+
+.section-card__badge--success {
+  background: #16a34a;
+  color: #fff;
 }
 
 .section-page__toolbar {
@@ -108,6 +127,23 @@
 
 .section-table tr:last-child td {
   border-bottom: none;
+}
+
+.showtime-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.showtime-chip {
+  display: block;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  text-align: center;
 }
 
 @media (max-width: 768px) {

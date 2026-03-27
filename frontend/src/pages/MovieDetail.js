@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import "../assets/styles/MovieDetail.css";
 import { getImageUrl } from "../utils/imageUtils";
-import { holdSeats, releaseSeats, getHeldSeats, bookSeats } from "../services/api";
+import { holdSeats, releaseSeats, getHeldSeats, bookSeats, getStaffBookingSeatMap } from "../services/api";
 import { useContext } from "react";
 import { UserContext } from "../context/UserContext";
 import { io } from "socket.io-client";
@@ -20,6 +20,8 @@ export default function MovieDetail() {
   const [selectedShowtime, setSelectedShowtime] = useState(null);
   const [showSeatModal, setShowSeatModal] = useState(false);
   const [selectedSeats, setSelectedSeats] = useState([]);
+  const [availableSeats, setAvailableSeats] = useState([]);
+  const [seatModalLoading, setSeatModalLoading] = useState(false);
   const [holdingSeats, setHoldingSeats] = useState({}); // { seatId: expiryTime }
   const [countdown, setCountdown] = useState(0);
   const [remoteHeldSeats, setRemoteHeldSeats] = useState([]); // Seats held by other users
@@ -72,42 +74,8 @@ export default function MovieDetail() {
     });
   };
 
-  // Generate seats: 10 per row, last row is couple seats
-  const generateSeats = () => {
-    const seats = [];
-    const rows = ['A', 'B', 'C', 'D', 'E'];
-    
-    rows.forEach((row, rowIndex) => {
-      if (rowIndex === rows.length - 1) {
-        // Row E: Couple seats (5 pairs: 1-2, 3-4, 5-6, 7-8, 9-10)
-        for (let i = 0; i < 5; i++) {
-          const seatNum = i * 2 + 1;
-          seats.push({
-            id: `${row}${seatNum}`,
-            label: `${row}${seatNum}-${seatNum + 1}`,
-            isCouple: true,
-            row: row,
-            seatNumber: seatNum
-          });
-        }
-      } else {
-        // Rows A-D: 10 regular seats each (1-10)
-        for (let i = 0; i < 10; i++) {
-          const seatNum = i + 1;
-          seats.push({
-            id: `${row}${seatNum}`,
-            label: `${row}${seatNum}`,
-            isCouple: false,
-            row: row,
-            seatNumber: seatNum
-          });
-        }
-      }
-    });
-    return seats;
-  };
-
-  const allSeats = generateSeats();
+  // Get seats from server based on showtime (10 per row)
+  // Seats are fetched via handleTimeSlotClick and stored in availableSeats
 
   useEffect(() => {
     fetch(`http://localhost:9999/movies/${id}`)
@@ -194,12 +162,83 @@ export default function MovieDetail() {
   const handleTimeSlotClick = (showtime) => {
     setSelectedShowtime(showtime);
     setSelectedSeats([]);
-    setShowSeatModal(true);
+    setSeatModalLoading(true);
+    
+    console.log('=== SEATMAP DEBUG ===');
+    console.log('Showtime ID:', showtime._id);
+    console.log('Showtime seatMap:', showtime.seatMap);
+    console.log('Room ID:', showtime.roomId?._id || showtime.roomId);
+    console.log('Room seatmapId:', showtime.roomId?.seatmapId);
+    
+    // Fetch seatmap for this showtime
+    console.log('Fetching seatmap for showtime:', showtime._id);
+    getStaffBookingSeatMap(showtime._id)
+      .then((seatmapData) => {
+        console.log('Seatmap data received:', seatmapData);
+        console.log('Seats:', seatmapData?.seats?.length || 0);
+        
+        // Handle both direct seatmap (from /seatmap endpoint) and wrapped format (from staff endpoint)
+        // seatmapData can be: { seats: [...] } or [...] or null
+        let seats = null;
+        
+        if (seatmapData) {
+          if (Array.isArray(seatmapData)) {
+            // Direct array of seats
+            seats = seatmapData;
+          } else if (seatmapData.seats && Array.isArray(seatmapData.seats)) {
+            // Wrapped format { seats: [...] }
+            seats = seatmapData.seats;
+          } else if (seatmapData._id && seatmapData.seats) {
+            // Seatmap object with seats array
+            seats = Array.isArray(seatmapData.seats) ? seatmapData.seats : [];
+          }
+        }
+        
+        console.log('Processed seats:', seats?.length || 0);
+        
+        if (seats && Array.isArray(seats)) {
+          // Transform server seat data to frontend format
+          const transformedSeats = seats.map((seat) => {
+            // For couple seats, format label as "E1-2" instead of "E1"
+            const label = seat.type === 'Couple' 
+              ? `${seat.row}${seat.number}-${seat.number + 1}` 
+              : `${seat.row}${seat.number}`;
+            
+            return {
+              id: seat._id,
+              label: seat.label || label,
+              row: seat.row,
+              seatNumber: seat.number,
+              type: seat.type,
+              status: seat.status,
+              isCouple: seat.type === 'Couple'
+            };
+          });
+          console.log('Transformed seats:', transformedSeats.length);
+          setAvailableSeats(transformedSeats);
+        } else {
+          console.log('No seats found in seatmapData');
+        }
+      })
+      .catch((err) => {
+        console.error("Error loading seatmap:", err);
+        console.error("Error details:", err.response?.data || err.message);
+      })
+      .finally(() => {
+        setSeatModalLoading(false);
+        setShowSeatModal(true);
+      });
   };
 
   const HOLDING_TIME = 10; // 10 seconds
 
   const toggleSeat = (seat) => {
+    // Check if seat is already booked on server
+    if (seat.status === 'Booked') {
+      alert("Ghế này đã được đặt!");
+      return;
+    }
+    
     // Check if seat is being held by someone else (remote)
     const isRemoteHeld = remoteHeldSeats.some(s => 
       s._id === seat.id || (s.row === seat.row && s.number === seat.seatNumber)
@@ -316,6 +355,11 @@ export default function MovieDetail() {
       return "seat holding";
     }
     
+    // Check if seat is booked on server
+    if (seat.status === 'Booked') {
+      return "seat booked";
+    }
+    
     if (selectedSeats.some((s) => s.id === seat.id)) {
       // Check if seat has countdown (holding status)
       if (holdingSeats[seat.id]) {
@@ -335,6 +379,7 @@ export default function MovieDetail() {
     setShowSeatModal(false);
     setSelectedShowtime(null);
     setSelectedSeats([]);
+    setAvailableSeats([]);
     setHoldingSeats({});
     setCountdown(0);
   };
@@ -503,27 +548,40 @@ export default function MovieDetail() {
             <div className="seat-modal-info">
               <p>Suất chiếu: {new Date(selectedShowtime.startTime).toLocaleString("vi-VN")}</p>
               <p>Rạp: {selectedShowtime.cinemasId?.name} - {selectedShowtime.roomId?.name}</p>
-              <p>Giá: {selectedShowtime.price?.toLocaleString("vi-VN")}đ/ghế</p>
+              
             </div>
 
             <div className="screen">Màn hình</div>
 
             <div className="seat-grid-modal">
-              {allSeats.map((seat) => (
-                <button
-                  key={seat.id}
-                  className={getSeatClass(seat)}
-                  onClick={() => toggleSeat(seat)}
-                >
-                  {seat.label}
-                </button>
-              ))}
+              {seatModalLoading ? (
+                <p>Đang tải ghế...</p>
+              ) : availableSeats.length === 0 ? (
+                <div className="no-seats">
+                  <p>Không có ghế khả dụng</p>
+                  <p className="seatmap-debug">Room: {selectedShowtime?.roomId?.name || 'N/A'} - Seatmap ID: {selectedShowtime?.seatMap || 'N/A'}</p>
+                </div>
+              ) : (
+                availableSeats.map((seat) => (
+                  <button
+                    key={seat.id}
+                    className={getSeatClass(seat)}
+                    onClick={() => toggleSeat(seat)}
+                  >
+                    {seat.label}
+                  </button>
+                ))
+              )}
             </div>
 
             <div className="seat-legend">
               <div className="legend-item">
                 <span className="seat available"></span>
                 <span>Ghế trống</span>
+              </div>
+              <div className="legend-item">
+                <span className="seat booked"></span>
+                <span>Đã đặt</span>
               </div>
               <div className="legend-item">
                 <span className="seat holding"></span>

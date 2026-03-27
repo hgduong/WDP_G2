@@ -409,7 +409,8 @@ export const getStaffBookingShowtimes = async (params = {}) => {
 
 export const getStaffBookingSeatMap = async (showtimeId) => {
   try {
-    const response = await API.get(`/staff/bookings/showtimes/${showtimeId}/seats`);
+    // Use public staff-booking seatmap route (no auth required)
+    const response = await API.get(`/staff/bookings/seatmap/${showtimeId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -419,6 +420,78 @@ export const getStaffBookingSeatMap = async (showtimeId) => {
 export const createStaffBookingOrder = async (payload) => {
   try {
     const response = await API.post("/staff/bookings", payload);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getStaffDashboardStats = async () => {
+  try {
+    const response = await API.get("/staff/dashboard/stats");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getStaffBookings = async (params = {}) => {
+  try {
+    const response = await API.get("/staff/bookings", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getAllBookings = async (params = {}) => {
+  try {
+    const response = await API.get("/staff/bookings/all", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const verifyTicket = async (payload) => {
+  try {
+    const response = await API.post("/staff/tickets/verify", payload);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const overrideSeatStatus = async (payload) => {
+  try {
+    const response = await API.post("/staff/seats/override", payload);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const unlockInternalSeats = async (showtimeId) => {
+  try {
+    const response = await API.post("/staff/seats/unlock-internal", { showtimeId });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateBookingPayment = async (bookingId, payload) => {
+  try {
+    const response = await API.patch(`/staff/bookings/${bookingId}/payment`, payload);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getAuditLogs = async (params = {}) => {
+  try {
+    const response = await API.get("/staff/audit-logs", { params });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -542,9 +615,28 @@ export const applyVoucher = async (code, orderValue, userId) => {
 };
 
 // Seat holding (real-time)
+export const getSeatmap = async (showtimeId) => {
+  try {
+    const response = await API.get(`/seatmap/${showtimeId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+// Generate seat layout for a room
+export const generateSeatLayout = async (roomId, capacity) => {
+  try {
+    const response = await API.post("/seatmap/generate", { roomId, capacity });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export const holdSeats = async (showtimeId, seatIds, userId) => {
   try {
-    const response = await API.post("/seats/hold", { showtimeId, seatIds, userId });
+    const response = await API.post("/api/seats/hold", { showtimeId, seatIds, userId });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -553,7 +645,7 @@ export const holdSeats = async (showtimeId, seatIds, userId) => {
 
 export const releaseSeats = async (seatIds) => {
   try {
-    const response = await API.post("/seats/release", { seatIds });
+    const response = await API.post("/api/seats/release", { seatIds });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -562,7 +654,7 @@ export const releaseSeats = async (seatIds) => {
 
 export const getHeldSeats = async (showtimeId) => {
   try {
-    const response = await API.get(`/seats/held/${showtimeId}`);
+    const response = await API.get(`/api/seats/held/${showtimeId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -571,7 +663,7 @@ export const getHeldSeats = async (showtimeId) => {
 
 export const bookSeats = async (showtimeId, seatIds) => {
   try {
-    const response = await API.post("/seats/book", { showtimeId, seatIds });
+    const response = await API.post("/api/seats/book", { showtimeId, seatIds });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -758,6 +850,70 @@ export const getAllTransactionStats = async (params = {}) => {
 export const refund = async (data) => {
   try {
     const response = await API.post("/transactions/refund", data);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+// Schedules
+export const getAllSchedules = async (params = {}) => {
+  try {
+    const response = await API.get("/api/schedules", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getScheduleById = async (id) => {
+  try {
+    const response = await API.get(`/api/schedules/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const createSchedule = async (scheduleData) => {
+  try {
+    const response = await API.post("/api/schedules", scheduleData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateSchedule = async (id, scheduleData) => {
+  try {
+    const response = await API.put(`/api/schedules/${id}`, scheduleData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getStaffList = async () => {
+  try {
+    const response = await API.get("/api/schedules/staffs");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getShiftDetails = async (date) => {
+  try {
+    const response = await API.get(`/api/schedules/shifts/${date}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const deleteSchedule = async (id) => {
+  try {
+    const response = await API.delete(`/api/schedules/${id}`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;

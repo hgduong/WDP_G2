@@ -9,12 +9,12 @@ function VoucherManagement() {
   const [showModal, setShowModal] = useState(false);
   const [editingVoucher, setEditingVoucher] = useState(null);
   const [formData, setFormData] = useState({
+    code: "",
     discountPercent: 0,
     maxDiscount: 0,
     maxUsage: 1,
     maxUsagePerAccount: 1,
     minOrderValue: 0,
-    note: "",
     startDate: "",
     endDate: "",
   });
@@ -61,12 +61,12 @@ function VoucherManagement() {
       setShowModal(false);
       setEditingVoucher(null);
       setFormData({
+        code: "",
         discountPercent: 0,
         maxDiscount: 0,
         maxUsage: 1,
         maxUsagePerAccount: 1,
         minOrderValue: 0,
-        note: "",
         startDate: "",
         endDate: "",
       });
@@ -79,12 +79,12 @@ function VoucherManagement() {
   const handleEdit = (voucher) => {
     setEditingVoucher(voucher);
     setFormData({
+      code: voucher.code || "",
       discountPercent: voucher.discountPercent,
       maxDiscount: voucher.maxDiscount,
       maxUsage: voucher.maxUsage,
       maxUsagePerAccount: voucher.maxUsagePerAccount,
       minOrderValue: voucher.minOrderValue,
-      note: voucher.note || "",
       startDate: voucher.startDate ? voucher.startDate.split("T")[0] : "",
       endDate: voucher.endDate ? voucher.endDate.split("T")[0] : "",
     });
@@ -127,12 +127,12 @@ function VoucherManagement() {
           onClick={() => {
             setEditingVoucher(null);
             setFormData({
+              code: "",
               discountPercent: 0,
               maxDiscount: 0,
               maxUsage: 1,
               maxUsagePerAccount: 1,
               minOrderValue: 0,
-              note: "",
               startDate: "",
               endDate: "",
             });
@@ -158,7 +158,7 @@ function VoucherManagement() {
               <th>Mỗi user</th>
               <th>Ngày bắt đầu</th>
               <th>Ngày kết thúc</th>
-              <th>Ghi chú</th>
+              <th>Code</th>
               <th>Thao tác</th>
             </tr>
           </thead>
@@ -176,7 +176,7 @@ function VoucherManagement() {
                 <td>{voucher.maxUsagePerAccount}</td>
                 <td>{formatDate(voucher.startDate)}</td>
                 <td>{formatDate(voucher.endDate)}</td>
-                <td>{voucher.note}</td>
+                <td>{voucher.code}</td>
                 <td>
                   <button
                     className="btn-edit"
@@ -280,12 +280,14 @@ function VoucherManagement() {
                 />
               </div>
               <div className="form-group">
-                <label>Ghi chú:</label>
-                <textarea
-                  name="note"
-                  value={formData.note}
+                <label>Code:</label>
+                <input
+                  type="text"
+                  name="code"
+                  value={formData.code}
                   onChange={handleInputChange}
-                  rows="3"
+                  placeholder="VD: NEW20, SALE50"
+                  required
                 />
               </div>
               <div className="modal-actions">
