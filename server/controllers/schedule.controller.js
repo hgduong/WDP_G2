@@ -302,11 +302,41 @@ const getShiftDetails = async (req, res) => {
   }
 };
 
+// Delete schedule (soft delete, only within 5 hours from creation)
+const deleteSchedule = async (req, res) => {
+  try {
+    const schedule = await Schedule.findById(req.params.id);
+
+    if (!schedule) {
+      return res.status(404).json({ message: "Schedule not found" });
+    }
+
+    // Check if schedule is within 5 hours from creation
+    const hoursSinceCreation = (Date.now() - schedule.createAt.getTime()) / (1000 * 60 * 60);
+    
+    if (hoursSinceCreation > 5) {
+      return res.status(400).json({
+        message: "Chỉ được xóa trong vòng 5 giờ từ khi tạo"
+      });
+    }
+
+    // Soft delete
+    schedule.isDeleted = true;
+    await schedule.save();
+
+    res.json({ message: "Xóa lịch làm việc thành công" });
+  } catch (error) {
+    console.error("Delete schedule error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createSchedule,
   getAllSchedules,
   getScheduleById,
   updateSchedule,
+  deleteSchedule,
   getStaffList,
   getShiftDetails
 };

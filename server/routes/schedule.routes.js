@@ -25,4 +25,7 @@ router.get("/:id", scheduleController.getScheduleById);
 // Update schedule
 router.put("/:id", scheduleController.updateSchedule);
 
+// Delete schedule
+router.delete("/:id", scheduleController.deleteSchedule);
+
 module.exports = router;
