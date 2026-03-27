@@ -859,4 +859,13 @@ export const getShiftDetails = async (date) => {
   }
 };
 
+export const deleteSchedule = async (id) => {
+  try {
+    const response = await API.delete(`/api/schedules/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export default API;

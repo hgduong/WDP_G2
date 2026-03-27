@@ -3,6 +3,7 @@ import {
   getAllSchedules,
   createSchedule,
   updateSchedule,
+  deleteSchedule,
   getStaffList,
   getShiftDetails,
 } from "../../services/api";
@@ -36,6 +37,17 @@ const getWeekDates = (monday) => {
   return dates;
 };
 
+const getNext7Days = () => {
+  const dates = [];
+  const today = new Date();
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    dates.push(date);
+  }
+  return dates;
+};
+
 const getDayName = (date) => {
   const days = ["Chủ Nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
   return days[date.getDay()];
@@ -55,13 +67,14 @@ const ScheduleManagement = () => {
   
   // Form state
   const [selectedStaff, setSelectedStaff] = useState("");
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDates, setSelectedDates] = useState([]);
   const [selectedShift, setSelectedShift] = useState("");
   const [shiftDetails, setShiftDetails] = useState({ Sáng: [], Chiều: [], Tối: [] });
   const [showModal, setShowModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailSchedule, setDetailSchedule] = useState(null);
+  const [next7Days, setNext7Days] = useState(getNext7Days());
 
   const fetchStaff = async () => {
     try {
@@ -109,12 +122,6 @@ const ScheduleManagement = () => {
     fetchSchedules();
   }, [selectedMonday]);
 
-  useEffect(() => {
-    if (selectedDate) {
-      fetchShiftDetails(selectedDate);
-    }
-  }, [selectedDate]);
-
   const handleMondayChange = (e) => {
     const date = new Date(e.target.value);
     setSelectedMonday(date);
@@ -126,9 +133,13 @@ const ScheduleManagement = () => {
     setSelectedShift("");
   };
 
-  const handleDateChange = (e) => {
-    setSelectedDate(e.target.value);
-    setSelectedShift("");
+  const handleDateToggle = (dateStr) => {
+    setSelectedDates((prev) => {
+      if (prev.includes(dateStr)) {
+        return prev.filter((d) => d !== dateStr);
+      }
+      return [...prev, dateStr];
+    });
   };
 
   const handleShiftChange = (e) => {
@@ -145,7 +156,7 @@ const ScheduleManagement = () => {
     setError("");
     setSuccess("");
 
-    if (!selectedStaff || !selectedDate || !selectedShift) {
+    if (!selectedStaff || selectedDates.length === 0 || !selectedShift) {
       setError("Vui lòng chọn đầy đủ thông tin");
       return;
     }
@@ -153,21 +164,27 @@ const ScheduleManagement = () => {
     const staff = staffList.find((s) => s._id === selectedStaff);
     
     try {
-      await createSchedule({
-        staffId: selectedStaff,
-        fullName: staff.fullName,
-        date: selectedDate,
-        shift: selectedShift,
-        createBy: user?.fullName || "Admin",
-        role: "Staff",
-      });
-      setSuccess("Tạo lịch làm việc thành công!");
+      // Create schedules for all selected dates
+      const promises = selectedDates.map((date) =>
+        createSchedule({
+          staffId: selectedStaff,
+          fullName: staff.fullName,
+          date: date,
+          shift: selectedShift,
+          createBy: user?.fullName || "Admin",
+          role: "Staff",
+        })
+      );
+      
+      await Promise.all(promises);
+      setSuccess(`Tạo lịch làm việc thành công cho ${selectedDates.length} ngày!`);
       setShowModal(false);
       resetForm();
       fetchSchedules();
-      if (selectedDate) fetchShiftDetails(selectedDate);
     } catch (err) {
-      setError(err.message || "Failed to create schedule");
+      // Handle error from backend - extract message from error object
+      const errorMessage = err?.response?.data?.message || err?.message || err?.error || (typeof err === 'string' ? err : null) || "Failed to create schedule";
+      setError(errorMessage);
     }
   };
 
@@ -190,9 +207,31 @@ const ScheduleManagement = () => {
       setEditingSchedule(null);
       resetForm();
       fetchSchedules();
-      if (selectedDate) fetchShiftDetails(selectedDate);
     } catch (err) {
-      setError(err.message || "Failed to update schedule");
+      // Handle error from backend - extract message from error object
+      const errorMessage = err?.response?.data?.message || err?.message || err?.error || (typeof err === 'string' ? err : null) || "Failed to update schedule";
+      setError(errorMessage);
+    }
+  };
+
+  const handleDeleteSchedule = async (scheduleId) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa lịch làm việc này?")) {
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+
+    try {
+      await deleteSchedule(scheduleId);
+      setSuccess("Xóa lịch làm việc thành công!");
+      setShowDetailModal(false);
+      setDetailSchedule(null);
+      fetchSchedules();
+    } catch (err) {
+      // Handle error from backend - extract message from error object
+      const errorMessage = err?.response?.data?.message || err?.message || err?.error || (typeof err === 'string' ? err : null) || "Failed to delete schedule";
+      setError(errorMessage);
     }
   };
 
@@ -203,7 +242,7 @@ const ScheduleManagement = () => {
     }
     setEditingSchedule(schedule);
     setSelectedStaff(schedule.staffId);
-    setSelectedDate(formatDate(new Date(schedule.date)));
+    setSelectedDates([formatDate(new Date(schedule.date))]);
     setSelectedShift(schedule.shift);
     setShowModal(true);
     setError("");
@@ -217,7 +256,7 @@ const ScheduleManagement = () => {
 
   const resetForm = () => {
     setSelectedStaff("");
-    setSelectedDate("");
+    setSelectedDates([]);
     setSelectedShift("");
     setEditingSchedule(null);
   };
@@ -244,6 +283,91 @@ const ScheduleManagement = () => {
     ).length;
   };
 
+  // Check if staff has 2 or more shifts on a specific date
+  const hasMaxShiftsOnDate = (staffId, dateStr) => {
+    const shiftsOnDate = schedules.filter(
+      (s) => s.staffId === staffId && formatDate(new Date(s.date)) === dateStr
+    );
+    return shiftsOnDate.length >= 2;
+  };
+
+  // Check if staff already has the same shift on a specific date
+  const hasSameShiftOnDate = (staffId, dateStr, shift) => {
+    return schedules.some(
+      (s) => s.staffId === staffId && formatDate(new Date(s.date)) === dateStr && s.shift === shift
+    );
+  };
+
+  // Check if a shift on a specific date already has 5 staff
+  const isShiftFull = (dateStr, shift) => {
+    const staffOnShift = schedules.filter(
+      (s) => formatDate(new Date(s.date)) === dateStr && s.shift === shift
+    );
+    return staffOnShift.length >= 5;
+  };
+
+  // Check if staff is already assigned to any shift on a specific date
+  const isStaffAssignedOnDate = (staffId, dateStr) => {
+    return schedules.some(
+      (s) => s.staffId === staffId && formatDate(new Date(s.date)) === dateStr
+    );
+  };
+
+  // Get available staff for selected dates (not already assigned)
+  const getAvailableStaff = () => {
+    if (selectedDates.length === 0) return staffList;
+    
+    return staffList.filter((staff) => {
+      // Check if staff is available for ALL selected dates
+      return selectedDates.every((dateStr) => {
+        // Staff already has 2 shifts on this date (any shift)
+        if (hasMaxShiftsOnDate(staff._id, dateStr)) return false;
+        // Staff already has the same shift on this date (if shift is selected)
+        if (selectedShift && hasSameShiftOnDate(staff._id, dateStr, selectedShift)) return false;
+        // Shift is already full (5 staff) on this date (if shift is selected)
+        if (selectedShift && isShiftFull(dateStr, selectedShift)) return false;
+        return true;
+      });
+    });
+  };
+
+  // Get reason why staff is not available
+  const getStaffUnavailableReason = (staffId, dateStr) => {
+    if (hasMaxShiftsOnDate(staffId, dateStr)) {
+      return "Đã có 2 ca trong ngày";
+    }
+    if (selectedShift && hasSameShiftOnDate(staffId, dateStr, selectedShift)) {
+      // Get the shift name that staff is already assigned to
+      const assignedShifts = schedules.filter(
+        (s) => s.staffId === staffId && formatDate(new Date(s.date)) === dateStr
+      ).map(s => s.shift);
+      return `Đã được phân công ca ${assignedShifts.join(', ')}`;
+    }
+    if (selectedShift && isShiftFull(dateStr, selectedShift)) {
+      return "Ca đã đủ 5 staff";
+    }
+    return null;
+  };
+
+  // Get all unavailable staff with reasons
+  const getUnavailableStaffWithReasons = () => {
+    if (selectedDates.length === 0) return [];
+    
+    return staffList.filter((staff) => {
+      return selectedDates.some((dateStr) => {
+        return getStaffUnavailableReason(staff._id, dateStr) !== null;
+      });
+    }).map((staff) => {
+      const reasons = selectedDates
+        .map((dateStr) => {
+          const reason = getStaffUnavailableReason(staff._id, dateStr);
+          return reason ? `${dateStr}: ${reason}` : null;
+        })
+        .filter(Boolean);
+      return { ...staff, reasons };
+    });
+  };
+
   return (
     <div className="admin-management">
       <div className="management-header">
@@ -266,9 +390,6 @@ const ScheduleManagement = () => {
           </button>
         </div>
       </div>
-
-      {error && <div className="alert alert-error">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
 
       {/* Week View Table */}
       <div className="schedule-table-container">
@@ -323,6 +444,8 @@ const ScheduleManagement = () => {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3>{editingSchedule ? "Chỉnh sửa lịch" : "Tạo lịch làm việc"}</h3>
+            {error && <div className="alert alert-error">{error}</div>}
+            {success && <div className="alert alert-success">{success}</div>}
             <form onSubmit={editingSchedule ? handleUpdateSchedule : handleCreateSchedule}>
               {!editingSchedule && (
                 <>
@@ -334,56 +457,92 @@ const ScheduleManagement = () => {
                       required
                     >
                       <option value="">-- Chọn Staff --</option>
-                      {staffList.map((staff) => {
-                        const shiftCount = getStaffShiftCount(staff._id, selectedDate);
-                        return (
-                          <option
-                            key={staff._id}
-                            value={staff._id}
-                            disabled={shiftCount >= 2}
-                          >
-                            {staff.fullName} {shiftCount >= 2 ? "(Đủ 2 ca)" : ""}
-                          </option>
-                        );
-                      })}
+                      {getAvailableStaff().map((staff) => (
+                        <option key={staff._id} value={staff._id}>
+                          {staff.fullName}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedDates.length > 0 && getAvailableStaff().length === 0 && (
+                      <p className="warning-text">Tất cả staff đã được phân công vào ngày đã chọn</p>
+                    )}
+                    {selectedDates.length > 0 && getUnavailableStaffWithReasons().length > 0 && (
+                      <div className="unavailable-staff-info">
+                        <p className="info-text">Staff không khả dụng:</p>
+                        <ul className="unavailable-staff-list">
+                          {getUnavailableStaffWithReasons().map((staff) => (
+                            <li key={staff._id}>
+                              <strong>{staff.fullName}:</strong>
+                              <ul>
+                                {staff.reasons.map((reason, idx) => (
+                                  <li key={idx}>{reason}</li>
+                                ))}
+                              </ul>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                  <div className="form-group">
+                    <label>Chọn ca làm việc:</label>
+                    <select
+                      value={selectedShift}
+                      onChange={handleShiftChange}
+                      required
+                    >
+                      <option value="">-- Chọn ca --</option>
+                      {SHIFTS.map((shift) => (
+                        <option key={shift.id} value={shift.id}>
+                          {shift.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="form-group">
-                    <label>Chọn ngày:</label>
-                    <input
-                      type="date"
-                      value={selectedDate}
-                      onChange={handleDateChange}
-                      min={formatDate(new Date())}
-                      required
-                    />
+                    <label>Chọn ngày (7 ngày tiếp theo):</label>
+                    <div className="date-checkboxes">
+                      {next7Days.map((date) => {
+                        const dateStr = formatDate(date);
+                        const isSelected = selectedDates.includes(dateStr);
+                        return (
+                          <label key={dateStr} className="date-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleDateToggle(dateStr)}
+                            />
+                            <span className="date-label">
+                              {getDayName(date)} - {dateStr}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 </>
               )}
-              
-              <div className="form-group">
-                <label>Chọn ca làm việc:</label>
-                <select
-                  value={selectedShift}
-                  onChange={handleShiftChange}
-                  required
-                >
-                  <option value="">-- Chọn ca --</option>
-                  {SHIFTS.map((shift) => {
-                    const shiftCount = shiftDetails[shift.id]?.length || 0;
-                    return (
-                      <option
-                        key={shift.id}
-                        value={shift.id}
-                        disabled={shiftCount >= 5}
-                      >
-                        {shift.label} {shiftCount >= 5 ? "(Đã đủ)" : `(${shiftCount}/5 staff)`}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
 
+              {editingSchedule && (
+                <div className="form-group">
+                  <label>Chọn ca làm việc:</label>
+                  <select
+                    value={selectedShift}
+                    onChange={handleShiftChange}
+                    required
+                  >
+                    <option value="">-- Chọn ca --</option>
+                    {SHIFTS.map((shift) => (
+                      <option key={shift.id} value={shift.id}>
+                        {shift.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {error && <p className="error-text">{error}</p>}
+              {success && <p className="success-text">{success}</p>}
               <div className="modal-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
                   Hủy
@@ -402,6 +561,8 @@ const ScheduleManagement = () => {
         <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3>Chi tiết lịch làm việc</h3>
+            {error && <div className="alert alert-error">{error}</div>}
+            {success && <div className="alert alert-success">{success}</div>}
             <div className="detail-content">
               <p><strong>Nhân viên:</strong> {detailSchedule.fullName}</p>
               <p><strong>Ngày:</strong> {formatDate(new Date(detailSchedule.date))}</p>
@@ -418,16 +579,25 @@ const ScheduleManagement = () => {
                 Đóng
               </button>
               {canEditSchedule(detailSchedule) && (
-                <button
-                  type="button"
-                  className="btn btn-edit"
-                  onClick={() => {
-                    setShowDetailModal(false);
-                    openEditModal(detailSchedule);
-                  }}
-                >
-                  Chỉnh sửa
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-edit"
+                    onClick={() => {
+                      setShowDetailModal(false);
+                      openEditModal(detailSchedule);
+                    }}
+                  >
+                    Chỉnh sửa
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-delete"
+                    onClick={() => handleDeleteSchedule(detailSchedule._id)}
+                  >
+                    Xóa
+                  </button>
+                </>
               )}
             </div>
           </div>
