@@ -2,7 +2,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import "../assets/styles/MovieDetail.css";
 import { getImageUrl } from "../utils/imageUtils";
-import { holdSeats, releaseSeats, getHeldSeats, bookSeats, getStaffBookingSeatMap } from "../services/api";
+import { holdSeats, releaseSeats, getHeldSeats, bookSeats, getStaffBookingSeatMap, createStaffBookingOrder } from "../services/api";
+import { createBooking } from "../services/bookingService";
 import { useContext } from "react";
 import { UserContext } from "../context/UserContext";
 import { io } from "socket.io-client";
@@ -352,24 +353,33 @@ export default function MovieDetail() {
       s._id === seat.id || (s.row === seat.row && s.number === seat.seatNumber)
     );
     if (isRemoteHeld) {
-      return "seat holding";
+      return seat.isCouple ? "seat couple holding" : "seat holding";
     }
     
     // Check if seat is booked on server
     if (seat.status === 'Booked') {
-      return "seat booked";
+      return seat.isCouple ? "seat couple booked" : "seat booked";
     }
     
     if (selectedSeats.some((s) => s.id === seat.id)) {
       // Check if seat has countdown (holding status)
       if (holdingSeats[seat.id]) {
-        return "seat holding";
+        return seat.isCouple ? "seat couple holding" : "seat holding";
       }
-      return "seat selected";
+      return seat.isCouple ? "seat couple selected" : "seat selected";
     }
     if (seat.isCouple) {
       return "seat couple";
     }
+    
+    // Add VIP class for rows beyond first 3 rows (D, E, F, etc.)
+    const rowLetter = seat.row ? seat.row.toUpperCase() : '';
+    const isVipRow = rowLetter && !['A', 'B', 'C'].includes(rowLetter);
+    
+    if (isVipRow) {
+      return "seat vip";
+    }
+    
     return "seat";
   };
 
@@ -385,57 +395,76 @@ export default function MovieDetail() {
   };
 
   // Handle booking confirmation and navigate to Order page
-  const handleBookingConfirmation = () => {
+  const handleBookingConfirmation = async () => {
     if (selectedSeats.length === 0) {
       alert("Vui lòng chọn ít nhất một ghế!");
       return;
     }
 
-    // Generate booking code
-    const bookingCode = "BK" + Date.now().toString().slice(-8);
-    
-    // Generate ticket data with QR codes
-    const tickets = selectedSeats.map((seat, index) => ({
-      ticketCode: `TK${Date.now().toString().slice(-8)}${index}`,
-      seat: seat.label,
-      seatLabel: seat.label,
-      qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(seat.label + "-" + bookingCode)}`
-    }));
+    try {
+      // Save booking to database with Pending status
+      const bookingResult = await createBooking({
+        showtimeId: selectedShowtime._id,
+        seatIds: selectedSeats.map(s => s.id),
+        customerName: user?.fullName || "",
+        customerPhone: user?.phone || "",
+        customerEmail: user?.email || "",
+        paymentStatus: "Pending",
+        notes: "Đặt vé qua trang chi tiết phim"
+      });
 
-    // Prepare order data to send to Order page
-    const orderData = {
-      bookingCode,
-      movie: {
-        title: movie.title,
-        posterUrl: movie.posterUrl,
-        duration: movie.duration,
-        director: movie.director
-      },
-      showtime: {
-        startTime: selectedShowtime.startTime,
-        price: selectedShowtime.price
-      },
-      cinema: {
-        name: selectedShowtime.cinemasId?.name
-      },
-      room: {
-        name: selectedShowtime.roomId?.name
-      },
-      seats: selectedSeats.map(s => ({ label: s.label })),
-      totalPrice,
-      tickets,
-      purchaseDate: new Date().toISOString()
-    };
+      // Generate booking code from database result or fallback
+      const bookingCode = bookingResult?.booking?.bookingCode || "BK" + Date.now().toString().slice(-8);
+      const bookingId = bookingResult?.booking?._id;
+      
+      // Generate ticket data with QR codes
+      const tickets = selectedSeats.map((seat, index) => ({
+        ticketCode: `TK${Date.now().toString().slice(-8)}${index}`,
+        seat: seat.label,
+        seatLabel: seat.label,
+        qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(seat.label + "-" + bookingCode)}`
+      }));
 
-    // Also store in localStorage as backup
-    localStorage.setItem("lastOrder", JSON.stringify(orderData));
+      // Prepare order data to send to Order page
+      const orderData = {
+        _id: bookingId,
+        bookingCode,
+        movie: {
+          title: movie.title,
+          posterUrl: movie.posterUrl,
+          duration: movie.duration,
+          director: movie.director
+        },
+        showtime: {
+          startTime: selectedShowtime.startTime,
+          price: selectedShowtime.price
+        },
+        cinema: {
+          name: selectedShowtime.cinemasId?.name
+        },
+        room: {
+          name: selectedShowtime.roomId?.name
+        },
+        seats: selectedSeats.map(s => ({ label: s.label })),
+        totalPrice,
+        tickets,
+        purchaseDate: new Date().toISOString(),
+        paymentStatus: "Pending"
+      };
 
-    // Close seat modal first
-    closeSeatModal();
-    setShowBooking(false);
+      // Also store in localStorage as backup
+      localStorage.setItem("lastOrder", JSON.stringify(orderData));
 
-    // Navigate to Order page with order data
-    navigate("/order", { state: { orderData } });
+      // Close seat modal first
+      closeSeatModal();
+      setShowBooking(false);
+
+      // Navigate to Order page with order data
+      navigate("/order", { state: { orderData } });
+    } catch (error) {
+      console.error("Error saving booking:", error);
+      alert("Có lỗi xảy ra khi lưu đặt vé. Vui lòng thử lại!");
+    }
   };
 
   if (loading) return <p>Đang tải...</p>;
@@ -578,6 +607,10 @@ export default function MovieDetail() {
               <div className="legend-item">
                 <span className="seat available"></span>
                 <span>Ghế trống</span>
+              </div>
+              <div className="legend-item">
+                <span className="seat vip"></span>
+                <span>Ghế VIP</span>
               </div>
               <div className="legend-item">
                 <span className="seat booked"></span>

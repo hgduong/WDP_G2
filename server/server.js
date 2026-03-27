@@ -96,7 +96,9 @@ app.use(moviesRoutes);
 app.use(cinemaRoutes);
 app.use(staffRoutes);
 app.use("/api", seatsRoutes);
+app.use("/api", bookingRoutes);
 app.use("/api/schedules", scheduleRoutes);
+app.use("/api", transactionRoutes);
 // Đăng ký voucher routes tại /vouchers (cùng cấp với các routes khác)
 app.use("/vouchers", voucherRoutes);
 const PORT = process.env.PORT || 9999;
