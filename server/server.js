@@ -84,9 +84,6 @@ app.use("/upload", express.static("public/upload"));
 const qrcodeRoutes = require("./routes/qrcode.routes");
 app.use("/qrcode", qrcodeRoutes);
 
-const { handlePayOSWebhook } = require("./controllers/transaction.controller");
-app.post("/api/payos-webhook", handlePayOSWebhook);
-
 const authRoutes = require("./routes/auth.routes");
 const userRoutes = require("./routes/user.routes");
 const moviesRoutes = require("./routes/movies.route");
@@ -109,7 +106,7 @@ app.use(cinemaRoutes);
 app.use("/transactions", transactionRoutes);
 
 app.use(staffRoutes);
-app.use("/api", seatsRoutes);
+// app.use("/api", seatsRoutes);
 app.use("/api/schedules", scheduleRoutes);
 // Đăng ký voucher routes tại /vouchers (cùng cấp với các routes khác)
 app.use("/vouchers", voucherRoutes);
