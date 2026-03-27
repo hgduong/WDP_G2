@@ -614,6 +614,15 @@ export const applyVoucher = async (code, orderValue, userId) => {
   }
 };
 
+export const staffApplyVoucher = async (code, orderValue) => {
+  try {
+    const response = await API.post("/staff/vouchers/apply", { code, orderValue });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 // Seat holding (real-time)
 export const getSeatmap = async (showtimeId) => {
   try {

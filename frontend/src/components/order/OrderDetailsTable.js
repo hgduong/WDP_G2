@@ -43,7 +43,7 @@ const OrderDetailsTable = ({ orderData, movie, cinema, room, showtime }) => {
           </tr>
           <tr>
             <td className="table-label">Địa chỉ rạp</td>
-            <td className="table-value">{cinema?.address || "N/A"}, {cinema?.city || ""}</td>
+            <td className="table-value">{cinema?.address || "Hoà Lạc, Hà Nội, Việt Nam"}, {cinema?.city || ""}</td>
           </tr>
           <tr>
             <td className="table-label">Phòng</td>

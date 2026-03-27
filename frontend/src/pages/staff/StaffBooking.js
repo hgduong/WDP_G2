@@ -5,7 +5,7 @@ import {
   getAllCinemas,
   getStaffBookingSeatMap,
   getStaffBookingShowtimes,
-  applyVoucher,
+  staffApplyVoucher,
 } from "../../services/api";
 import "../../assets/styles/StaffBooking.css";
 
@@ -31,13 +31,25 @@ const toDateInputValue = () => {
   return new Date(today.getTime() - offset * 60000).toISOString().split("T")[0];
 };
 
+const getSevenDays = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    days.push(d.toISOString().split("T")[0]);
+  }
+  return days;
+};
+
 function StaffBooking() {
   const [movies, setMovies] = useState([]);
   const [cinemas, setCinemas] = useState([]);
-  const [showtimes, setShowtimes] = useState([]);
+  const [allShowtimes, setAllShowtimes] = useState([]);
   const [selectedCinemaId, setSelectedCinemaId] = useState("");
   const [selectedMovieId, setSelectedMovieId] = useState("");
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState(toDateInputValue());
   const [selectedShowtimeId, setSelectedShowtimeId] = useState("");
   const [seatMapData, setSeatMapData] = useState(null);
   const [selectedSeatIds, setSelectedSeatIds] = useState([]);
@@ -92,13 +104,13 @@ function StaffBooking() {
         setVoucherError("");
         setVoucherSuccess("");
 
+        // Load ALL showtimes for the week (no date filter)
         const data = await getStaffBookingShowtimes({
-          date: selectedDate,
           movieId: selectedMovieId || undefined,
           cinemaId: selectedCinemaId || undefined,
         });
 
-        setShowtimes(Array.isArray(data) ? data : []);
+        setAllShowtimes(Array.isArray(data) ? data : []);
       } catch (err) {
         setError(err?.message || "Không tải được suất chiếu.");
       } finally {
@@ -107,7 +119,16 @@ function StaffBooking() {
     };
 
     loadShowtimes();
-  }, [selectedDate, selectedMovieId, selectedCinemaId]);
+  }, [selectedMovieId, selectedCinemaId]);
+
+  // Filter showtimes by selected date on client side
+  const showtimes = useMemo(() => {
+    if (!selectedDate) return allShowtimes;
+    return allShowtimes.filter((st) => {
+      const stDate = new Date(st.startTime).toISOString().split("T")[0];
+      return stDate === selectedDate;
+    });
+  }, [allShowtimes, selectedDate]);
 
   useEffect(() => {
     const loadSeatMap = async () => {
@@ -211,7 +232,7 @@ function StaffBooking() {
       setVoucherError("");
       setVoucherSuccess("");
       
-      const res = await applyVoucher(voucherCode, totalPrice, null); // userId is null for staff guest booking
+      const res = await staffApplyVoucher(voucherCode, totalPrice);
       if (res && res.discountAmount) {
         setDiscountAmount(res.discountAmount);
         setVoucherSuccess(`Đã áp dụng giảm ${formatMoney(res.discountAmount)}`);
@@ -279,10 +300,9 @@ function StaffBooking() {
       setSeatMapData(refreshedSeatMap);
 
       const refreshedShowtimes = await getStaffBookingShowtimes({
-        date: selectedDate,
         movieId: selectedMovieId || undefined,
       });
-      setShowtimes(Array.isArray(refreshedShowtimes) ? refreshedShowtimes : []);
+      setAllShowtimes(Array.isArray(refreshedShowtimes) ? refreshedShowtimes : []);
     } catch (err) {
       setError(
         err?.message === "Network Error" 
@@ -307,14 +327,31 @@ function StaffBooking() {
         </div>
 
         <div className="staff-booking-filters">
-          <label>
-            Ngày chiếu
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(event) => setSelectedDate(event.target.value)}
-            />
-          </label>
+          <div className="staff-date-tabs">
+            {getSevenDays().map((date) => {
+              const d = new Date(date);
+              const weekDays = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+              const label = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")} - ${weekDays[d.getDay()]}`;
+              const count = allShowtimes.filter((st) => {
+                const stDate = new Date(st.startTime).toISOString().split("T")[0];
+                if (stDate !== date) return false;
+                if (selectedMovieId && st.movieId?._id !== selectedMovieId) return false;
+                if (selectedCinemaId && st.cinemasId?._id !== selectedCinemaId) return false;
+                return true;
+              }).length;
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  className={`staff-date-tab ${selectedDate === date ? "active" : ""}`}
+                  onClick={() => setSelectedDate(date)}
+                >
+                  <span className="tab-date">{label}</span>
+                  <span className="tab-count">{count} suất</span>
+                </button>
+              );
+            })}
+          </div>
 
           <label>
             Rạp

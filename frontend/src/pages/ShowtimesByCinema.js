@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
-import "../assets/styles/SectionPages.css";
+import "../assets/styles/ShowtimesByCinema.css";
 import { getAllShowtimes, getAllMovies, getAllCinemas } from "../services/api";
 
 const formatDateTime = (value) => {
@@ -63,7 +63,7 @@ export default function ShowtimesByCinema() {
         setCinemas(Array.isArray(cinemasData) ? cinemasData : []);
       } catch (err) {
         if (!isMounted) return;
-        setError(err?.message || "Khong the tai danh sach suat chieu.");
+        setError(err?.message || "Không thể tải danh sách suất chiếu.");
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -154,102 +154,147 @@ export default function ShowtimesByCinema() {
   );
 
   return (
-    <div>
-      <section className="section-page">
-        <div className="section-page__container">
-          <h1 className="section-page__title">Lịch chiếu theo rạp</h1>
-          <p className="section-page__subtitle">
-            Tổng hợp suất chiếu theo rạp dựa trên dữ liệu hiện tại.
+    <div className="showtimes-cinema">
+      <div className="showtimes-cinema__container">
+        {/* Hero Section */}
+        <div className="showtimes-cinema__hero">
+          <h1 className="showtimes-cinema__title">Lịch Chiếu Theo Rạp</h1>
+          <p className="showtimes-cinema__subtitle">
+            Tổng hợp suất chiếu theo rạp dựa trên dữ liệu hiện tại
           </p>
+        </div>
 
-          <div className="section-page__toolbar">
-            {loading ? (
-              <span className="section-page__status">Đang tải dữ liệu...</span>
-            ) : (
-              <span className="section-page__status">
-                {groupedShowtimes.length} suất chiếu
-              </span>
-            )}
-            {error ? (
-            <span className="section-page__status">{error}</span>
-            ) : null}
-            <div className="section-search">
-              <input
-                type="text"
-                placeholder="Tìm kiếm phim..."
-                value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value);
-                  setPage(1);
-                }}
-              />
+        {/* Stats Bar */}
+        {!loading && !error && (
+          <div className="showtimes-cinema__stats">
+            <div className="showtimes-cinema__stat">
+              <div>
+                <div className="showtimes-cinema__stat-value">{groupedShowtimes.length}</div>
+                <div className="showtimes-cinema__stat-label">Suất Chiếu</div>
+              </div>
+            </div>
+            <div className="showtimes-cinema__stat">
+              <div>
+                <div className="showtimes-cinema__stat-value">{cinemas.length}</div>
+                <div className="showtimes-cinema__stat-label">Rạp Chiếu</div>
+              </div>
+            </div>
+            <div className="showtimes-cinema__stat">
+              <div>
+                <div className="showtimes-cinema__stat-value">{movies.length}</div>
+                <div className="showtimes-cinema__stat-label">Phim</div>
+              </div>
             </div>
           </div>
+        )}
 
-          {!loading && groupedShowtimes.length === 0 ? (
-            <div className="section-page__empty">
-              Chưa có suất chiếu nào.
+        {/* Search Bar */}
+        <div className="showtimes-cinema__search">
+          <input
+            type="text"
+            className="showtimes-cinema__search-input"
+            placeholder="Tìm kiếm phim, rạp, ngôn ngữ..."
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
+
+        {/* Loading State */}
+        {loading && (
+          <div className="showtimes-cinema__loading">
+            <div className="showtimes-cinema__spinner"></div>
+            <div className="showtimes-cinema__loading-text">Đang tải dữ liệu suất chiếu...</div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="showtimes-cinema__error">
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && !error && groupedShowtimes.length === 0 && (
+          <div className="showtimes-cinema__empty">
+            <h3 className="showtimes-cinema__empty-title">Chưa có suất chiếu nào</h3>
+            <p className="showtimes-cinema__empty-text">
+              Lịch chiếu sẽ sớm được cập nhật
+            </p>
+          </div>
+        )}
+
+        {/* Showtime Table */}
+        {!loading && !error && groupedShowtimes.length > 0 && (
+          <div className="showtimes-cinema__table">
+            <div className="showtimes-cinema__table-header">
+              <h2 className="showtimes-cinema__table-title">Danh Sách Suất Chiếu</h2>
             </div>
-          ) : null}
-
-          {groupedShowtimes.length > 0 ? (
-            <table className="section-table">
-              <thead>
-                <tr>
-                  <th>STT</th>
-                  <th>Phim</th>
-                  <th>Phòng</th>
-                  <th>Giờ chiếu</th>
-                  <th>Ngôn ngữ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagedShowtimes.map((showtime, index) => {
-                  const cinema = cinemaMap.get(getId(showtime.cinemaId));
-                  const movie = movieMap.get(getId(showtime.movieId));
-                  return (
-                    <tr key={showtime.groupKey || getId(showtime)}>
-                      <td>{startIndex + index + 1}</td>
-                      <td>{movie?.title || getId(showtime.movieId) || "-"}</td>
-                      <td>{getRoomLabel(showtime.roomId)}</td>
-                      <td>
-                        <div className="showtime-list">
-                          {showtime.startTimes?.length
-                            ? showtime.startTimes.map((time, timeIndex) => (
-                                <span key={`${time}-${timeIndex}`} className="showtime-chip">
-                                  {formatDateTime(time)}
-                                </span>
-                              ))
-                            : "-"}
-                        </div>
-                      </td>
-                      <td>{showtime.language || "-"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          ) : null}
-
-          {groupedShowtimes.length > 0 ? (
-            <div className="section-pagination">
-              {Array.from({ length: totalPages }, (_, idx) => {
-                const pageNumber = idx + 1;
+            <div className="showtimes-cinema__table-content">
+              {pagedShowtimes.map((showtime, index) => {
+                const cinema = cinemaMap.get(getId(showtime.cinemaId));
+                const movie = movieMap.get(getId(showtime.movieId));
                 return (
-                  <button
-                    key={pageNumber}
-                    type="button"
-                    className={pageNumber === currentPage ? "active" : ""}
-                    onClick={() => setPage(pageNumber)}
-                  >
-                    {pageNumber}
-                  </button>
+                  <div key={showtime.groupKey || getId(showtime)} className="showtimes-cinema__table-row">
+                    <div className="showtimes-cinema__table-cell">
+                      <span className="showtimes-cinema__table-label">STT</span>
+                      <span className="showtimes-cinema__table-value">{startIndex + index + 1}</span>
+                    </div>
+                    <div className="showtimes-cinema__table-cell">
+                      <span className="showtimes-cinema__table-label">Phim</span>
+                      <span className="showtimes-cinema__table-value showtimes-cinema__table-value--movie">
+                        {movie?.title || getId(showtime.movieId) || "-"}
+                      </span>
+                    </div>
+                    <div className="showtimes-cinema__table-cell">
+                      <span className="showtimes-cinema__table-label">Phòng</span>
+                      <span className="showtimes-cinema__table-value">{getRoomLabel(showtime.roomId)}</span>
+                    </div>
+                    <div className="showtimes-cinema__table-cell">
+                      <span className="showtimes-cinema__table-label">Giờ Chiếu</span>
+                      <div className="showtimes-cinema__chips">
+                        {showtime.startTimes?.length
+                          ? showtime.startTimes.map((time, timeIndex) => (
+                              <span key={`${time}-${timeIndex}`} className="showtimes-cinema__chip">
+                                {formatDateTime(time)}
+                              </span>
+                            ))
+                          : "-"}
+                      </div>
+                    </div>
+                    <div className="showtimes-cinema__table-cell">
+                      <span className="showtimes-cinema__table-label">Ngôn Ngữ</span>
+                      <span className="showtimes-cinema__table-value">{showtime.language || "-"}</span>
+                    </div>
+                  </div>
                 );
               })}
             </div>
-          ) : null}
-        </div>
-      </section>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!loading && !error && groupedShowtimes.length > 0 && (
+          <div className="showtimes-cinema__pagination">
+            {Array.from({ length: totalPages }, (_, idx) => {
+              const pageNumber = idx + 1;
+              return (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  className={`showtimes-cinema__pagination-button ${pageNumber === currentPage ? "showtimes-cinema__pagination-button--active" : ""}`}
+                  onClick={() => setPage(pageNumber)}
+                >
+                  {pageNumber}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

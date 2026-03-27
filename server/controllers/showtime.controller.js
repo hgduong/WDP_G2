@@ -128,29 +128,7 @@ exports.getShowtimesByMovie = async (req, res) => {
           }
         }
         
-        // Method 5: Check if existing seatmap has wrong number of seats vs room capacity
-        if (seatmap && s.roomId) {
-          const room = await Room.findById(s.roomId._id || s.roomId);
-          const expectedCapacity = room?.capacity || 60;
-          
-          if (seatmap.seats && seatmap.seats.length !== expectedCapacity) {
-            console.log(`ShowtimesByMovie: Regenerating - seatmap has ${seatmap.seats.length} seats but room capacity is ${expectedCapacity}`);
-            
-            // Delete old seats
-            await Seat.deleteMany({ _id: { $in: seatmap.seats } });
-            
-            // Create new seats
-            const seatmapController = require("./seatmap.controller");
-            const seatsData = seatmapController.buildSeatLayout(expectedCapacity);
-            const newSeats = await Seat.insertMany(seatsData);
-            
-            // Update seatmap
-            seatmap.seats = newSeats.map(seat => seat._id);
-            await seatmap.save();
-            
-            seatmap = await Seatmap.findById(seatmap._id).populate("seats");
-          }
-        }
+        // Method 5: Removed seat count mismatch regeneration to preserve existing seat IDs
         
         const seats = seatmap?.seats || [];
         const availableSeats = seats.filter((seat) => seat.status === "Available").length;

@@ -1,0 +1,487 @@
+/* TicketPrices Page - Cinema Theme Design */
+
+.ticket-prices {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 50%, #f0f2f5 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.ticket-prices::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(245, 158, 11, 0.03) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.ticket-prices__container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 60px 24px 80px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Hero Header Section */
+.ticket-prices__hero {
+  text-align: center;
+  margin-bottom: 50px;
+  animation: fadeInDown 0.8s ease-out;
+}
+
+.ticket-prices__title {
+  font-size: 42px;
+  font-weight: 800;
+  margin: 0 0 16px;
+  background: linear-gradient(135deg, #1a1a1a 0%, #333 50%, #a855f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.5px;
+}
+
+.ticket-prices__subtitle {
+  font-size: 18px;
+  color: #666;
+  margin: 0;
+  font-weight: 400;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* Stats Bar */
+.ticket-prices__stats {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  margin-bottom: 40px;
+  animation: fadeInUp 0.8s ease-out 0.2s both;
+}
+
+.ticket-prices__stat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: #ffffff;
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.ticket-prices__stat:hover {
+  background: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(168, 85, 247, 0.15);
+}
+
+.ticket-prices__stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.ticket-prices__stat-label {
+  font-size: 13px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Price Grid */
+.ticket-prices__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 24px;
+  animation: fadeInUp 0.8s ease-out 0.4s both;
+}
+
+/* Price Card */
+.price-card {
+  background: #ffffff;
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 28px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+  overflow: hidden;
+}
+
+.price-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #a855f7, #ec4899, #f59e0b);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.price-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  background: #ffffff;
+  border-color: rgba(168, 85, 247, 0.3);
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.12),
+    0 0 40px rgba(168, 85, 247, 0.1);
+}
+
+.price-card:hover::before {
+  opacity: 1;
+}
+
+/* Card Header */
+.price-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.price-card__icon {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(168, 85, 247, 0.3);
+}
+
+.price-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  border-radius: 12px;
+  color: #a855f7;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Card Title */
+.price-card__title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 12px;
+  line-height: 1.3;
+}
+
+/* Card Description */
+.price-card__description {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+  margin: 0 0 20px;
+}
+
+/* Card Price */
+.price-card__price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.price-card__price-value {
+  font-size: 36px;
+  font-weight: 800;
+  color: #a855f7;
+}
+
+.price-card__price-unit {
+  font-size: 16px;
+  color: #888;
+  font-weight: 500;
+}
+
+/* Card Features */
+.price-card__features {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.price-card__feature {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #555;
+}
+
+.price-card__feature-icon {
+  width: 24px;
+  height: 24px;
+  background: #f0f2f5;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+}
+
+/* Card Footer */
+.price-card__footer {
+  display: flex;
+  gap: 10px;
+}
+
+.price-card__action {
+  flex: 1;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.price-card__action:hover {
+  background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(168, 85, 247, 0.4);
+}
+
+.price-card__action--secondary {
+  background: #f0f2f5;
+  color: #333;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.price-card__action--secondary:hover {
+  background: #e5e7eb;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* CTA Section */
+.ticket-prices__cta {
+  text-align: center;
+  margin-top: 60px;
+  padding: 50px 24px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(236, 72, 153, 0.08) 100%);
+  border-radius: 24px;
+  border: 1px solid rgba(168, 85, 247, 0.15);
+  animation: fadeInUp 0.8s ease-out 0.6s both;
+}
+
+.ticket-prices__cta-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 12px;
+}
+
+.ticket-prices__cta-text {
+  font-size: 16px;
+  color: #666;
+  margin: 0 0 24px;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ticket-prices__cta-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 32px;
+  background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
+  border: none;
+  border-radius: 16px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 32px rgba(168, 85, 247, 0.3);
+}
+
+.ticket-prices__cta-button:hover {
+  background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(168, 85, 247, 0.4);
+}
+
+/* Animations */
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-5px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(5px);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .ticket-prices__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .ticket-prices__title {
+    font-size: 36px;
+  }
+  
+  .ticket-prices__stats {
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .ticket-prices__container {
+    padding: 40px 16px 60px;
+  }
+  
+  .ticket-prices__grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .ticket-prices__title {
+    font-size: 28px;
+  }
+  
+  .ticket-prices__subtitle {
+    font-size: 15px;
+  }
+  
+  .ticket-prices__stats {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .ticket-prices__stat {
+    justify-content: center;
+  }
+  
+  .price-card {
+    padding: 20px;
+  }
+  
+  .price-card__title {
+    font-size: 20px;
+  }
+  
+  .price-card__price-value {
+    font-size: 28px;
+  }
+  
+  .price-card__footer {
+    flex-direction: column;
+  }
+  
+  .ticket-prices__cta {
+    padding: 30px 20px;
+  }
+  
+  .ticket-prices__cta-title {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ticket-prices__title {
+    font-size: 24px;
+  }
+  
+  .ticket-prices__stat {
+    padding: 12px 16px;
+  }
+  
+  .ticket-prices__stat-value {
+    font-size: 20px;
+  }
+  
+  .price-card__icon {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
+  }
+  
+  .price-card__badge {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  
+  .ticket-prices__cta-button {
+    padding: 14px 24px;
+    font-size: 14px;
+  }
+}
+
+/* Scrollbar Styling */
+.ticket-prices::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ticket-prices::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+
+.ticket-prices::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.ticket-prices::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}
