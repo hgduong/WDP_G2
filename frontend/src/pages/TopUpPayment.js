@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { deposit, cancelUserTransaction, checkPaymentStatus, getQRCodeImage } from "../services/api";
@@ -25,6 +25,7 @@ function TopUpPayment() {
   });
   const [copied, setCopied] = useState(false);
   const depositInitiated = useRef(false);
+  const hasNavigatedAway = useRef(false);
 
   const amount = location.state?.amount;
 
@@ -89,6 +90,45 @@ function TopUpPayment() {
     createDeposit();
   }, [amount, navigate, paymentData]);
 
+  // Cancel transaction when user navigates away
+  const cancelTransactionOnExit = useCallback(async () => {
+    if (paymentData?.transaction?._id && !hasNavigatedAway.current) {
+      hasNavigatedAway.current = true;
+      try {
+        await cancelUserTransaction(paymentData.transaction._id);
+      } catch (err) {
+        console.error("Error canceling transaction on exit:", err);
+      }
+    }
+  }, [paymentData]);
+
+  // Cleanup effect to detect when user leaves the page
+  useEffect(() => {
+    // Detect when user tries to navigate away (beforeunload event)
+    const handleBeforeUnload = (e) => {
+      if (paymentData?.transaction?._id) {
+        // Cancel the transaction in the background
+        cancelTransactionOnExit();
+        // Show confirmation dialog
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    // Detect route changes (navigation)
+    const unlisten = () => {
+      // This will be called when component unmounts due to navigation
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      // Cancel transaction when component unmounts (user navigated away)
+      cancelTransactionOnExit();
+    };
+  }, [paymentData, cancelTransactionOnExit]);
+
   // Countdown timer
   useEffect(() => {
     if (countdown <= 0) return;
@@ -102,6 +142,16 @@ function TopUpPayment() {
           sessionStorage.removeItem('topupPaymentData');
           sessionStorage.removeItem('topupCountdown');
           sessionStorage.removeItem('topupQRImage');
+          // Navigate to failure page
+          if (!hasNavigatedAway.current) {
+            hasNavigatedAway.current = true;
+            navigate("/topup-failure", {
+              state: {
+                reason: "timeout",
+                amount: amount
+              }
+            });
+          }
           return 0;
         }
         // Save countdown to sessionStorage
@@ -111,7 +161,7 @@ function TopUpPayment() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [countdown]);
+  }, [countdown, navigate, amount]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -139,12 +189,27 @@ function TopUpPayment() {
     }
   };
 
-  const handleBack = () => {
+  const handleBack = async () => {
+    // If there's an active transaction, cancel it first
+    if (paymentData?.transaction?._id && !hasNavigatedAway.current) {
+      try {
+        hasNavigatedAway.current = true;
+        await cancelUserTransaction(paymentData.transaction._id);
+      } catch (err) {
+        console.error("Error canceling transaction:", err);
+      }
+    }
     // Clear sessionStorage when user cancels
     sessionStorage.removeItem('topupPaymentData');
     sessionStorage.removeItem('topupCountdown');
     sessionStorage.removeItem('topupQRImage');
-    navigate("/profile");
+    // Navigate to failure page
+    navigate("/topup-failure", {
+      state: {
+        reason: "cancelled",
+        amount: amount
+      }
+    });
   };
 
   const handleCheckPayment = async () => {
@@ -161,14 +226,17 @@ function TopUpPayment() {
         const transaction = response.data;
         
         if (transaction.status === "completed") {
-          toast.success("Nạp tiền thành công! Số dư ví đã được cập nhật.");
           // Clear sessionStorage after successful payment
           sessionStorage.removeItem('topupPaymentData');
           sessionStorage.removeItem('topupCountdown');
           sessionStorage.removeItem('topupQRImage');
-          setTimeout(() => {
-            navigate("/profile");
-          }, 2000);
+          // Navigate to success page
+          navigate("/topup-success", {
+            state: {
+              amount: amount,
+              transactionId: paymentData.transactionId
+            }
+          });
         } else if (transaction.status === "pending") {
           toast.info("Giao dịch đang chờ xử lý. Vui lòng hoàn thành thanh toán.");
         } else if (transaction.status === "cancelled") {
@@ -176,17 +244,23 @@ function TopUpPayment() {
           sessionStorage.removeItem('topupPaymentData');
           sessionStorage.removeItem('topupCountdown');
           sessionStorage.removeItem('topupQRImage');
-          setTimeout(() => {
-            navigate("/profile");
-          }, 2000);
+          navigate("/topup-failure", {
+            state: {
+              reason: "cancelled",
+              amount: amount
+            }
+          });
         } else {
           toast.error("Giao dịch thất bại.");
           sessionStorage.removeItem('topupPaymentData');
           sessionStorage.removeItem('topupCountdown');
           sessionStorage.removeItem('topupQRImage');
-          setTimeout(() => {
-            navigate("/profile");
-          }, 2000);
+          navigate("/topup-failure", {
+            state: {
+              reason: "failed",
+              amount: amount
+            }
+          });
         }
       }
     } catch (err) {
@@ -213,9 +287,13 @@ function TopUpPayment() {
         sessionStorage.removeItem('topupPaymentData');
         sessionStorage.removeItem('topupCountdown');
         sessionStorage.removeItem('topupQRImage');
-        setTimeout(() => {
-          navigate("/profile");
-        }, 2000);
+        // Navigate to failure page
+        navigate("/topup-failure", {
+          state: {
+            reason: "cancelled",
+            amount: amount
+          }
+        });
       } else {
         toast.error(response.message || "Không thể hủy giao dịch");
       }
