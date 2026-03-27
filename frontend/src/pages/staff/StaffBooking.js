@@ -271,6 +271,19 @@ function StaffBooking() {
       }
     }
 
+    if (formData.customerEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.customerEmail)) {
+        setError("Email không đúng định dạng.");
+        return;
+      }
+    }
+
+    if (formData.sendEmail && !formData.customerEmail) {
+      setError("Vui lòng nhập Email nếu muốn gửi thông báo.");
+      return;
+    }
+
     try {
       setSubmitting(true);
       setError("");
