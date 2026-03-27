@@ -1,17 +1,25 @@
 const express = require("express");
 const router = express.Router();
-const { authenticateToken, authorizeRoles } = require("../config/auth.middleware");
+const {
+  authenticateToken,
+  authorizeRoles,
+} = require("../config/auth.middleware");
 const {
   getUserTransactions,
   getTransactionById,
   getUserTransactionStats,
+  createPendingDeposit,
   deposit,
   withdraw,
   pay,
   refund,
   cancelTransaction,
+  cancelUserTransaction,
+  confirmPayment,
   getAllTransactions,
   getAllTransactionStats,
+  createPaymentLink,
+  checkPayOSPaymentStatus,
 } = require("../controllers/transaction.controller");
 
 /**
@@ -21,7 +29,9 @@ const {
  */
 router.get(
   "/",
-  getUserTransactions
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  getUserTransactions,
 );
 
 /**
@@ -31,7 +41,9 @@ router.get(
  */
 router.get(
   "/stats",
-  getUserTransactionStats
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  getUserTransactionStats,
 );
 
 /**
@@ -41,7 +53,21 @@ router.get(
  */
 router.get(
   "/:id",
-  getTransactionById
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  getTransactionById,
+);
+
+/**
+ * @route   POST /api/transactions/create-pending-deposit
+ * @desc    Tạo giao dịch nạp tiền pending (chưa xử lý)
+ * @access  Private (User)
+ */
+router.post(
+  "/create-pending-deposit",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  createPendingDeposit,
 );
 
 /**
@@ -51,7 +77,33 @@ router.get(
  */
 router.post(
   "/deposit",
-  deposit
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  deposit,
+);
+
+/**
+ * @route   POST /api/transactions/create-payment-link
+ * @desc    Tạo payment link qua PayOS
+ * @access  Private (User)
+ */
+router.post(
+  "/create-payment-link",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  createPaymentLink,
+);
+
+/**
+ * @route   POST /api/transactions/check-payos-status
+ * @desc    Kiểm tra trạng thái thanh toán từ PayOS API
+ * @access  Private (User)
+ */
+router.post(
+  "/check-payos-status",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  checkPayOSPaymentStatus,
 );
 
 /**
@@ -61,7 +113,9 @@ router.post(
  */
 router.post(
   "/withdraw",
-  withdraw
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  withdraw,
 );
 
 /**
@@ -71,7 +125,9 @@ router.post(
  */
 router.post(
   "/pay",
-  pay
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  pay,
 );
 
 /**
@@ -81,7 +137,9 @@ router.post(
  */
 router.post(
   "/refund",
-  refund
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer"]),
+  refund,
 );
 
 /**
@@ -91,7 +149,33 @@ router.post(
  */
 router.put(
   "/:id/cancel",
-  cancelTransaction
+  authenticateToken,
+  authorizeRoles(["Admin"]),
+  cancelTransaction,
+);
+
+/**
+ * @route   PUT /api/transactions/:id/cancel-user
+ * @desc    Hủy giao dịch đang chờ (Customer)
+ * @access  Private (User)
+ */
+router.put(
+  "/:id/cancel-user",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  cancelUserTransaction,
+);
+
+/**
+ * @route   PUT /api/transactions/:id/confirm
+ * @desc    Xác nhận đã thanh toán (Customer)
+ * @access  Private (User)
+ */
+router.put(
+  "/:id/confirm",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  confirmPayment,
 );
 
 /**
@@ -107,7 +191,9 @@ router.put(
  */
 router.get(
   "/admin/all",
-  getAllTransactions
+  authenticateToken,
+  authorizeRoles(["Admin"]),
+  getAllTransactions,
 );
 
 /**
@@ -117,7 +203,9 @@ router.get(
  */
 router.get(
   "/admin/stats",
-  getAllTransactionStats
+  authenticateToken,
+  authorizeRoles(["Admin"]),
+  getAllTransactionStats,
 );
 
 module.exports = router;

@@ -112,13 +112,8 @@ const ensureShowtimeSeatmap = async (showtimeInput) => {
       const room = await Room.findById(showtime.roomId);
       const expectedCapacity = room?.capacity || 60;
       
-      if (!existingSeatmap.seats || existingSeatmap.seats.length === 0 || existingSeatmap.seats.length !== expectedCapacity) {
-        console.log(`Staff: Seatmap has ${existingSeatmap.seats?.length || 0} seats but expected ${expectedCapacity}! Regenerating...`, existingSeatmap._id);
-        
-        // Delete old seats first
-        if (existingSeatmap.seats?.length > 0) {
-          await Seat.deleteMany({ _id: { $in: existingSeatmap.seats } });
-        }
+      if (!existingSeatmap.seats || existingSeatmap.seats.length === 0) {
+        console.log(`Staff: Seatmap has ${existingSeatmap.seats?.length || 0} seats! Generating...`, existingSeatmap._id);
         
         // Create new seats with correct capacity
         const seats = await Seat.insertMany(buildSeatBlueprint(expectedCapacity));
@@ -144,13 +139,8 @@ const ensureShowtimeSeatmap = async (showtimeInput) => {
     console.log("Method 2: Room found:", room ? "yes" : "no", "| capacity:", room?.capacity);
     const expectedCapacity = room?.capacity || 60;
     
-    if (!seatmap.seats || seatmap.seats.length === 0 || seatmap.seats.length !== expectedCapacity) {
-      console.log(`Staff: Found seatmap has ${seatmap.seats?.length || 0} seats but expected ${expectedCapacity}! Regenerating...`, seatmap._id);
-      
-      // Delete old seats first
-      if (seatmap.seats?.length > 0) {
-        await Seat.deleteMany({ _id: { $in: seatmap.seats } });
-      }
+    if (!seatmap.seats || seatmap.seats.length === 0) {
+      console.log(`Staff: Found seatmap has ${seatmap.seats?.length || 0} seats! Generating...`, seatmap._id);
       
       const seats = await Seat.insertMany(buildSeatBlueprint(expectedCapacity));
       seatmap.seats = seats.map(s => s._id);

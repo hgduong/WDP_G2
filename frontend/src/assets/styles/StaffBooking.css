@@ -54,6 +54,54 @@
   align-content: center;
 }
 
+.staff-date-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+
+.staff-date-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 1px solid #d4dae3;
+  border-radius: 14px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  font: inherit;
+}
+
+.staff-date-tab:hover {
+  transform: translateY(-1px);
+  border-color: #d97706;
+}
+
+.staff-date-tab.active {
+  border-color: #d97706;
+  background: #fffbeb;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.15);
+}
+
+.staff-date-tab .tab-date {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.staff-date-tab .tab-count {
+  font-size: 11px;
+  color: #6a7688;
+}
+
+.staff-date-tab.active .tab-count {
+  color: #d97706;
+  font-weight: 600;
+}
+
 .staff-booking-filters label,
 .staff-booking-form label {
   display: grid;

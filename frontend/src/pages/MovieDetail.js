@@ -62,6 +62,23 @@ export default function MovieDetail() {
     return Array.from(times).sort();
   };
 
+  const getTimeSlotsForDate = (date) => {
+    const slots = [];
+    showtimes.forEach((t) => {
+      const showtimeDate = new Date(t.startTime);
+      const dateStr = showtimeDate.toISOString().split("T")[0];
+      if (dateStr === date) {
+        const hours = String(showtimeDate.getHours()).padStart(2, "0");
+        const minutes = String(showtimeDate.getMinutes()).padStart(2, "0");
+        const timeStr = `${hours}:${minutes}`;
+        if (!slots.find(s => s.time === timeStr)) {
+          slots.push({ time: timeStr, showtime: t });
+        }
+      }
+    });
+    return slots.sort((a, b) => a.time.localeCompare(b.time));
+  };
+
   const getShowtimeForSlot = (date, timeSlot) => {
     const [hours, minutes] = timeSlot.split(":");
     return showtimes.find((t) => {
@@ -348,39 +365,32 @@ export default function MovieDetail() {
   };
 
   const getSeatClass = (seat) => {
-    // Check if seat is held by another user (remote)
-    const isRemoteHeld = remoteHeldSeats.some(s => 
+    const classes = ["seat-button"];
+
+    const isRemoteHeld = remoteHeldSeats.some(s =>
       s._id === seat.id || (s.row === seat.row && s.number === seat.seatNumber)
     );
+
     if (isRemoteHeld) {
-      return seat.isCouple ? "seat couple holding" : "seat holding";
-    }
-    
-    // Check if seat is booked on server
-    if (seat.status === 'Booked') {
-      return seat.isCouple ? "seat couple booked" : "seat booked";
-    }
-    
-    if (selectedSeats.some((s) => s.id === seat.id)) {
-      // Check if seat has countdown (holding status)
+      classes.push("holding");
+    } else if (seat.status === 'Booked') {
+      classes.push("booked");
+    } else if (selectedSeats.some((s) => s.id === seat.id)) {
       if (holdingSeats[seat.id]) {
-        return seat.isCouple ? "seat couple holding" : "seat holding";
+        classes.push("holding");
       }
-      return seat.isCouple ? "seat couple selected" : "seat selected";
+      classes.push("selected");
+    } else {
+      classes.push("available");
     }
+
     if (seat.isCouple) {
-      return "seat couple";
+      classes.push("couple");
+    } else if (seat.type === "VIP") {
+      classes.push("vip");
     }
-    
-    // Add VIP class for rows beyond first 3 rows (D, E, F, etc.)
-    const rowLetter = seat.row ? seat.row.toUpperCase() : '';
-    const isVipRow = rowLetter && !['A', 'B', 'C'].includes(rowLetter);
-    
-    if (isVipRow) {
-      return "seat vip";
-    }
-    
-    return "seat";
+
+    return classes.filter(Boolean).join(" ");
   };
 
   const totalPrice = selectedSeats.length * (selectedShowtime?.price || 75000);
@@ -425,32 +435,38 @@ export default function MovieDetail() {
         qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(seat.label + "-" + bookingCode)}`
       }));
 
-      // Prepare order data to send to Order page
-      const orderData = {
-        _id: bookingId,
-        bookingCode,
-        movie: {
-          title: movie.title,
-          posterUrl: movie.posterUrl,
-          duration: movie.duration,
-          director: movie.director
-        },
-        showtime: {
-          startTime: selectedShowtime.startTime,
-          price: selectedShowtime.price
-        },
-        cinema: {
-          name: selectedShowtime.cinemasId?.name
-        },
-        room: {
-          name: selectedShowtime.roomId?.name
-        },
-        seats: selectedSeats.map(s => ({ label: s.label })),
-        totalPrice,
-        tickets,
-        purchaseDate: new Date().toISOString(),
-        paymentStatus: "Pending"
-      };
+    // Prepare order data to send to Order page
+    const orderData = {
+      bookingCode,
+      showtimeId: selectedShowtime._id,
+      cinemaId: selectedShowtime.cinemasId?._id,
+      roomId: selectedShowtime.roomId?._id,
+      movie: {
+        title: movie.title,
+        posterUrl: movie.posterUrl,
+        duration: movie.duration,
+        director: movie.director
+      },
+      showtime: {
+        _id: selectedShowtime._id,
+        startTime: selectedShowtime.startTime,
+        price: selectedShowtime.price,
+        cinemasId: selectedShowtime.cinemasId,
+        roomId: selectedShowtime.roomId
+      },
+      cinema: {
+        _id: selectedShowtime.cinemasId?._id,
+        name: selectedShowtime.cinemasId?.name
+      },
+      room: {
+        _id: selectedShowtime.roomId?._id,
+        name: selectedShowtime.roomId?.name
+      },
+      seats: selectedSeats.map(s => ({ _id: s.id, label: s.label })),
+      totalPrice,
+      tickets,
+      purchaseDate: new Date().toISOString()
+    };
 
       // Also store in localStorage as backup
       localStorage.setItem("lastOrder", JSON.stringify(orderData));
@@ -513,13 +529,17 @@ export default function MovieDetail() {
                     d.getMonth() + 1,
                   ).padStart(2, "0")} - ${weekDays[d.getDay()]}`;
                   const isActive = selectedDate === date;
+                  const dayCount = getTimeSlotsForDate(date).length;
                   return (
                     <div
                       key={date}
                       className={`date-tab ${isActive ? "active" : ""}`}
                       onClick={() => setSelectedDate(date)}
                     >
-                      {label}
+                      <span className="date-tab-label">{label}</span>
+                      {dayCount > 0 && (
+                        <span className="date-tab-count">{dayCount} suất</span>
+                      )}
                     </div>
                   );
                 })}
@@ -528,18 +548,19 @@ export default function MovieDetail() {
               <div className="showtime-category">2D PHỤ ĐỀ</div>
 
               <div className="time-grid">
-                {allTimeSlots.length === 0 ? (
-                  <p className="no-showtimes">Chưa có suất chiếu nào</p>
-                ) : (
-                  allTimeSlots.map((timeSlot) => {
-                    const showtime = getShowtimeForSlot(selectedDate, timeSlot);
-                    const [hours, minutes] = timeSlot.split(":");
+                {(() => {
+                  const daySlots = getTimeSlotsForDate(selectedDate);
+                  if (daySlots.length === 0) {
+                    return <p className="no-showtimes">Không có suất chiếu cho ngày này</p>;
+                  }
+                  return daySlots.map((slot) => {
+                    const [hours] = slot.time.split(":");
                     const isLate = parseInt(hours) >= 22;
-                    const isAvailable = !!showtime;
+                    const showtime = slot.showtime;
 
                     return (
                       <div
-                        key={timeSlot}
+                        key={slot.time}
                         className={`time-slot ${isLate ? "late" : ""}`}
                         onClick={() => {
                           if (showtime) {
@@ -547,18 +568,14 @@ export default function MovieDetail() {
                           }
                         }}
                       >
-                        <div className="time-label">{timeSlot}</div>
-                        {isAvailable ? (
-                          <div className="seats">
-                            <div className="seats-note">Còn {showtime.roomId?.capacity || 0} ghế</div>
-                          </div>
-                        ) : (
-                          <div className="seats">-</div>
-                        )}
+                        <div className="time-label">{slot.time}</div>
+                        <div className="seats">
+                          <div className="seats-note">Còn {showtime.roomId?.capacity || 0} ghế</div>
+                        </div>
                       </div>
                     );
-                  })
-                )}
+                  });
+                })()}
               </div>
             </>
           )}
@@ -591,55 +608,55 @@ export default function MovieDetail() {
                   <p className="seatmap-debug">Room: {selectedShowtime?.roomId?.name || 'N/A'} - Seatmap ID: {selectedShowtime?.seatMap || 'N/A'}</p>
                 </div>
               ) : (
-                availableSeats.map((seat) => (
-                  <button
-                    key={seat.id}
-                    className={getSeatClass(seat)}
-                    onClick={() => toggleSeat(seat)}
-                  >
-                    {seat.label}
-                  </button>
-                ))
+                (() => {
+                  const rowMap = {};
+                  availableSeats.forEach((seat) => {
+                    if (!rowMap[seat.row]) rowMap[seat.row] = [];
+                    rowMap[seat.row].push(seat);
+                  });
+                  const sortedRows = Object.keys(rowMap).sort();
+                  return sortedRows.map((row) => (
+                    <div key={row} className="seat-row">
+                      <span className="row-label">{row}</span>
+                      <div className="row-seats">
+                        {rowMap[row]
+                          .sort((a, b) => a.seatNumber - b.seatNumber)
+                          .map((seat) => (
+                            <button
+                              key={seat.id}
+                              className={getSeatClass(seat)}
+                              onClick={() => toggleSeat(seat)}
+                            >
+                              {seat.label}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  ));
+                })()
               )}
             </div>
 
             <div className="seat-legend">
-              <div className="legend-item">
-                <span className="seat available"></span>
-                <span>Ghế trống</span>
-              </div>
-              <div className="legend-item">
-                <span className="seat vip"></span>
-                <span>Ghế VIP</span>
-              </div>
-              <div className="legend-item">
-                <span className="seat booked"></span>
-                <span>Đã đặt</span>
-              </div>
-              <div className="legend-item">
-                <span className="seat holding"></span>
-                <span>Đang chọn</span>
-              </div>
-              <div className="legend-item">
-                <span className="seat selected"></span>
-                <span>Đã chọn</span>
-              </div>
-              <div className="legend-item">
-                <span className="seat couple"></span>
-                <span>Ghế đôi</span>
-              </div>
+              <span><i className="available" /> Trống</span>
+              <span><i className="selected" /> Đang chọn</span>
+              <span><i className="booked" /> Đã đặt</span>
+              <span><i className="vip" /> VIP</span>
+              <span><i className="couple" /> Đôi</span>
             </div>
 
-            <div className="selected-seats-info">
-              <h4>Ghế đã chọn:</h4>
-              <div className="selected-list">
-                {selectedSeats.length === 0 ? (
-                  <span>Chưa chọn ghế nào</span>
-                ) : (
-                  selectedSeats.map((seat) => (
-                    <span key={seat.id} className="selected-seat-tag">{seat.label}</span>
-                  ))
-                )}
+            <div className="selection-summary">
+              <div>
+                <span>Ghế đã chọn</span>
+                <strong>
+                  {selectedSeats.length > 0
+                    ? selectedSeats.map((seat) => seat.label).join(", ")
+                    : "Chưa có"}
+                </strong>
+              </div>
+              <div>
+                <span>Tạm tính</span>
+                <strong>{totalPrice.toLocaleString("vi-VN")}đ</strong>
               </div>
             </div>
 

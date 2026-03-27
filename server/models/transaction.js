@@ -52,7 +52,7 @@ const transactionSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ["wallet", "momo", "vnpay", "banking", "cash", null],
+    enum: ["wallet", "momo", "vnpay", "banking", "cash", "payos", "qr", null],
     default: "wallet",
   },
   metadata: {
