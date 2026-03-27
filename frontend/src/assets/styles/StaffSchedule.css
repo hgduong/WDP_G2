@@ -211,7 +211,7 @@
 .schedule-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .schedule-status {
@@ -245,45 +245,46 @@
   border: 1px solid rgba(255, 212, 59, 0.5);
 }
 
-/* Action Buttons */
-.schedule-actions {
+/* Check-in/Check-out Sections */
+.check-section {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px;
+  margin-top: 5px;
+}
+
+.check-in-section {
+  border-left: 3px solid #51cf66;
+}
+
+.check-out-section {
+  border-left: 3px solid #ff6b6b;
+}
+
+.check-header {
   display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
 }
 
-.action-btn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 15px;
-  font-size: 0.75rem;
+.check-icon {
+  font-size: 1rem;
+}
+
+.check-title {
+  color: #ffffff;
+  font-size: 0.9rem;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
 }
 
-.check-in-btn {
-  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-  color: white;
+.check-window {
+  color: #a8d4ff;
+  font-size: 0.75rem;
+  margin-bottom: 8px;
 }
 
-.check-in-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 15px rgba(17, 153, 142, 0.5);
-}
-
-.check-out-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.check-out-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.5);
-}
-
-/* Time Info */
-.time-info {
+.check-time {
   display: flex;
   justify-content: space-between;
   font-size: 0.75rem;
@@ -297,6 +298,45 @@
 
 .time-value {
   color: #ffffff;
+}
+
+/* Action Buttons */
+.action-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.check-in-btn {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  color: white;
+}
+
+.check-in-btn:hover:not(.disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(17, 153, 142, 0.5);
+}
+
+.check-out-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.check-out-btn:hover:not(.disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.5);
+}
+
+.action-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* Empty Slot */
