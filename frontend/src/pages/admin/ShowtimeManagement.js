@@ -211,7 +211,7 @@ const ShowtimeManagement = () => {
           cinemasId: TIME_CINEMAS_ID,
           roomId: selectedRoom,
           startTime: slot.startTime,
-          price: 75000, // default price
+          price: 50000, // default price
           language: 'Tiếng Việt'
         };
         await createShowtime(showtimeData);

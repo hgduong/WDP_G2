@@ -45,6 +45,15 @@
   color: #1a1a1a;
 }
 
+.section-card__poster {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  background: #f0f0f0;
+}
+
 .section-card__meta {
   color: #666;
   font-size: 14px;
@@ -121,19 +130,20 @@
 }
 
 .showtime-list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
 .showtime-chip {
-  display: inline-block;
+  display: block;
   padding: 4px 8px;
   border-radius: 999px;
   background: #16a34a;
   color: #fff;
   font-size: 12px;
   white-space: nowrap;
+  text-align: center;
 }
 
 @media (max-width: 768px) {
