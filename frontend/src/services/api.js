@@ -803,6 +803,19 @@ export const checkPaymentStatus = async (id) => {
 };
 
 /**
+ * Kiểm tra trạng thái thanh toán từ PayOS API
+ * @param {string} transactionId - Transaction ID
+ */
+export const checkPayOSPaymentStatus = async (transactionId) => {
+  try {
+    const response = await API.post("/transactions/check-payos-status", { transactionId });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+/**
  * Lấy ảnh QR code từ backend
  * @param {string} data - Dữ liệu để tạo QR code
  */

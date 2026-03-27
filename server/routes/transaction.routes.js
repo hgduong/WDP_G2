@@ -18,6 +18,7 @@ const {
   getAllTransactions,
   getAllTransactionStats,
   createPaymentLink,
+  checkPayOSPaymentStatus,
 } = require("../controllers/transaction.controller");
 
 /**
@@ -78,6 +79,18 @@ router.post(
   authenticateToken,
   authorizeRoles(["Admin", "Customer", "Staff"]),
   createPaymentLink,
+);
+
+/**
+ * @route   POST /api/transactions/check-payos-status
+ * @desc    Kiểm tra trạng thái thanh toán từ PayOS API
+ * @access  Private (User)
+ */
+router.post(
+  "/check-payos-status",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  checkPayOSPaymentStatus,
 );
 
 /**

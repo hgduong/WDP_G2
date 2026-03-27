@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { deposit, cancelUserTransaction, checkPaymentStatus, getQRCodeImage } from "../services/api";
+import { deposit, cancelUserTransaction, checkPayOSPaymentStatus, getQRCodeImage } from "../services/api";
 import "../assets/styles/TopUpPayment.css";
 
 function TopUpPayment() {
@@ -163,6 +163,21 @@ function TopUpPayment() {
     return () => clearInterval(timer);
   }, [countdown, navigate, amount]);
 
+  // Auto-check payment status after QR code is displayed
+  useEffect(() => {
+    if (!paymentData?.transaction?._id || !qrCodeImage) return;
+
+    // Check immediately after QR is displayed
+    checkPaymentStatus();
+
+    // Then check every 5 seconds
+    const statusCheckInterval = setInterval(() => {
+      checkPaymentStatus();
+    }, 5000);
+
+    return () => clearInterval(statusCheckInterval);
+  }, [paymentData, qrCodeImage]);
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
@@ -212,15 +227,14 @@ function TopUpPayment() {
     });
   };
 
-  const handleCheckPayment = async () => {
+  const checkPaymentStatus = async () => {
     if (!paymentData?.transaction?._id) {
-      toast.error("Không tìm thấy thông tin giao dịch");
       return;
     }
 
     try {
-      setLoading(true);
-      const response = await checkPaymentStatus(paymentData.transaction._id);
+      // Sử dụng endpoint mới để kiểm tra trạng thái thanh toán từ PayOS API
+      const response = await checkPayOSPaymentStatus(paymentData.transaction._id);
       
       if (response.success) {
         const transaction = response.data;
@@ -237,8 +251,6 @@ function TopUpPayment() {
               transactionId: paymentData.transactionId
             }
           });
-        } else if (transaction.status === "pending") {
-          toast.info("Giao dịch đang chờ xử lý. Vui lòng hoàn thành thanh toán.");
         } else if (transaction.status === "cancelled") {
           toast.warning("Giao dịch đã bị hủy.");
           sessionStorage.removeItem('topupPaymentData');
@@ -250,7 +262,7 @@ function TopUpPayment() {
               amount: amount
             }
           });
-        } else {
+        } else if (transaction.status === "failed") {
           toast.error("Giao dịch thất bại.");
           sessionStorage.removeItem('topupPaymentData');
           sessionStorage.removeItem('topupCountdown');
@@ -262,12 +274,10 @@ function TopUpPayment() {
             }
           });
         }
+        // If status is "pending", do nothing and continue polling
       }
     } catch (err) {
       console.error("Error checking payment status:", err);
-      toast.error("Không thể kiểm tra trạng thái thanh toán");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -413,12 +423,6 @@ function TopUpPayment() {
         </div>
 
         <div className="payment-actions">
-          <button
-            className="check-payment-button"
-            onClick={handleCheckPayment}
-          >
-            Tôi đã thanh toán
-          </button>
           <button className="cancel-button" onClick={handleCancelPayment}>
             Hủy giao dịch
           </button>
