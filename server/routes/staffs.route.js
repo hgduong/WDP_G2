@@ -48,6 +48,17 @@ staffWorkRouter.patch("/staff/bookings/:id/payment", updateBookingPayment);
 staffWorkRouter.get("/staff/audit-logs", getAuditLogs);
 staffWorkRouter.post("/staff/vouchers/apply", voucherController.applyVoucher);
 
+// Staff schedule routes
+const scheduleController = require("../controllers/schedule.controller");
+console.log("[DEBUG] Registering staff schedule routes");
+staffWorkRouter.get("/staff/schedule", (req, res, next) => {
+  console.log("[DEBUG] /staff/schedule route hit");
+  console.log("[DEBUG] req.user:", req.user);
+  next();
+}, scheduleController.getMySchedule);
+staffWorkRouter.post("/staff/schedule/:scheduleId/check-in", scheduleController.checkIn);
+staffWorkRouter.post("/staff/schedule/:scheduleId/check-out", scheduleController.checkOut);
+
 router.use(staffWorkRouter);
 
 // ─── Public staff-booking routes (no auth — internal counter tool) ─────────
