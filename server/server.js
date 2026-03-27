@@ -5,8 +5,9 @@ const passport = require("passport");
 const cookieParser = require("cookie-parser");
 const http = require("http");
 const connectDB = require("./config/db");
-
 const socketIO = require("./socket");
+const { startScheduler, generateShowtimes } = require("./utils/showtimeScheduler");
+const { authenticateToken, authorizeRoles } = require("./config/auth.middleware");
 require("./config/passport");
 
 const app = express();
@@ -26,7 +27,10 @@ app.use(
 );
 app.use(passport.initialize());
 
-connectDB();
+connectDB().then(() => {
+  // Start auto-generating showtimes after DB connection
+  startScheduler();
+});
 
 app.get("/", async (req, res) => {
   try {
@@ -75,7 +79,20 @@ app.get("/api/wards/:districtCode", async (req, res) => {
   }
 });
 
-
+// Manual trigger: generate showtimes for next N days (Admin only)
+app.post("/api/showtimes/generate", authenticateToken, authorizeRoles(["Admin"]), async (req, res) => {
+  try {
+    const days = parseInt(req.body.days) || 7;
+    const result = await generateShowtimes(days);
+    res.json({
+      message: `Đã tạo ${result.created} suất chiếu mới, bỏ qua ${result.skipped} suất đã có.`,
+      ...result,
+    });
+  } catch (error) {
+    console.error("Lỗi khi tạo suất chiếu:", error);
+    res.status(500).json({ message: "Lỗi server khi tạo suất chiếu" });
+  }
+});
 
 const uploadRoutes = require("./routes/upload.route");
 app.use("/api", uploadRoutes);
@@ -90,8 +107,8 @@ const moviesRoutes = require("./routes/movies.route");
 const cinemaRoutes = require("./routes/cinema.routes");
 const staffRoutes = require("./routes/staffs.route");
 const voucherRoutes = require("./routes/voucher.routes");
-// const seatsRoutes = require("./routes/seats.route");
-// const bookingRoutes = require("./routes/booking.route");
+const seatsRoutes = require("./routes/seats.route");
+const bookingRoutes = require("./routes/booking.route");
 const transactionRoutes = require("./routes/transaction.routes");
 const scheduleRoutes = require("./routes/schedule.routes");
 
@@ -106,7 +123,8 @@ app.use(cinemaRoutes);
 app.use("/transactions", transactionRoutes);
 
 app.use(staffRoutes);
-// app.use("/api", seatsRoutes);
+app.use("/api", seatsRoutes);
+app.use("/api", bookingRoutes);
 app.use("/api/schedules", scheduleRoutes);
 // Đăng ký voucher routes tại /vouchers (cùng cấp với các routes khác)
 app.use("/vouchers", voucherRoutes);
