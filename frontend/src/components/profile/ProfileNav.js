@@ -1,5 +1,9 @@
-export default function ProfileNav({ activeTab, setActiveTab }) {
-  const tabs = ["info", "history", "rewards"];
+export default function ProfileNav({ activeTab, setActiveTab, role }) {
+  let tabs = ["info", "history", "rewards"];
+  if (role === "Staff" || role === "Admin") {
+    tabs = ["info"];
+  }
+  
   const labels = {
     info: "Thông tin tài khoản",
     history: "Lịch sử giao dịch",

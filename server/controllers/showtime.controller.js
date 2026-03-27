@@ -100,9 +100,8 @@ exports.getShowtimesByMovie = async (req, res) => {
               });
               seatmap = await Seatmap.findById(seatmap._id).populate("seats");
               
-              // Update showtime with seatMap reference
-              s.seatMap = seatmap._id;
-              await s.save();
+              // Update showtime with seatMap reference using findByIdAndUpdate
+              await Showtime.findByIdAndUpdate(s._id, { $set: { seatMap: seatmap._id } });
             }
           }
         }
@@ -122,9 +121,8 @@ exports.getShowtimesByMovie = async (req, res) => {
             });
             seatmap = await Seatmap.findById(seatmap._id).populate("seats");
             
-            // Update showtime with seatMap reference
-            s.seatMap = seatmap._id;
-            await s.save();
+            // Update showtime with seatMap reference using findByIdAndUpdate
+            await Showtime.findByIdAndUpdate(s._id, { $set: { seatMap: seatmap._id } });
           }
         }
         
