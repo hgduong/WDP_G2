@@ -15,7 +15,7 @@ const AdminLayout = ({ children }) => {
     { path: "/admin/movies", label: "Quản lý Phim" },
     { path: "/admin/cinemas", label: "Quản lý Rạp & Phòng" },
     { path: "/admin/showtimes", label: "Quản lý Lịch Chiếu" },
-    { path: "/admin/staff-register", label: "Đăng ký Staff" },
+    // { path: "/admin/staff-register", label: "Đăng ký Staff" },
     { path: "/admin/staffs", label: "Quản lý Nhân Viên" },
     { path: "/admin/users", label: "Quản lý Người Dùng" },
     { path: "/admin/voucher", label: "Quản lý Voucher" },

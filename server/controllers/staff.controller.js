@@ -460,10 +460,6 @@ exports.getStaffBookingShowtimes = async (req, res) => {
       filter.movieId = movieId;
     }
 
-    if (cinemaId && mongoose.isValidObjectId(cinemaId)) {
-      filter.cinemasId = cinemaId;
-    }
-
     if (date) {
       // Parse the date in local UTC+7 timezone to avoid off-by-one day issues
       const parts = date.split('-'); // YYYY-MM-DD
@@ -477,12 +473,24 @@ exports.getStaffBookingShowtimes = async (req, res) => {
 
     const showtimes = await Showtime.find(filter)
       .populate("movieId", "title duration posterUrl")
-      .populate("cinemasId", "name address city")
       .populate("roomId", "name type capacity")
+      .populate({
+        path: "roomId",
+        populate: { path: "cinemaId", select: "name address city" }
+      })
       .sort({ startTime: 1 });
 
+    // Filter by cinemaId if provided (through room)
+    let filteredShowtimes = showtimes;
+    if (cinemaId && mongoose.isValidObjectId(cinemaId)) {
+      filteredShowtimes = showtimes.filter(st => 
+        st.roomId?.cinemaId?._id?.toString() === cinemaId || 
+        st.roomId?.cinemaId?.toString() === cinemaId
+      );
+    }
+
     const enrichedShowtimes = await Promise.all(
-      showtimes.map(async (showtime) => {
+      filteredShowtimes.map(async (showtime) => {
         const seatmap = await ensureShowtimeSeatmap(showtime);
         const seats = seatmap.seats || [];
         const availableSeats = seats.filter((seat) => seat.status === "Available").length;
@@ -508,8 +516,11 @@ exports.getSeatMapForStaffBooking = async (req, res) => {
   try {
     const showtime = await Showtime.findById(req.params.showtimeId)
       .populate("movieId", "title duration posterUrl")
-      .populate("cinemasId", "name address city")
-      .populate("roomId", "name type capacity");
+      .populate("roomId", "name type capacity")
+      .populate({
+        path: "roomId",
+        populate: { path: "cinemaId", select: "name address city" }
+      });
 
     if (!showtime) {
       return res.status(404).json({ message: "Suất chiếu không tồn tại" });
@@ -559,6 +570,7 @@ exports.createStaffBooking = async (req, res) => {
       sendEmail = false,
       paymentStatus = "PayAtCounter",
       voucherCode,
+      pricePerSeat,
     } = req.body;
 
     if (!showtimeId || !Array.isArray(seatIds) || seatIds.length === 0) {
@@ -571,8 +583,11 @@ exports.createStaffBooking = async (req, res) => {
 
     const showtime = await Showtime.findById(showtimeId)
       .populate("movieId", "title duration")
-      .populate("cinemasId", "name address city")
-      .populate("roomId", "name type capacity");
+      .populate("roomId", "name type capacity")
+      .populate({
+        path: "roomId",
+        populate: { path: "cinemaId", select: "name address city" }
+      });
 
     if (!showtime) {
       return res.status(404).json({ message: "Suất chiếu không tồn tại" });
@@ -603,12 +618,14 @@ exports.createStaffBooking = async (req, res) => {
       ? paymentStatus
       : "PayAtCounter";
 
+    // Calculate total price based on pricePerSeat from request
+    const basePrice = pricePerSeat || 75000; // Default price if not provided
     let totalPrice = 0;
     selectedSeats.forEach(seat => {
       if (seat.type === "Couple") {
-        totalPrice += Number(showtime.price || 0) * 2;
+        totalPrice += basePrice * 2;
       } else {
-        totalPrice += Number(showtime.price || 0);
+        totalPrice += basePrice;
       }
     });
     let discountAmount = 0;
@@ -636,15 +653,17 @@ exports.createStaffBooking = async (req, res) => {
       }
     }
 
+    const cinemaId = showtime.roomId?.cinemaId?._id || showtime.roomId?.cinemaId;
+
     const booking = await Booking.create({
       userId: null,
       bookedByStaffId: req.user?.id || null,
       showtimeId: showtime._id,
-      cinemaId: showtime.cinemasId?._id || showtime.cinemasId,
+      cinemaId: cinemaId,
       roomId: showtime.roomId?._id || showtime.roomId,
       seats: selectedSeats.map((seat) => seat._id),
       totalPrice,
-      originalPrice: Number(showtime.price || 0) * selectedSeats.length,
+      originalPrice: basePrice * selectedSeats.length,
       discountAmount,
       voucherId: appliedVoucher,
       bookingCode: createBookingCode(),
@@ -679,7 +698,7 @@ exports.createStaffBooking = async (req, res) => {
           booking,
           showtime,
           movie: showtime.movieId,
-          cinema: showtime.cinemasId,
+          cinema: showtime.roomId?.cinemaId,
           room: showtime.roomId,
           seats: selectedSeats,
         });
@@ -711,7 +730,10 @@ exports.getStaffDashboardStats = async (req, res) => {
     const todayShowtimes = await Showtime.find({
       startTime: { $gte: startOfDay, $lt: endOfDay },
       status: "Scheduled",
-    }).populate("movieId", "title").populate("cinemasId", "name");
+    }).populate("movieId", "title").populate({
+      path: "roomId",
+      populate: { path: "cinemaId", select: "name" }
+    });
 
     const totalShowtimes = todayShowtimes.length;
     const completedShowtimes = todayShowtimes.filter(s => new Date(s.startTime) < new Date()).length;
@@ -779,7 +801,7 @@ exports.getStaffBookings = async (req, res) => {
     }
 
     const bookings = await Booking.find(filter)
-      .populate("showtimeId", "startTime price")
+      .populate("showtimeId", "startTime")
       .populate("showtimeId.movieId", "title")
       .populate("cinemaId", "name")
       .populate("roomId", "name")

@@ -29,79 +29,98 @@ const generateQRCodeUrl = (data) => {
 };
 
 // Create new booking with tickets
+// controllers/bookingController.js
+
 exports.createBooking = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     const {
-      userId,
       showtimeId,
       cinemaId,
       roomId,
-      seats,
+      seatIds = [],           // Thay vì seats → đổi thành seatIds rõ ràng
       totalPrice,
-      customerInfo,
-      paymentStatus = "Unpaid"
+      customerName,
+      customerPhone,
+      customerEmail,
+      notes = "",
+      paymentStatus = "Pending"
     } = req.body;
 
-    // Validate required fields
-    if (!showtimeId || !cinemaId || !roomId || !seats || seats.length === 0 || !totalPrice) {
-      return res.status(400).json({ message: "Thiếu thông tin bắt buộc" });
+    // ==================== VALIDATION ====================
+    if (!showtimeId || !cinemaId || !roomId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Thiếu thông tin suất chiếu, rạp hoặc phòng" 
+      });
     }
 
-    // Check if showtime exists
+    if (!seatIds || seatIds.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Vui lòng chọn ít nhất một ghế" 
+      });
+    }
+
+    if (!totalPrice || totalPrice <= 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Tổng tiền không hợp lệ" 
+      });
+    }
+
+    // Check showtime tồn tại
     const showtime = await Showtime.findById(showtimeId).populate("movieId");
     if (!showtime) {
-      return res.status(404).json({ message: "Suất chiếu không tồn tại" });
+      return res.status(404).json({ success: false, message: "Suất chiếu không tồn tại" });
     }
 
-    // Check if cinema exists
+    // Check cinema & room
     const cinema = await Cinema.findById(cinemaId);
-    if (!cinema) {
-      return res.status(404).json({ message: "Rạp không tồn tại" });
-    }
-
-    // Check if room exists
     const room = await Room.findById(roomId);
-    if (!room) {
-      return res.status(404).json({ message: "Phòng không tồn tại" });
-    }
 
-    // Create booking
+    if (!cinema) return res.status(404).json({ success: false, message: "Rạp không tồn tại" });
+    if (!room) return res.status(404).json({ success: false, message: "Phòng không tồn tại" });
+
+    // ==================== TẠO BOOKING ====================
     const bookingCode = generateBookingCode();
+
     const booking = new Booking({
-      userId: userId || null,
+      userId: req.user?.id || null,
       showtimeId,
       cinemaId,
       roomId,
-      seats: [],
       totalPrice,
       bookingCode,
       status: "Pending",
       paymentStatus,
       customerInfo: {
-        fullName: customerInfo?.fullName || "",
-        phone: customerInfo?.phone || "",
-        email: customerInfo?.email || "",
-        notes: customerInfo?.notes || ""
+        fullName: customerName || "",
+        phone: customerPhone || "",
+        email: customerEmail || "",
+        notes
       }
     });
 
     await booking.save({ session });
 
-    // Create tickets for each seat
+    // ==================== TẠO TICKETS ====================
     const tickets = [];
-    for (const seat of seats) {
+    const pricePerSeat = totalPrice / seatIds.length;
+
+    for (const seatId of seatIds) {
       const ticketCode = generateTicketCode();
-      const ticketData = {
+
+      const ticket = new Ticket({
         bookingId: booking._id,
-        userId: userId || null,
+        userId: req.user?.id || null,
         showtimeId,
         cinemaId,
         roomId,
-        seatId: seat._id || seat.id,
-        price: showtime.price,
+        seatId: seatId,                    // Lưu seatId trực tiếp
+        price: pricePerSeat,
         ticketCode,
         status: "Valid",
         qrCodeUrl: generateQRCodeUrl({
@@ -111,24 +130,22 @@ exports.createBooking = async (req, res) => {
           showtime: showtime.startTime,
           cinema: cinema.name,
           room: room.name,
-          seat: seat.label
+          seat: seatId   // tạm thời dùng seatId, sau có thể cải thiện
         })
-      };
+      });
 
-      const ticket = new Ticket(ticketData);
       await ticket.save({ session });
       tickets.push(ticket);
     }
 
-    // Update booking with ticket IDs
-    booking.seats = tickets.map(t => t._id);
+    // Cập nhật lại booking
     booking.tickets = tickets.map(t => t._id);
     await booking.save({ session });
 
     await session.commitTransaction();
     session.endSession();
 
-    // Populate response data
+    // Populate để trả về frontend
     const populatedBooking = await Booking.findById(booking._id)
       .populate("showtimeId")
       .populate("cinemaId")
@@ -136,39 +153,26 @@ exports.createBooking = async (req, res) => {
       .populate("tickets");
 
     res.status(201).json({
+      success: true,
       message: "Đặt vé thành công",
-      booking: {
-        ...populatedBooking.toObject(),
-        movie: showtime.movieId,
-        showtime: {
-          startTime: showtime.startTime,
-          price: showtime.price
-        },
-        cinema: {
-          name: cinema.name,
-          address: cinema.address,
-          city: cinema.city
-        },
-        room: {
-          name: room.name
-        },
-        seats: tickets.map(t => ({
-          label: seats.find(s => s._id?.toString() === t.seatId?.toString() || s.id === t.seatId)?.label || "Unknown"
-        })),
-        tickets: tickets.map(t => ({
-          ticketCode: t.ticketCode,
-          seatLabel: seats.find(s => s._id?.toString() === t.seatId?.toString() || s.id === t.seatId)?.label || "Unknown",
-          qrCodeUrl: t.qrCodeUrl
-        })),
-        purchaseDate: new Date(),
-        paymentStatus
-      }
+      booking: populatedBooking,
+      tickets: tickets.map(t => ({
+        ticketCode: t.ticketCode,
+        qrCodeUrl: t.qrCodeUrl,
+        seatId: t.seatId
+      }))
     });
+
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
-    console.error("Lỗi khi tạo đặt vé:", error);
-    res.status(500).json({ message: "Lỗi server khi tạo đặt vé" });
+    console.error("Create Booking Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi tạo đặt vé",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
   }
 };
 
@@ -219,7 +223,26 @@ exports.getBooking = async (req, res) => {
       return res.status(404).json({ message: "Đặt vé không tồn tại" });
     }
 
-    res.json(booking);
+    // Add movie, showtime, cinema, room fields for frontend compatibility
+    // booking.showtimeId is already populated, so we need to get movieId from it
+    const showtime = await Showtime.findById(booking.showtimeId._id).populate("movieId");
+    
+    const bookingObj = booking.toObject();
+    bookingObj.movie = showtime?.movieId || null;
+    bookingObj.showtime = {
+      startTime: booking.showtimeId?.startTime,
+      price: booking.showtimeId?.price
+    };
+    bookingObj.cinema = {
+      name: booking.cinemaId?.name,
+      address: booking.cinemaId?.address,
+      city: booking.cinemaId?.city
+    };
+    bookingObj.room = {
+      name: booking.roomId?.name
+    };
+
+    res.json(bookingObj);
   } catch (error) {
     console.error("Lỗi khi lấy thông tin đặt vé:", error);
     res.status(500).json({ message: "Lỗi server" });
@@ -241,7 +264,26 @@ exports.getBookingByCode = async (req, res) => {
       return res.status(404).json({ message: "Đặt vé không tồn tại" });
     }
 
-    res.json(booking);
+    // Add movie, showtime, cinema, room fields for frontend compatibility
+    // booking.showtimeId is already populated, so we need to get movieId from it
+    const showtime = await Showtime.findById(booking.showtimeId._id).populate("movieId");
+    
+    const bookingObj = booking.toObject();
+    bookingObj.movie = showtime?.movieId || null;
+    bookingObj.showtime = {
+      startTime: booking.showtimeId?.startTime,
+      price: booking.showtimeId?.price
+    };
+    bookingObj.cinema = {
+      name: booking.cinemaId?.name,
+      address: booking.cinemaId?.address,
+      city: booking.cinemaId?.city
+    };
+    bookingObj.room = {
+      name: booking.roomId?.name
+    };
+
+    res.json(bookingObj);
   } catch (error) {
     console.error("Lỗi khi lấy thông tin đặt vé:", error);
     res.status(500).json({ message: "Lỗi server" });

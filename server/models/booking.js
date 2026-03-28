@@ -7,7 +7,7 @@ const bookingSchema = new mongoose.Schema({
   showtimeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Showtime', required: true },
   cinemaId: { type: mongoose.Schema.Types.ObjectId, ref: 'Cinema', required: true },
   roomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Room', required: true },
-  seats: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Seat', required: true }],
+  seats: [{ type: mongoose.Schema.Types.Mixed, required: true }],
   totalPrice: { type: Number, required: true },
   bookingCode: { type: String, required: true, unique: true },
   status: { type: String, enum: ['Pending', 'Confirmed', 'Done', 'Cancelled'], default: 'Pending' },

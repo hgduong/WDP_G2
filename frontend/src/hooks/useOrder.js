@@ -42,9 +42,10 @@ export const useOrder = () => {
             const bookingRequestData = {
               userId: user?._id || user?.id || null,
               showtimeId: data.showtimeId || data.showtime?._id,
-              cinemaId: data.cinemaId || data.cinema?._id || data.showtime?.cinemasId?._id,
+              // Get cinemaId from room.cinemaId
+              cinemaId: data.cinemaId || data.cinema?._id || data.showtime?.roomId?.cinemaId?._id || data.showtime?.roomId?.cinemaId,
               roomId: data.roomId || data.room?._id || data.showtime?.roomId?._id,
-              seats: (data.seats || []).map(s => ({ _id: s._id || s.id, label: s.label })).filter(s => s._id),
+              seats: (data.seats || []).map(s => ({ _id: s._id || s.id, label: s.label, id: s.id || s._id })),
               totalPrice: data.totalPrice,
               customerInfo: data.customerInfo || {
                 fullName: user?.fullName || "",
@@ -58,7 +59,17 @@ export const useOrder = () => {
             
             if (response.booking || response.message === "Đặt vé thành công") {
               const savedBooking = response.booking;
-              const mergedData = { ...data, ...savedBooking, _id: savedBooking._id };
+              // Merge data, but preserve movie, cinema, room, showtime from response
+              const mergedData = { 
+                ...data, 
+                ...savedBooking, 
+                _id: savedBooking._id,
+                // Ensure these fields are preserved from server response
+                movie: savedBooking.movie || data.movie,
+                cinema: savedBooking.cinema || data.cinema,
+                room: savedBooking.room || data.room,
+                showtime: savedBooking.showtime || data.showtime
+              };
               setOrderData(mergedData);
               setBookingId(savedBooking._id);
               setPaymentStatus(savedBooking.paymentStatus || "Unpaid");
