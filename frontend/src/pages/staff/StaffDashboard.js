@@ -155,7 +155,7 @@ function StaffDashboard() {
             </div>
             <div>
               <span>{stats?.pendingPayments || 0}</span>
-              <p>Chờ thanh toán</p>
+              <p>Đơn thanh toán</p>
             </div>
           </div>
         </article>

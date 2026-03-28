@@ -20,27 +20,27 @@ export default function MovieInfo({ movie, onBookingClick }) {
         <div className="movie-meta">
           {movie.duration && (
             <span className="meta-item">
-              <span className="meta-icon">⏱️</span>
+              <span className="meta-icon"></span>
               <span className="meta-label">Thời lượng:</span>
               <span className="meta-value">{movie.duration} phút</span>
             </span>
           )}
           {movie.releaseDate && (
             <span className="meta-item">
-              <span className="meta-icon">📅</span>
+              <span className="meta-icon"></span>
               <span className="meta-label">Ngày khởi chiếu:</span>
               <span className="meta-value">
                 {new Date(movie.releaseDate).toLocaleDateString("vi-VN")}
               </span>
             </span>
           )}
-          {movie.rating && (
+          {/* {movie.rating && (
             <span className="meta-item">
               <span className="meta-icon">⭐</span>
               <span className="meta-label">Đánh giá:</span>
               <span className="meta-value">{movie.rating}/10</span>
             </span>
-          )}
+          )} */}
         </div>
 
         {movie.genre && (
@@ -80,7 +80,7 @@ export default function MovieInfo({ movie, onBookingClick }) {
         )}
 
         <button className="booking-button" onClick={onBookingClick}>
-          <span className="button-icon">🎫</span>
+          <span className="button-icon"></span>
           Đặt vé ngay
         </button>
       </div>
