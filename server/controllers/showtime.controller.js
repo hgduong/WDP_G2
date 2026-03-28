@@ -3,10 +3,8 @@ const Showtime = require("../models/showtime");
 const Seatmap = require("../models/seatmap");
 const Seat = require("../models/seat");
 const Movie = require("../models/movie");
-const Cinema = require("../models/cinema");
 const Room = require("../models/room");
 // ensure related models are registered for populate
-require("../models/cinema");
 require("../models/room");
 require("../models/seat");
 
@@ -17,8 +15,11 @@ exports.getAllShowtimes = async (req, res) => {
   try {
     const showtimes = await Showtime.find()
       .populate("movieId", "title posterUrl duration")
-      .populate("cinemasId", "name address city")
-      .populate("roomId", "name type")
+      .populate("roomId", "name capacity seatmapId type cinemaId")
+      .populate({
+        path: "roomId",
+        populate: { path: "cinemaId", select: "name address city" }
+      })
       .sort({ startTime: 1 });
     res.json(showtimes);
   } catch (error) {
@@ -31,13 +32,47 @@ exports.getShowtimeById = async (req, res) => {
   try {
     const showtime = await Showtime.findById(req.params.id)
       .populate("movieId", "title posterUrl duration")
-      .populate("cinemasId", "name address city")
-      .populate("roomId", "name type");
+      .populate("roomId", "name capacity seatmapId type cinemaId")
+      .populate({
+        path: "roomId",
+        populate: { path: "cinemaId", select: "name address city" }
+      });
     
     if (!showtime) {
       return res.status(404).json({ message: "Lịch chiếu không tồn tại" });
     }
     res.json(showtime);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Lấy nhiều lịch chiếu theo danh sách id
+exports.getShowtimesByIds = async (req, res) => {
+  try {
+    const { ids } = req.body;
+    
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "ids phải là mảng không rỗng" });
+    }
+    
+    // Validate all ids
+    for (const id of ids) {
+      if (!mongoose.isValidObjectId(id)) {
+        return res.status(400).json({ message: `Invalid id: ${id}` });
+      }
+    }
+    
+    const showtimes = await Showtime.find({ _id: { $in: ids } })
+      .populate("movieId", "title posterUrl duration")
+      .populate("roomId", "name capacity seatmapId type cinemaId")
+      .populate({
+        path: "roomId",
+        populate: { path: "cinemaId", select: "name address city" }
+      })
+      .sort({ startTime: 1 });
+    
+    res.json(showtimes);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -58,13 +93,16 @@ exports.getShowtimesByMovie = async (req, res) => {
     const showtimes = await Showtime.find({
       movieId,
     })
-      .populate("cinemasId", "name address city")
-      .populate("roomId", "name capacity");
+      .populate("roomId", "name capacity seatmapId type cinemaId")
+      .populate({
+        path: "roomId",
+        populate: { path: "cinemaId", select: "name address city" }
+      });
 
     const result = [];
     for (let s of showtimes) {
       try {
-        // Use the same logic as ensureShowtimeSeatmap to auto-create seatmap if missing
+        // Get seatmap if exists (without auto-creating)
         let seatmap = null;
         
         // Method 1: Check showtime.seatMap
@@ -100,8 +138,9 @@ exports.getShowtimesByMovie = async (req, res) => {
               });
               seatmap = await Seatmap.findById(seatmap._id).populate("seats");
               
-              // Update showtime with seatMap reference using findByIdAndUpdate
-              await Showtime.findByIdAndUpdate(s._id, { $set: { seatMap: seatmap._id } });
+              // Update showtime with seatMap reference
+              s.seatMap = seatmap._id;
+              await s.save();
             }
           }
         }
@@ -121,8 +160,9 @@ exports.getShowtimesByMovie = async (req, res) => {
             });
             seatmap = await Seatmap.findById(seatmap._id).populate("seats");
             
-            // Update showtime with seatMap reference using findByIdAndUpdate
-            await Showtime.findByIdAndUpdate(s._id, { $set: { seatMap: seatmap._id } });
+            // Update showtime with seatMap reference
+            s.seatMap = seatmap._id;
+            await s.save();
           }
         }
         
@@ -155,10 +195,17 @@ exports.getShowtimesByCinema = async (req, res) => {
   try {
     const cinemaId = req.params.cinemaId;
     
-    const showtimes = await Showtime.find({ cinemasId: cinemaId })
+    // Find rooms in this cinema first
+    const rooms = await Room.find({ cinemaId }).select('_id');
+    const roomIds = rooms.map(r => r._id);
+    
+    const showtimes = await Showtime.find({ roomId: { $in: roomIds } })
       .populate("movieId", "title posterUrl duration")
-      .populate("cinemasId", "name address city")
-      .populate("roomId", "name type")
+      .populate("roomId", "name capacity seatmapId type cinemaId")
+      .populate({
+        path: "roomId",
+        populate: { path: "cinemaId", select: "name address city" }
+      })
       .sort({ startTime: 1 });
     
     res.json(showtimes);
@@ -170,7 +217,12 @@ exports.getShowtimesByCinema = async (req, res) => {
 // Thêm lịch chiếu mới
 exports.addShowtime = async (req, res) => {
   try {
-    const { movieId, cinemasId, roomId, startTime, price, language } = req.body;
+    const { movieId, roomId, startTime, duration, language, status } = req.body;
+    
+    // Validate startTime is provided
+    if (!startTime) {
+      return res.status(400).json({ message: "Thời gian chiếu là bắt buộc" });
+    }
     
     // Kiểm tra phim tồn tại
     const movie = await Movie.findById(movieId);
@@ -178,46 +230,42 @@ exports.addShowtime = async (req, res) => {
       return res.status(404).json({ message: "Phim không tồn tại" });
     }
     
-    // Kiểm tra rạp tồn tại
-    const cinema = await Cinema.findById(cinemasId);
-    if (!cinema) {
-      return res.status(404).json({ message: "Rạp không tồn tại" });
-    }
-    
-    // Kiểm tra phòng tồn tại và thuộc rạp
+    // Kiểm tra phòng tồn tại
     const room = await Room.findById(roomId);
     if (!room) {
       return res.status(404).json({ message: "Phòng không tồn tại" });
     }
-    if (room.cinemaId.toString() !== cinemasId) {
-      return res.status(400).json({ message: "Phòng không thuộc rạp này" });
+    
+    // Validate duration
+    const finalDuration = duration || movie.duration || 120;
+    if (finalDuration < 0) {
+      return res.status(400).json({ message: "Thời lượng phim không hợp lệ" });
     }
     
     // Tạo lịch chiếu
     const showtime = new Showtime({
       movieId,
-      cinemasId,
       roomId,
       startTime,
-      price,
-      language: language || 'Tiếng Việt'
+      duration: finalDuration,
+      language: language || 'Tiếng Việt',
+      status: status || 'Scheduled'
     });
     
     await showtime.save();
     
-    // Cập nhật mảng showtimes trong Movie và Cinema
+    // Cập nhật mảng showtimes trong Movie
     await Movie.findByIdAndUpdate(movieId, {
-      $push: { showtimes: showtime._id }
-    });
-    
-    await Cinema.findByIdAndUpdate(cinemasId, {
       $push: { showtimes: showtime._id }
     });
     
     const populatedShowtime = await Showtime.findById(showtime._id)
       .populate("movieId", "title posterUrl duration")
-      .populate("cinemasId", "name address city")
-      .populate("roomId", "name type");
+      .populate("roomId", "name capacity seatmapId type cinemaId")
+      .populate({
+        path: "roomId",
+        populate: { path: "cinemaId", select: "name address city" }
+      });
     
     res.status(201).json(populatedShowtime);
   } catch (error) {
@@ -234,8 +282,11 @@ exports.updateShowtime = async (req, res) => {
       { new: true }
     )
       .populate("movieId", "title posterUrl duration")
-      .populate("cinemasId", "name address city")
-      .populate("roomId", "name type");
+      .populate("roomId", "name capacity seatmapId type cinemaId")
+      .populate({
+        path: "roomId",
+        populate: { path: "cinemaId", select: "name address city" }
+      });
     
     if (!showtime) {
       return res.status(404).json({ message: "Lịch chiếu không tồn tại" });
@@ -255,12 +306,8 @@ exports.deleteShowtime = async (req, res) => {
       return res.status(404).json({ message: "Lịch chiếu không tồn tại" });
     }
     
-    // Xóa khỏi mảng showtimes trong Movie và Cinema
+    // Xóa khỏi mảng showtimes trong Movie
     await Movie.findByIdAndUpdate(showtime.movieId, {
-      $pull: { showtimes: req.params.id }
-    });
-    
-    await Cinema.findByIdAndUpdate(showtime.cinemasId, {
       $pull: { showtimes: req.params.id }
     });
     

@@ -2,28 +2,25 @@ import React from "react";
 import { useOrder } from "../hooks/useOrder";
 import OrderLoading from "../components/order/OrderLoading";
 import OrderError from "../components/order/OrderError";
-import PaymentPending from "../components/order/PaymentPending";
-import PaymentComplete from "../components/order/PaymentComplete";
+import OrderDetailsTable from "../components/order/OrderDetailsTable";
+import UserInfoSection from "../components/order/UserInfoSection";
 import "../assets/styles/Order.css";
 
 /**
- * Main Order page component
- * Displays order information and handles payment flow
- * @returns {JSX.Element} Order page component
+ * Order information page for customers to check their order details
+ * @returns {JSX.Element} Order information page component
  */
-export default function Order() {
+export default function OrderUser() {
   const {
     orderData,
     loading,
     error,
-    isPaymentComplete,
     movie,
     cinema,
     room,
     showtime,
     customerInfo,
     handleGoHome,
-    handleGoBack,
     handlePaymentComplete
   } = useOrder();
 
@@ -37,28 +34,34 @@ export default function Order() {
 
   return (
     <div className="order-container">
-      {!isPaymentComplete && (
-        <PaymentPending
-          orderData={orderData}
-          movie={movie}
-          cinema={cinema}
-          room={room}
-          showtime={showtime}
-          onPaymentComplete={handlePaymentComplete}
-          onGoBack={handleGoBack}
-        />
-      )}
+      <div className="order-info-header">
+        <h1>Thông tin đơn hàng</h1>
+        <p className="order-code">Mã đặt vé: <strong>{orderData.bookingCode}</strong></p>
+        <p className="payment-status">
+          Trạng thái: <strong>{orderData.paymentStatus === "Paid" ? "Đã thanh toán" : "Chưa thanh toán"}</strong>
+        </p>
+      </div>
 
-      {isPaymentComplete && (
-        <PaymentComplete
-          orderData={orderData}
-          movie={movie}
-          cinema={cinema}
-          room={room}
-          showtime={showtime}
-          customerInfo={customerInfo}
-        />
-      )}
+      <OrderDetailsTable
+        orderData={orderData}
+        movie={movie}
+        cinema={cinema}
+        room={room}
+        showtime={showtime}
+      />
+
+      <UserInfoSection customerInfo={customerInfo} />
+
+      <div className="order-actions">
+        {orderData.paymentStatus !== "Paid" && (
+          <button className="btn btn-primary" onClick={handlePaymentComplete}>
+            Thanh toán
+          </button>
+        )}
+        <button className="btn btn-secondary" onClick={handleGoHome}>
+          Về trang chủ
+        </button>
+      </div>
     </div>
   );
 }

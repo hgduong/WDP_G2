@@ -29,7 +29,6 @@ const ShowtimeManagement = () => {
   const [editFormData, setEditFormData] = useState({
     movieId: '',
     roomId: '',
-    price: '',
     language: 'Tiếng Việt',
     status: 'Scheduled'
   });
@@ -45,11 +44,13 @@ const ShowtimeManagement = () => {
   const handleConfirmDelete = async () => {
     setIsDeleting(true);
     try {
+      // Delete showtimes for today (as template)
+      // The scheduler will stop generating showtimes for future days
       for (const id of deletingShowtimeIds) {
         await deleteShowtime(id);
       }
       await fetchData();
-      toast.success('Xóa suất chiếu thành công!');
+      toast.success('Xóa suất chiếu thành công! Hệ thống sẽ ngừng tạo suất chiếu cho các ngày sau.');
     } catch (err) {
       toast.error(err.message || 'Failed to delete showtime');
     } finally {
@@ -119,7 +120,7 @@ const ShowtimeManagement = () => {
     }
   };
 
-  // Generate time slots based on movie duration
+  // Generate time slots based on movie duration (for today as template)
   const generateTimeSlots = () => {
     if (!selectedMovie || !selectedRoom) {
       toast.warning('Vui lòng chọn phim và phòng');
@@ -127,12 +128,10 @@ const ShowtimeManagement = () => {
     }
 
     const movie = movies.find(m => m._id === selectedMovie);
+    const duration = movie?.duration || 120; // Default 120 minutes if no duration
     if (!movie?.duration) {
-      toast.warning('Phim không có thời lượng. Vui lòng cập nhật thời lượng phim trong Quản lý Phim');
-      return;
+      toast.info('Phim không có thời lượng, sử dụng mặc định 120 phút');
     }
-
-    const duration = movie.duration;
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -204,14 +203,25 @@ const ShowtimeManagement = () => {
     setIsSaving(true);
 
     try {
-      // Create showtime for each selected slot
+      // Create showtime for today only (as template for scheduler)
+      // The scheduler will use these as templates to generate showtimes for all days
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+
       for (const slot of selectedSlots) {
+        // Create showtime for today with the selected time
+        const slotTime = new Date(slot.startTime);
+        const showtimeDate = new Date(dateStr);
+        showtimeDate.setHours(slotTime.getHours(), slotTime.getMinutes(), 0, 0);
+
         const showtimeData = {
           movieId: selectedMovie,
-          cinemasId: TIME_CINEMAS_ID,
           roomId: selectedRoom,
-          startTime: slot.startTime,
-          price: 50000, // default price
+          startTime: showtimeDate.toISOString(),
+          duration: slot.movieDuration,
           language: 'Tiếng Việt'
         };
         await createShowtime(showtimeData);
@@ -219,7 +229,7 @@ const ShowtimeManagement = () => {
       
       await fetchData();
       closeModal();
-      toast.success(`Đã thêm ${selectedSlots.length} suất chiếu thành công!`);
+      toast.success(`Đã thêm ${selectedSlots.length} suất chiếu thành công! Hệ thống sẽ tự động tạo suất chiếu cho các ngày sau.`);
     } catch (err) {
       toast.error(err.message || 'Failed to save showtimes');
     } finally {
@@ -228,6 +238,8 @@ const ShowtimeManagement = () => {
   };
 
   const handleDelete = async (id) => {
+    // Delete showtime for today (as template)
+    // The scheduler will stop generating showtimes for future days
     setDeletingShowtimeId(id);
     setDeletingShowtimeIds([id]);
     setShowDeleteConfirm(true);
@@ -275,6 +287,8 @@ const ShowtimeManagement = () => {
   };
 
   const handleDeleteGroup = async (showtimesToDelete) => {
+    // Delete showtime group for today (as template)
+    // The scheduler will stop generating showtimes for future days
     setDeletingShowtimeIds(showtimesToDelete.map(s => s._id));
     setDeletingShowtimeId(null);
     setShowDeleteConfirm(true);
@@ -291,14 +305,13 @@ const ShowtimeManagement = () => {
     setEditFormData({
       movieId: group.movieId?._id || group.movieId,
       roomId: group.roomId?._id || group.roomId,
-      price: group.showtimes[0]?.price || '',
       language: group.showtimes[0]?.language || 'Tiếng Việt',
       status: group.showtimes[0]?.status || 'Scheduled'
     });
     setShowEditModal(true);
   };
 
-  // Generate time slots based on movie duration for edit modal
+  // Generate time slots based on movie duration for edit modal (for today as template)
   const generateEditTimeSlots = () => {
     if (!editFormData.movieId || !editFormData.roomId) {
       toast.warning('Vui lòng chọn phim và phòng');
@@ -306,12 +319,10 @@ const ShowtimeManagement = () => {
     }
 
     const movie = movies.find(m => m._id === editFormData.movieId);
+    const duration = movie?.duration || 120; // Default 120 minutes if no duration
     if (!movie?.duration) {
-      toast.warning('Phim không có thời lượng');
-      return;
+      toast.info('Phim không có thời lượng, sử dụng mặc định 120 phút');
     }
-
-    const duration = movie.duration;
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -396,14 +407,24 @@ const ShowtimeManagement = () => {
         await deleteShowtime(id);
       }
 
-      // Create new showtimes
+      // Create new showtimes for today only (as template)
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+
       for (const slot of toCreate) {
+        // Create showtime for today with the selected time
+        const slotTime = new Date(slot.startTime);
+        const showtimeDate = new Date(dateStr);
+        showtimeDate.setHours(slotTime.getHours(), slotTime.getMinutes(), 0, 0);
+
         const showtimeData = {
           movieId: editFormData.movieId,
-          cinemasId: TIME_CINEMAS_ID,
           roomId: editFormData.roomId,
-          startTime: slot.startTime,
-          price: parseInt(editFormData.price),
+          startTime: showtimeDate.toISOString(),
+          duration: slot.movieDuration,
           language: editFormData.language
         };
         await createShowtime(showtimeData);
@@ -415,7 +436,6 @@ const ShowtimeManagement = () => {
         await updateShowtime(showtime._id, {
           movieId: editFormData.movieId,
           roomId: editFormData.roomId,
-          price: parseInt(editFormData.price),
           language: editFormData.language,
           status: editFormData.status
         });
@@ -426,7 +446,7 @@ const ShowtimeManagement = () => {
       setEditingGroup(null);
       setExistingShowtimes([]);
       setEditSelectedSlots([]);
-      toast.success('Cập nhật lịch chiếu thành công!');
+      toast.success('Cập nhật lịch chiếu thành công! Hệ thống sẽ tự động cập nhật suất chiếu cho các ngày sau.');
     } catch (err) {
       toast.error(err.message || 'Failed to update showtimes');
     } finally {
@@ -435,6 +455,8 @@ const ShowtimeManagement = () => {
   };
 
   const handleDeleteAllEdit = async () => {
+    // Delete all showtimes for today (as template)
+    // The scheduler will stop generating showtimes for future days
     setDeletingShowtimeIds(existingShowtimes.map(s => s._id));
     setDeletingShowtimeId(null);
     setShowDeleteConfirm(true);
@@ -581,28 +603,6 @@ const ShowtimeManagement = () => {
             </div>
             
             <div className="modal-body">
-              {/* Bảng giá vé */}
-              <div className="pricing-info" style={{
-                background: '#f8f9fa',
-                padding: '15px',
-                borderRadius: '8px',
-                marginBottom: '20px',
-                border: '1px solid #dee2e6'
-              }}>
-                <h4 style={{marginTop: 0, marginBottom: '10px'}}>💰 Bảng giá vé</h4>
-                <div style={{display: 'flex', gap: '20px', flexWrap: 'wrap'}}>
-                  <div>
-                    <span style={{fontWeight: 'bold', color: '#28a745'}}>Dưới 22 tuổi:</span> 50.000 VNĐ
-                  </div>
-                  <div>
-                    <span style={{fontWeight: 'bold', color: '#007bff'}}>Từ 22 tuổi trở lên:</span> 100.000 VNĐ
-                  </div>
-                  <div>
-                    <span style={{fontWeight: 'bold', color: '#dc3545'}}>Trên 70 tuổi:</span> <span style={{color: '#28a745', fontWeight: 'bold'}}>MIỄN PHÍ</span>
-                  </div>
-                </div>
-              </div>
-
               {/* Step 1: Select Movie, Room, Date */}
               <div className="form-row">
                 <div className="form-group">
@@ -928,19 +928,6 @@ const ShowtimeManagement = () => {
                       <option key={room._id} value={room._id}>{room.name}</option>
                     ))}
                   </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Giá vé (VNĐ)</label>
-                  <input
-  type="number"
-  name="price"
-  value={editFormData.price}
-  onChange={(e) => setEditFormData({...editFormData, price: e.target.value})}
-  required
-  min="0"
-  style={{ MozAppearance: 'textfield' }}
-/>
                 </div>
 
                 <div className="form-group">

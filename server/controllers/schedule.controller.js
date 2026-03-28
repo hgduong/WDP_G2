@@ -367,7 +367,7 @@ const getShiftTimes = (date, shift) => {
 const checkIn = async (req, res) => {
   try {
     const { scheduleId } = req.params;
-    const staffId = req.user._id;
+    const staffId = req.user.id;
 
     const schedule = await Schedule.findById(scheduleId);
 
@@ -422,7 +422,7 @@ const checkIn = async (req, res) => {
 const checkOut = async (req, res) => {
   try {
     const { scheduleId } = req.params;
-    const staffId = req.user._id;
+    const staffId = req.user.id;
 
     const schedule = await Schedule.findById(scheduleId);
 
@@ -512,6 +512,57 @@ const getAttendanceByWeek = async (req, res) => {
   }
 };
 
+// Get staff's own schedule for a specific week
+const getMySchedule = async (req, res) => {
+  try {
+    console.log("[DEBUG] getMySchedule called");
+    console.log("[DEBUG] req.query:", req.query);
+    console.log("[DEBUG] req.user:", req.user);
+    
+    const { startDate, endDate } = req.query;
+    const staffId = req.user.id;
+
+    console.log("[DEBUG] staffId:", staffId);
+    console.log("[DEBUG] startDate:", startDate);
+    console.log("[DEBUG] endDate:", endDate);
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: "startDate and endDate are required" });
+    }
+
+    const schedules = await Schedule.find({
+      staffId,
+      date: {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      },
+      isDeleted: false
+    }).sort({ date: 1, shift: 1 });
+
+    console.log("[DEBUG] Found schedules:", schedules.length);
+
+    // Auto-mark absent for past schedules that weren't checked in
+    const now = new Date();
+    for (const schedule of schedules) {
+      if (schedule.attendanceStatus === "not-yet") {
+        const { startTime } = getShiftTimes(schedule.date, schedule.shift);
+        const checkInEnd = new Date(startTime);
+        checkInEnd.setMinutes(checkInEnd.getMinutes() + 10);
+        
+        if (now > checkInEnd) {
+          schedule.attendanceStatus = "absent";
+          await schedule.save();
+        }
+      }
+    }
+
+    res.json(schedules);
+  } catch (error) {
+    console.error("Get my schedule error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createSchedule,
   getAllSchedules,
@@ -522,5 +573,6 @@ module.exports = {
   getShiftDetails,
   checkIn,
   checkOut,
-  getAttendanceByWeek
+  getAttendanceByWeek,
+  getMySchedule
 };
