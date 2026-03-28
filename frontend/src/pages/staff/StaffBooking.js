@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   createStaffBookingOrder,
   getAllMovies,
@@ -6,6 +6,7 @@ import {
   getStaffBookingSeatMap,
   getStaffBookingShowtimes,
   staffApplyVoucher,
+  getHeldSeats,
 } from "../../services/api";
 import "../../assets/styles/StaffBooking.css";
 
@@ -26,9 +27,13 @@ const formatDateTime = (value) =>
   });
 
 const toDateInputValue = () => {
-  const today = new Date();
-  const offset = today.getTimezoneOffset();
-  return new Date(today.getTime() - offset * 60000).toISOString().split("T")[0];
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+const getLocalDateString = (dateInput) => {
+  const d = new Date(dateInput);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
 const getSevenDays = () => {
@@ -38,7 +43,7 @@ const getSevenDays = () => {
   for (let i = 0; i < 7; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() + i);
-    days.push(d.toISOString().split("T")[0]);
+    days.push(getLocalDateString(d));
   }
   return days;
 };
@@ -53,6 +58,7 @@ function StaffBooking() {
   const [selectedShowtimeId, setSelectedShowtimeId] = useState("");
   const [seatMapData, setSeatMapData] = useState(null);
   const [selectedSeatIds, setSelectedSeatIds] = useState([]);
+  const [heldSeatIds, setHeldSeatIds] = useState([]); // Seats held by other users
   const [loadingShowtimes, setLoadingShowtimes] = useState(false);
   const [loadingSeatMap, setLoadingSeatMap] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -121,41 +127,122 @@ function StaffBooking() {
     loadShowtimes();
   }, [selectedMovieId, selectedCinemaId]);
 
-  // Filter showtimes by selected date on client side
-  const showtimes = useMemo(() => {
-    if (!selectedDate) return allShowtimes;
-    return allShowtimes.filter((st) => {
-      const stDate = new Date(st.startTime).toISOString().split("T")[0];
-      return stDate === selectedDate;
-    });
-  }, [allShowtimes, selectedDate]);
+  // Filter and Group showtimes by movie on client side
+  const groupedShowtimes = useMemo(() => {
+    // 1. Filter by date/cinema/movie select
+    const filtered = allShowtimes.filter((st) => {
+      // Date filter (local time)
+      const stDate = getLocalDateString(st.startTime);
+      if (selectedDate && stDate !== selectedDate) return false;
 
-  useEffect(() => {
-    const loadSeatMap = async () => {
-      if (!selectedShowtimeId) {
-        return;
+      // Cinema filter (through room)
+      if (selectedCinemaId) {
+        const stCinemaId = st.roomId?.cinemaId?._id || st.roomId?.cinemaId || 
+                          st.room?.cinemaId?._id || st.room?.cinemaId;
+        if (stCinemaId !== selectedCinemaId) return false;
       }
 
-      try {
+      // Movie select filter
+      if (selectedMovieId && st.movieId?._id !== selectedMovieId) return false;
+
+      return true;
+    });
+
+    // 2. Group by movie
+    const groups = {};
+    filtered.forEach((st) => {
+      const mId = st.movieId?._id || "unknown";
+      if (!groups[mId]) {
+        groups[mId] = {
+          movie: st.movieId,
+          sessions: [],
+        };
+      }
+      groups[mId].sessions.push(st);
+    });
+
+    // Sort sessions by time within each movie
+    Object.values(groups).forEach((g) => {
+      g.sessions.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+    });
+
+    return Object.values(groups);
+  }, [allShowtimes, selectedDate, selectedCinemaId, selectedMovieId]);
+
+  // Flatten for count
+  const showtimesCount = useMemo(() => {
+    return groupedShowtimes.flatMap(g => g.sessions).length;
+  }, [groupedShowtimes]);
+
+  // Reset selection when main filters change
+  useEffect(() => {
+    setSelectedShowtimeId("");
+    setSeatMapData(null);
+    setSelectedSeatIds([]);
+    setDiscountAmount(0);
+    setVoucherCode("");
+    setVoucherError("");
+    setVoucherSuccess("");
+  }, [selectedDate, selectedCinemaId]);
+
+  const loadSeatMap = useCallback(async (isBackground = false) => {
+    if (!selectedShowtimeId) return;
+
+    try {
+      if (!isBackground) {
         setLoadingSeatMap(true);
-        setError("");
-        setSuccess("");
-        setSelectedSeatIds([]);
-        const data = await getStaffBookingSeatMap(selectedShowtimeId);
-        setSeatMapData(data);
-      } catch (err) {
+        setSelectedSeatIds([]); // Only reset selection on manual/initial load
+      }
+      
+      const data = await getStaffBookingSeatMap(selectedShowtimeId);
+      setSeatMapData(data);
+    } catch (err) {
+      if (!isBackground) {
         setError(err?.message || "Không tải được sơ đồ ghế.");
-      } finally {
+      }
+    } finally {
+      if (!isBackground) {
         setLoadingSeatMap(false);
+      }
+    }
+  }, [selectedShowtimeId]);
+
+  useEffect(() => {
+    loadSeatMap(false);
+  }, [loadSeatMap]);
+  
+  // Real-time sync: poll for held seats every 5 seconds
+  useEffect(() => {
+    if (!selectedShowtimeId) {
+      setHeldSeatIds([]);
+      return;
+    }
+
+    const fetchHeld = async () => {
+      try {
+        const heldData = await getHeldSeats(selectedShowtimeId);
+        if (Array.isArray(heldData)) {
+          setHeldSeatIds(heldData.map(s => s._id));
+        }
+      } catch (err) {
+        console.error("Lỗi khi đồng bộ ghế:", err);
       }
     };
 
-    loadSeatMap();
-  }, [selectedShowtimeId]);
+    // Fallback: Re-fetch entire seat map every 20 seconds
+    const mapInterval = setInterval(() => loadSeatMap(true), 20000);
+    
+    return () => {
+      clearInterval(mapInterval);
+    };
+  }, [selectedShowtimeId, loadSeatMap]);
 
   const selectedShowtime = useMemo(
-    () => showtimes.find((showtime) => showtime._id === selectedShowtimeId) || null,
-    [selectedShowtimeId, showtimes],
+    () => {
+      const allFlat = groupedShowtimes.flatMap(g => g.sessions);
+      return allFlat.find((showtime) => showtime._id === selectedShowtimeId) || null;
+    },
+    [selectedShowtimeId, groupedShowtimes],
   );
 
   const groupedSeats = useMemo(() => {
@@ -174,7 +261,6 @@ function StaffBooking() {
     return seats.filter((seat) => selectedSeatIds.includes(seat._id));
   }, [seatMapData, selectedSeatIds]);
 
-  // Default price per seat (can be configured)
   const pricePerSeat = 75000;
   const totalPrice = selectedSeats.reduce((sum, seat) => {
     if (seat.type === "Couple") {
@@ -185,7 +271,13 @@ function StaffBooking() {
   const finalPrice = Math.max(0, totalPrice - discountAmount);
 
   const toggleSeat = (seat) => {
-    if (seat.status !== "Available") {
+    const status = (seat.status || "").toLowerCase();
+    if (status !== "available") {
+      return;
+    }
+    
+    // Also prevent selection if seat is currently held by someone else (synced)
+    if (heldSeatIds.includes(seat._id) && !selectedSeatIds.includes(seat._id)) {
       return;
     }
 
@@ -272,17 +364,16 @@ function StaffBooking() {
       }
     }
 
-    if (formData.customerEmail) {
+    if (formData.sendEmail) {
+      if (!formData.customerEmail) {
+        setError("Vui lòng nhập Email nếu muốn gửi thông báo.");
+        return;
+      }
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.customerEmail)) {
         setError("Email không đúng định dạng.");
         return;
       }
-    }
-
-    if (formData.sendEmail && !formData.customerEmail) {
-      setError("Vui lòng nhập Email nếu muốn gửi thông báo.");
-      return;
     }
 
     try {
@@ -316,14 +407,11 @@ function StaffBooking() {
 
       const refreshedShowtimes = await getStaffBookingShowtimes({
         movieId: selectedMovieId || undefined,
+        cinemaId: selectedCinemaId || undefined
       });
       setAllShowtimes(Array.isArray(refreshedShowtimes) ? refreshedShowtimes : []);
     } catch (err) {
-      setError(
-        err?.message === "Network Error" 
-        ? "Network Error (Hãy kiểm tra phiên đăng nhập đã hết hạn hoặc máy chủ backend)."
-        : (err?.message || "Đặt chỗ thất bại.")
-      );
+      setError(err?.message || "Đặt chỗ thất bại.");
     } finally {
       setSubmitting(false);
     }
@@ -331,76 +419,98 @@ function StaffBooking() {
 
   return (
     <div className="staff-booking-page">
-      <section className="staff-booking-hero">
-        <div>
+      <section className="staff-booking-hero-new">
+        <div className="hero-content">
           <span className="staff-booking-eyebrow">Bàn đặt chỗ staff</span>
           <h1>Đặt chỗ nhanh tại quầy</h1>
           <p>
-            Chọn suất chiếu, giữ ghế cho khách và xác nhận thông tin trong cùng
-            một màn hình để thao tác nhanh hơn trong giờ cao điểm.
+            Hệ thống đặt chỗ tập trung dành cho nhân viên. Chọn rạp, ngày chiếu và phim để bắt đầu.
           </p>
         </div>
 
-        <div className="staff-booking-filters">
-          <div className="staff-date-tabs">
-            {getSevenDays().map((date) => {
-              const d = new Date(date);
-              const weekDays = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
-              const label = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")} - ${weekDays[d.getDay()]}`;
-              const count = allShowtimes.filter((st) => {
-                const stDate = new Date(st.startTime).toISOString().split("T")[0];
-                if (stDate !== date) return false;
-                if (selectedMovieId && st.movieId?._id !== selectedMovieId) return false;
-                // Filter by cinema through room
-                if (selectedCinemaId) {
-                  const stCinemaId = st.roomId?.cinemaId?._id || st.roomId?.cinemaId;
-                  if (stCinemaId !== selectedCinemaId) return false;
-                }
-                return true;
-              }).length;
-              return (
-                <button
-                  key={date}
-                  type="button"
-                  className={`staff-date-tab ${selectedDate === date ? "active" : ""}`}
-                  onClick={() => setSelectedDate(date)}
-                >
-                  <span className="tab-date">{label}</span>
-                  <span className="tab-count">{count} suất</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <label>
-            Rạp
+        <div className="staff-booking-controls">
+          {/* 1. Chọn Rạp */}
+          <div className="control-section">
+            <h3 className="control-title">1. Chọn Rạp</h3>
             <select
+              className="cinema-select-full"
               value={selectedCinemaId}
               onChange={(event) => setSelectedCinemaId(event.target.value)}
             >
-              <option value="">Tất cả rạp</option>
+              <option value="">-- Tất cả rạp --</option>
               {cinemas.map((cinema) => (
                 <option key={cinema._id} value={cinema._id}>
                   {cinema.name}
                 </option>
               ))}
             </select>
-          </label>
+          </div>
 
-          <label>
-            Phim
-            <select
-              value={selectedMovieId}
-              onChange={(event) => setSelectedMovieId(event.target.value)}
-            >
-              <option value="">Tất cả phim</option>
-              {movies.map((movie) => (
-                <option key={movie._id} value={movie._id}>
-                  {movie.title}
-                </option>
-              ))}
-            </select>
-          </label>
+          {/* 2. Chọn Ngày */}
+          <div className="control-section">
+            <h3 className="control-title">2. Chọn Ngày</h3>
+            <div className="staff-date-tabs">
+              {getSevenDays().map((date) => {
+                const d = new Date(date);
+                const weekDays = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+                const label = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")} - ${weekDays[d.getDay()]}`;
+                
+                const count = allShowtimes.filter((st) => {
+                  const stDate = getLocalDateString(st.startTime);
+                  if (stDate !== date) return false;
+                  if (selectedMovieId && st.movieId?._id !== selectedMovieId) return false;
+                  
+                  const stCinemaId = st.roomId?.cinemaId?._id || st.roomId?.cinemaId ||
+                                    st.room?.cinemaId?._id || st.room?.cinemaId;
+                  if (selectedCinemaId && stCinemaId !== selectedCinemaId) return false;
+                  
+                  return true;
+                }).length;
+
+                return (
+                  <button
+                    key={date}
+                    type="button"
+                    className={`staff-date-tab-premium ${selectedDate === date ? "active" : ""}`}
+                    onClick={() => setSelectedDate(date)}
+                  >
+                    <div className="tab-date-header">{label.split(" - ")[1]}</div>
+                    <div className="tab-date-main">{label.split(" - ")[0]}</div>
+                    <div className="tab-date-count">{count} suất</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 3. Lọc theo Phim */}
+          <div className="control-section">
+            <h3 className="control-title">3. Lọc theo Phim</h3>
+            <div className="filter-movie-row">
+              <select
+                className="movie-select-full"
+                value={selectedMovieId}
+                onChange={(event) => setSelectedMovieId(event.target.value)}
+              >
+                <option value="">-- Tất cả phim --</option>
+                {movies.map((movie) => (
+                  <option key={movie._id} value={movie._id}>
+                    {movie.title}
+                  </option>
+                ))}
+              </select>
+              <button 
+                type="button" 
+                className="clear-btn"
+                onClick={() => {
+                  setSelectedMovieId("");
+                  setSelectedCinemaId("");
+                }}
+              >
+                Xóa lọc
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -410,36 +520,49 @@ function StaffBooking() {
       <div className="staff-booking-layout">
         <section className="staff-booking-panel">
           <div className="panel-heading">
-            <h2>1. Chọn suất chiếu</h2>
-            <span>{loadingShowtimes ? "Đang tải..." : `${showtimes.length} suất`}</span>
+            <h2>4. Chọn suất chiếu</h2>
+            <span className="count-badge">{loadingShowtimes ? "Đang tải..." : `${showtimesCount} suất`}</span>
           </div>
 
-          <div className="showtime-list">
-            {showtimes.map((showtime) => {
-              const isActive = selectedShowtimeId === showtime._id;
-              const cinemaName = showtime.roomId?.cinemaId?.name || showtime.room?.cinemaId?.name || "N/A";
-              return (
-                <button
-                  key={showtime._id}
-                  type="button"
-                  className={`showtime-card ${isActive ? "active" : ""}`}
-                  onClick={() => setSelectedShowtimeId(showtime._id)}
-                >
-                  <strong>{showtime.movieId?.title || "Phim đang cập nhật"}</strong>
-                  <span>{formatDateTime(showtime.startTime)}</span>
-                  <span>
-                    {cinemaName} - {showtime.roomId?.name || showtime.room?.name || "N/A"}
-                  </span>
-                  <span className="showtime-meta">
-                    Còn {showtime.availableSeats}/{showtime.totalSeats} ghế trống
-                  </span>
-                </button>
-              );
-            })}
+          <div className="showtime-groups">
+            {groupedShowtimes.map((group) => (
+              <div key={group.movie?._id || "unknown"} className="movie-showtime-group">
+                <h3 className="group-movie-title">
+                  {group.movie?.title || "Phim chưa xác định"}
+                </h3>
+                <div className="time-grid-mini">
+                  {group.sessions.map((showtime) => {
+                    const isActive = selectedShowtimeId === showtime._id;
+                    const timeStr = new Date(showtime.startTime).toLocaleTimeString("vi-VN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
+                    const available = showtime.availableSeats ?? 0;
+                    const isFull = available === 0;
 
-            {!loadingShowtimes && showtimes.length === 0 ? (
+                    return (
+                      <button
+                        key={showtime._id}
+                        type="button"
+                        className={`time-slot-btn ${isActive ? "active" : ""} ${isFull ? "full" : ""}`}
+                        onClick={() => setSelectedShowtimeId(showtime._id)}
+                        disabled={isFull}
+                      >
+                        <span className="slot-time">{timeStr}</span>
+                        <span className="slot-room">{showtime.roomId?.name || showtime.room?.name || "N/A"}</span>
+                        <span className="slot-seats">
+                          {isFull ? "Hết ghế" : `Còn ${available} ghế`}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+
+            {!loadingShowtimes && groupedShowtimes.length === 0 ? (
               <div className="empty-state">
-                Không có suất chiếu nào phù hợp với bộ lọc hiện tại.
+                Không có suất chiếu nào phù hợp với bộ lọc hiện tại. Hãy chọn ngày khác hoặc rạp khác.
               </div>
             ) : null}
           </div>
@@ -447,16 +570,27 @@ function StaffBooking() {
 
         <section className="staff-booking-panel wide">
           <div className="panel-heading">
-            <h2>2. Chọn ghế</h2>
-            <span>
-              {selectedSeats.length > 0
-                ? `${selectedSeats.length} ghế đã chọn`
-                : "Chưa chọn ghế"}
-            </span>
+            <h2>5. Chọn ghế</h2>
+            <div className="panel-actions">
+              <button 
+                type="button" 
+                className="refresh-btn" 
+                onClick={() => loadSeatMap(false)} 
+                title="Lấy lại sơ đồ ghế mới nhất"
+                disabled={loadingSeatMap}
+              >
+                {loadingSeatMap ? "..." : "🔄 Làm mới"}
+              </button>
+              <span className="count-badge">
+                {selectedSeats.length > 0
+                  ? `${selectedSeats.length} ghế đã chọn`
+                  : "Chưa chọn ghế"}
+              </span>
+            </div>
           </div>
 
           {!selectedShowtime ? (
-            <div className="empty-state">Hãy chọn một suất chiếu để tải sơ đồ ghế.</div>
+            <div className="empty-state">Hãy chọn một suất chiếu ở bên trái để tải sơ đồ ghế.</div>
           ) : loadingSeatMap ? (
             <div className="empty-state">Đang tải sơ đồ ghế...</div>
           ) : (
@@ -482,9 +616,17 @@ function StaffBooking() {
                     <div className="row-seats">
                       {seats.map((seat) => {
                         const isSelected = selectedSeatIds.includes(seat._id);
+                        
+                        // Dynamically determine the status to prioritize real-time sync
+                        let displayStatus = seat.status.toLowerCase();
+                        if (seat.status === "Holding" || seat.status === "holding") {
+                          // For staff view, we treat 'Holding' (orange) as available/clear
+                          displayStatus = "available";
+                        }
+                        
                         const seatClass = [
                           "seat-button",
-                          seat.status.toLowerCase(),
+                          displayStatus,
                           seat.type === "VIP" ? "vip" : "",
                           seat.type === "Couple" ? "couple" : "",
                           isSelected ? "selected" : "",
@@ -498,8 +640,8 @@ function StaffBooking() {
                             type="button"
                             className={seatClass}
                             onClick={() => toggleSeat(seat)}
-                            disabled={seat.status !== "Available"}
-                            title={`${seat.label} - ${seat.type}`}
+                            disabled={displayStatus !== "available"}
+                            title={isSelected ? "Ghế đã chọn" : `${seat.label} - ${seat.type}`}
                           >
                             {seat.label}
                           </button>
@@ -513,7 +655,7 @@ function StaffBooking() {
               <div className="selection-summary">
                 <div>
                   <span>Ghế đã chọn</span>
-                  <strong>
+                  <strong className="summary-text">
                     {selectedSeats.length > 0
                       ? selectedSeats.map((seat) => seat.label).join(", ")
                       : "Chưa có"}
@@ -521,7 +663,7 @@ function StaffBooking() {
                 </div>
                 <div>
                   <span>Tạm tính</span>
-                  <strong>{formatMoney(totalPrice)}</strong>
+                  <strong className="summary-text">{formatMoney(totalPrice)}</strong>
                 </div>
               </div>
             </>
@@ -529,10 +671,10 @@ function StaffBooking() {
         </section>
       </div>
 
-      <section className="staff-booking-panel">
+      <section className="staff-booking-panel checkout-panel">
         <div className="panel-heading">
-          <h2>3. Thông tin khách hàng</h2>
-          <span>Xác nhận đặt chỗ tại quầy</span>
+          <h2>6. Thông tin khách hàng & Thanh toán</h2>
+          <span className="count-badge">Xác nhận đơn hàng</span>
         </div>
 
         <form className="staff-booking-form" onSubmit={handleSubmit}>
@@ -576,7 +718,7 @@ function StaffBooking() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="paymentStatus">Thanh toán</label>
+              <label htmlFor="paymentStatus">Trạng thái thanh toán</label>
               <select
                 id="paymentStatus"
                 name="paymentStatus"
@@ -584,33 +726,33 @@ function StaffBooking() {
                 onChange={handleFormChange}
               >
                 <option value="PayAtCounter">Thanh toán tại quầy</option>
-                <option value="Paid">Đã thanh toán</option>
-                <option value="Unpaid">Giữ chỗ, thanh toán sau</option>
+                <option value="Paid">Đã thanh toán (Tiền mặt/Chuyển khoản)</option>
+                <option value="Unpaid">Giữ chỗ (Chưa thanh toán)</option>
               </select>
             </div>
           </div>
 
           <div className="form-group">
-            <label htmlFor="notes">Ghi chú</label>
+            <label htmlFor="notes">Ghi chú đơn hàng</label>
             <textarea
               id="notes"
               name="notes"
               value={formData.notes}
               onChange={handleFormChange}
               rows="2"
-              placeholder="Ghi chú thêm nếu cần"
+              placeholder="Ghi chú thêm (VD: Khách lấy bắp nước, khuyến mãi...)"
             />
           </div>
 
           <div className="voucher-group">
-            <label htmlFor="voucherInput">Mã giảm giá</label>
+            <label htmlFor="voucherInput">Mã giảm giá / Voucher</label>
             <div className="voucher-row">
               <input
                 id="voucherInput"
                 type="text"
                 value={voucherCode}
                 onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
-                placeholder="Nhập mã voucher"
+                placeholder="Nhập mã code"
               />
               <button
                 type="button"
@@ -618,7 +760,7 @@ function StaffBooking() {
                 onClick={handleApplyVoucher}
                 disabled={checkingVoucher || !voucherCode}
               >
-                {checkingVoucher ? "Đang kiểm tra..." : "Áp dụng"}
+                {checkingVoucher ? "Đang check..." : "Áp dụng"}
               </button>
             </div>
             {voucherError && <p className="voucher-error">{voucherError}</p>}
@@ -633,25 +775,25 @@ function StaffBooking() {
               checked={formData.sendEmail}
               onChange={handleFormChange}
             />
-            <label htmlFor="sendEmail">Gửi email xác nhận nếu khách có cung cấp email</label>
+            <label htmlFor="sendEmail">Gửi email xác nhận vé cho khách hàng</label>
           </div>
 
           <div className="checkout-bar">
             <div className="checkout-info">
-              <span>Suất chiếu / Phim</span>
+              <span>Phim & Suất chiếu</span>
               <strong>
-                {selectedShowtime ? `${selectedShowtime.movieId?.title || 'Phim'} - ${selectedShowtime.roomId?.name || selectedShowtime.room?.name || 'N/A'}` : "Chưa chọn"}
+                {selectedShowtime ? `${selectedShowtime.movieId?.title || 'Phim'} - ${new Date(selectedShowtime.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : "Chưa chọn"}
               </strong>
             </div>
             <div className="checkout-info">
-              <span>Tổng tiền</span>
+              <span>Tổng tiền thanh toán</span>
               <div className="price-block">
                 {discountAmount > 0 && <span className="original-price">{formatMoney(totalPrice)}</span>}
                 <strong className="final-price">{formatMoney(finalPrice)}</strong>
               </div>
             </div>
             <button type="submit" className="checkout-btn" disabled={submitting || !selectedShowtime || selectedSeatIds.length === 0}>
-              {submitting ? "Đang xác nhận..." : "Xác nhận đặt chỗ"}
+              {submitting ? "Đang xử lý..." : "Xác nhận & In vé"}
             </button>
           </div>
         </form>
