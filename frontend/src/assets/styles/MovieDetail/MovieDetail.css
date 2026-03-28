@@ -1208,3 +1208,31 @@
     font-size: 13px;
   }
 }
+
+/* ========================================
+   PAST / DISABLED STATES
+   ======================================== */
+
+.date-tab.past {
+  opacity: 0.4;
+  filter: grayscale(0.8);
+  cursor: not-allowed;
+  pointer-events: none;
+  background: #eee;
+}
+
+.time-slot.past {
+  opacity: 0.5;
+  background: #ebebeb;
+  cursor: not-allowed !important;
+  pointer-events: none;
+  border-color: #ddd;
+}
+
+.time-slot.past .time-label {
+  color: #999;
+}
+
+.time-slot.past .seats {
+  color: #888;
+}

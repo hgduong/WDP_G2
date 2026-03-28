@@ -1,11 +1,13 @@
 // src/pages/ShowtimeSelector.js
 import { useState, useEffect } from "react";
 
-const getSevenDays = () => {
+const getCalendarDays = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  
   const days = [];
-  for (let i = 0; i < 7; i++) {
+  // Show 2 days ago to today + 7 days (total 10 days)
+  for (let i = -2; i < 8; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() + i);
     days.push(d.toISOString().split("T")[0]);
@@ -21,9 +23,10 @@ export default function ShowtimeSelector({
   setSelectedDate,
 }) {
   useEffect(() => {
-    const days = getSevenDays();
+    const days = getCalendarDays();
+    const today = new Date().toISOString().split("T")[0];
     if (days.length > 0 && !selectedDate) {
-      setSelectedDate(days[0]);
+      setSelectedDate(today);
     }
   }, [selectedDate, setSelectedDate]);
 
@@ -33,12 +36,30 @@ export default function ShowtimeSelector({
 
   // Helper function to get time string from showtime
   const getTimeString = (showtime) => {
-    // Extract time from startTime field
     if (showtime.startTime) {
       const date = new Date(showtime.startTime);
       return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
     }
     return "00:00";
+  };
+
+  const getShowtimeStatus = (showtime) => {
+    const now = new Date();
+    const start = new Date(showtime.startTime);
+    // Use default 120min duration if not set
+    const durationMin = showtime.duration || 120;
+    const end = new Date(start.getTime() + durationMin * 60 * 1000);
+    
+    if (now < start) return "scheduled";
+    if (now >= start && now <= end) return "ongoing";
+    return "finished"; // now > end
+  };
+
+  const isPast = (dateStr) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const d = new Date(dateStr);
+    return d < today;
   };
 
   if (showtimes.length === 0) {
@@ -67,7 +88,7 @@ export default function ShowtimeSelector({
 
       {/* Date Tabs - Independent from showtimes */}
       <div className="date-tabs">
-        {getSevenDays().map((date) => {
+        {getCalendarDays().map((date) => {
           const d = new Date(date);
           const weekDays = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
           const label = `${String(d.getDate()).padStart(2, "0")}/${String(
@@ -75,12 +96,13 @@ export default function ShowtimeSelector({
           ).padStart(2, "0")} - ${weekDays[d.getDay()]}`;
 
           const isActive = selectedDate === date;
+          const past = isPast(date);
 
           return (
             <div
               key={date}
-              className={`date-tab ${isActive ? "active" : ""}`}
-              onClick={() => setSelectedDate(date)}
+              className={`date-tab ${isActive ? "active" : ""} ${past ? "past" : ""}`}
+              onClick={() => !past && setSelectedDate(date)}
             >
               <span className="date-tab-label">{label}</span>
             </div>
@@ -90,30 +112,36 @@ export default function ShowtimeSelector({
 
       <div className="showtime-category">TẤT CẢ SUẤT CHIẾU</div>
 
-      {/* Time Slots Grid - Show all showtimes regardless of date */}
+      {/* Time Slots Grid - Filters showtimes by date and dims past ones */}
       <div className="time-grid">
-        {sortedShowtimes.map((showtime) => {
-          const timeStr = getTimeString(showtime);
-          const roomName = showtime.roomId?.name || showtime.room?.name || "N/A";
-          const available = showtime.availableSeats !== undefined 
-            ? showtime.availableSeats 
-            : (showtime.roomId?.capacity || showtime.room?.capacity || 0);
-          const isSelected = selectedShowtime?._id === showtime._id;
+        {sortedShowtimes
+          .filter(s => s.startTime.split("T")[0] === selectedDate)
+          .map((showtime) => {
+            const timeStr = getTimeString(showtime);
+            const roomName = showtime.roomId?.name || showtime.room?.name || "N/A";
+            const available = showtime.availableSeats !== undefined 
+              ? showtime.availableSeats 
+              : (showtime.roomId?.capacity || showtime.room?.capacity || 0);
+            
+            const isSelected = selectedShowtime?._id === showtime._id;
+            const status = getShowtimeStatus(showtime);
+            const isFinished = status === "finished";
+            const isOngoing = status === "ongoing";
 
-          return (
-            <div
-              key={showtime._id}
-              className={`time-slot ${isSelected ? "selected" : ""} ${available === 0 ? "unavailable" : ""}`}
-              onClick={() => available > 0 && handleShowtimeClick(showtime)}
-            >
-              <span className="time-label">{timeStr}</span>
-              <span className="room-label">{roomName}</span>
-              <span className="seats">
-                {available > 0 ? `Còn ${available} ghế` : "Hết ghế"}
-              </span>
-            </div>
-          );
-        })}
+            return (
+              <div
+                key={showtime._id}
+                className={`time-slot ${isSelected ? "selected" : ""} ${available === 0 ? "unavailable" : ""} ${isFinished ? "past" : ""} ${isOngoing ? "ongoing" : ""}`}
+                onClick={() => !isFinished && available > 0 && handleShowtimeClick(showtime)}
+              >
+                <span className="time-label">{timeStr}</span>
+                <span className="room-label">{roomName}</span>
+                <span className="seats">
+                  {isFinished ? "Đã chiếu xong" : isOngoing ? "Đang chiếu" : available > 0 ? `Còn ${available} ghế` : "Hết ghế"}
+                </span>
+              </div>
+            );
+          })}
       </div>
     </div>
   );

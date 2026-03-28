@@ -314,6 +314,39 @@
   opacity: 0.7;
 }
 
+.time-slot-btn.past {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(0.5);
+}
+
+.time-slot-btn.ongoing {
+  border-color: #10b981;
+  background: #ecfdf5;
+  box-shadow: 0 0 0 1px #10b981;
+}
+
+.time-slot-btn.ongoing .slot-seats {
+  color: #047857;
+}
+
+.time-slot-btn.ongoing:hover {
+  background: #d1fae5;
+  border-color: #059669;
+}
+
+.time-slot-btn.past .slot-time {
+  color: #94a3b8;
+}
+
+.time-slot-btn.past .slot-seats {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
 .slot-time {
   font-size: 16px;
   font-weight: 700;
