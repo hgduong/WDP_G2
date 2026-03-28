@@ -19,7 +19,14 @@ function StaffLogin() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useContext(UserContext);
+  const { login, user, role, isAuthReady } = useContext(UserContext);
+
+  // Auto redirect if already logged in as Staff/Admin
+  React.useEffect(() => {
+    if (isAuthReady && user && ["Staff", "Admin"].includes(role)) {
+      navigate(role === "Admin" ? "/admin/dashboard" : "/staff/dashboard", { replace: true });
+    }
+  }, [user, role, isAuthReady, navigate]);
 
   const requestOtp = async () => {
     setError("");
@@ -71,16 +78,9 @@ function StaffLogin() {
         return;
       }
 
-      const loginUserData =
-        userFromResponse || (userRole ? { role: userRole, email } : null);
-      login(loginUserData, () => {
-        if (userRole === "Admin") {
-          navigate("/admin/dashboard");
-          return;
-        }
-        navigate("/staff/dashboard", {
-          state: { staffLoginSuccess: true },
-        });
+      login(result?.data?.user, () => {
+        // Redirection logic is now more robust with the isAuthReady check in ProtectedRoute
+        navigate(userRole === "Admin" ? "/admin/dashboard" : "/staff/dashboard", { replace: true });
       });
     } catch (err) {
       const errorMessage = err?.message || "Xác thực OTP thất bại.";

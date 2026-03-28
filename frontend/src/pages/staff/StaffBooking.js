@@ -174,12 +174,13 @@ function StaffBooking() {
     return seats.filter((seat) => selectedSeatIds.includes(seat._id));
   }, [seatMapData, selectedSeatIds]);
 
+  // Default price per seat (can be configured)
+  const pricePerSeat = 75000;
   const totalPrice = selectedSeats.reduce((sum, seat) => {
-    const price = Number(selectedShowtime?.price || 0);
     if (seat.type === "Couple") {
-      return sum + price * 2;
+      return sum + pricePerSeat * 2;
     }
-    return sum + price;
+    return sum + pricePerSeat;
   }, 0);
   const finalPrice = Math.max(0, totalPrice - discountAmount);
 
@@ -271,6 +272,19 @@ function StaffBooking() {
       }
     }
 
+    if (formData.customerEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.customerEmail)) {
+        setError("Email không đúng định dạng.");
+        return;
+      }
+    }
+
+    if (formData.sendEmail && !formData.customerEmail) {
+      setError("Vui lòng nhập Email nếu muốn gửi thông báo.");
+      return;
+    }
+
     try {
       setSubmitting(true);
       setError("");
@@ -280,6 +294,7 @@ function StaffBooking() {
         showtimeId: selectedShowtimeId,
         seatIds: selectedSeatIds,
         voucherCode: discountAmount > 0 ? voucherCode : undefined,
+        pricePerSeat: pricePerSeat,
         ...formData,
       });
 
@@ -336,7 +351,11 @@ function StaffBooking() {
                 const stDate = new Date(st.startTime).toISOString().split("T")[0];
                 if (stDate !== date) return false;
                 if (selectedMovieId && st.movieId?._id !== selectedMovieId) return false;
-                if (selectedCinemaId && st.cinemasId?._id !== selectedCinemaId) return false;
+                // Filter by cinema through room
+                if (selectedCinemaId) {
+                  const stCinemaId = st.roomId?.cinemaId?._id || st.roomId?.cinemaId;
+                  if (stCinemaId !== selectedCinemaId) return false;
+                }
                 return true;
               }).length;
               return (
@@ -398,6 +417,7 @@ function StaffBooking() {
           <div className="showtime-list">
             {showtimes.map((showtime) => {
               const isActive = selectedShowtimeId === showtime._id;
+              const cinemaName = showtime.roomId?.cinemaId?.name || showtime.room?.cinemaId?.name || "N/A";
               return (
                 <button
                   key={showtime._id}
@@ -408,9 +428,8 @@ function StaffBooking() {
                   <strong>{showtime.movieId?.title || "Phim đang cập nhật"}</strong>
                   <span>{formatDateTime(showtime.startTime)}</span>
                   <span>
-                    {showtime.cinemasId?.name} - {showtime.roomId?.name}
+                    {cinemaName} - {showtime.roomId?.name || showtime.room?.name || "N/A"}
                   </span>
-                  <span>{formatMoney(showtime.price)} / ghế</span>
                   <span className="showtime-meta">
                     Còn {showtime.availableSeats}/{showtime.totalSeats} ghế trống
                   </span>
@@ -443,9 +462,9 @@ function StaffBooking() {
           ) : (
             <>
               <div className="room-info">
-                <span className="room-name">{selectedShowtime.roomId?.name || "Phòng chiếu"}</span>
-                <span className="room-type">{selectedShowtime.roomId?.type || "Standard"}</span>
-                <span className="room-capacity">Sức chứa: {selectedShowtime.roomId?.capacity || 0} ghế</span>
+                <span className="room-name">{selectedShowtime.roomId?.name || selectedShowtime.room?.name || "Phòng chiếu"}</span>
+                <span className="room-type">{selectedShowtime.roomId?.type || selectedShowtime.room?.type || "Standard"}</span>
+                <span className="room-capacity">Sức chứa: {selectedShowtime.roomId?.capacity || selectedShowtime.room?.capacity || 0} ghế</span>
               </div>
               <div className="screen-indicator">Màn hình</div>
               <div className="seat-legend">
@@ -621,7 +640,7 @@ function StaffBooking() {
             <div className="checkout-info">
               <span>Suất chiếu / Phim</span>
               <strong>
-                {selectedShowtime ? `${selectedShowtime.movieId?.title || 'Phim'} - ${selectedShowtime.roomId?.name}` : "Chưa chọn"}
+                {selectedShowtime ? `${selectedShowtime.movieId?.title || 'Phim'} - ${selectedShowtime.roomId?.name || selectedShowtime.room?.name || 'N/A'}` : "Chưa chọn"}
               </strong>
             </div>
             <div className="checkout-info">

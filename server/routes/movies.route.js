@@ -27,6 +27,7 @@ router.get("/showtimes", require("../controllers/showtime.controller").getAllSho
 router.get("/showtimes/movie/:movieId", getShowtimesByMovie);
 router.get("/showtimes/cinema/:cinemaId", require("../controllers/showtime.controller").getShowtimesByCinema);
 router.get("/showtimes/:id", require("../controllers/showtime.controller").getShowtimeById);
+router.post("/showtimes/ids", require("../controllers/showtime.controller").getShowtimesByIds);
 router.post("/showtimes", require("../controllers/showtime.controller").addShowtime);
 router.put("/showtimes/:id", require("../controllers/showtime.controller").updateShowtime);
 router.delete("/showtimes/:id", require("../controllers/showtime.controller").deleteShowtime);

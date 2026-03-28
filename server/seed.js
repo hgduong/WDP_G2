@@ -57,10 +57,8 @@ const seedDatabase = async () => {
     // Seed Showtimes
     const showtimesData = seedData.showtimes.map(showtime => ({
       movieId: movies[showtime.movieIndex]._id,
-      cinemasId: cinemas[showtime.cinemaIndex]._id,
       roomId: rooms[showtime.roomIndex]._id,
       startTime: showtime.startTime,
-      price: showtime.price,
       language: showtime.language,
       status: showtime.status
     }));
@@ -68,16 +66,12 @@ const seedDatabase = async () => {
     const showtimes = await Showtime.insertMany(showtimesData);
     console.log(`Seeded ${showtimes.length} showtimes`);
 
-    // Update movies and cinemas with showtime references
+    // Update movies with showtime references
     for (let i = 0; i < showtimes.length; i++) {
       const showtime = showtimes[i];
       const showtimeData = seedData.showtimes[i];
       
       await Movie.findByIdAndUpdate(movies[showtimeData.movieIndex]._id, {
-        $push: { showtimes: showtime._id }
-      });
-      
-      await Cinema.findByIdAndUpdate(cinemas[showtimeData.cinemaIndex]._id, {
         $push: { showtimes: showtime._id }
       });
     }

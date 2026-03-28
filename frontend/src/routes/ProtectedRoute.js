@@ -3,28 +3,21 @@ import { useContext } from "react";
 import { UserContext } from "../context/UserContext";
 
 export function ProtectedRoute({ children, allowedRoles }) {
-  const { role, user } = useContext(UserContext);
-  let storedRole = null;
-  try {
-    storedRole = localStorage.getItem("role");
-  } catch {
-    storedRole = null;
+  const { role, isAuthReady } = useContext(UserContext);
+  
+  if (!isAuthReady) {
+    return null; // Or a loading spinner
   }
-  const resolvedRole =
-    role && role !== "Guest" ? role : user?.role || storedRole || role || "Guest";
-  const normalizedRole = String(resolvedRole || "")
-    .trim()
-    .toLowerCase();
-  const normalizedAllowedRoles = Array.isArray(allowedRoles)
-    ? allowedRoles.map((item) => String(item).trim().toLowerCase())
-    : [];
+  
+  // Try to get role from context, fallback to localStorage for the very first render after login
+  const currentRole = role === "Guest" ? (localStorage.getItem("role") || "Guest") : role;
   
   // If no allowedRoles defined, allow access
   if (!allowedRoles || !Array.isArray(allowedRoles)) {
     return children;
   }
   
-  if (!normalizedRole || !normalizedAllowedRoles.includes(normalizedRole)) {
+  if (!currentRole || !allowedRoles.includes(currentRole)) {
     return <Navigate to="/unauthorized" replace />;
   }
 

@@ -1,8 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { UserContext } from "../../context/UserContext";
-import { getStaffDashboardStats } from "../../services/api";
-import { toast } from "react-toastify";
+import { getStaffDashboardStats, getMySchedule } from "../../services/api";
 import "../../assets/styles/StaffDashboard.css";
 
 const quickActions = [
@@ -36,6 +35,12 @@ const quickActions = [
     path: "/showtimes",
     tone: "ember",
   },
+  {
+    title: "Lịch làm việc",
+    description: " Theo dõi lịch làm việc & Chấm công",
+    path: "/staff/schedule",
+    tone: "ocean",
+  },
 ];
 
 function StaffDashboard() {
@@ -44,6 +49,8 @@ function StaffDashboard() {
   const { user } = useContext(UserContext);
   const [stats, setStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [todaySchedules, setTodaySchedules] = useState([]);
+  const [loadingSchedule, setLoadingSchedule] = useState(true);
 
   useEffect(() => {
     if (location.state?.staffLoginSuccess) {
@@ -72,7 +79,25 @@ function StaffDashboard() {
       }
     };
 
+    const fetchTodaySchedule = async () => {
+      try {
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        const data = await getMySchedule({
+          startDate: todayStr,
+          endDate: todayStr,
+        });
+        setTodaySchedules(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to load schedule:", err);
+        setTodaySchedules([]);
+      } finally {
+        setLoadingSchedule(false);
+      }
+    };
+
     fetchStats();
+    fetchTodaySchedule();
   }, []);
 
   return (
@@ -134,6 +159,62 @@ function StaffDashboard() {
             </div>
           </div>
         </article>
+      </section>
+
+      <section className="staff-schedule-preview">
+        <div className="section-head">
+          <h2>Lịch làm việc hôm nay</h2>
+          <p>Các ca làm việc của bạn trong ngày hôm nay.</p>
+        </div>
+
+        {loadingSchedule ? (
+          <div className="schedule-loading">Đang tải lịch...</div>
+        ) : todaySchedules.length === 0 ? (
+          <div className="schedule-empty">
+            <p>Hôm nay bạn không có ca làm việc nào.</p>
+            <button onClick={() => navigate("/staff/schedule")}>Xem lịch tuần</button>
+          </div>
+        ) : (
+          <div className="schedule-cards">
+            {todaySchedules.map((schedule) => (
+              <div key={schedule._id} className={`schedule-card-mini ${schedule.attendanceStatus}`}>
+                <div className="schedule-shift">
+                  <span className="shift-name">{schedule.shift}</span>
+                  <span className="shift-time">
+                    {schedule.shift === "Sáng" && "06:30 - 12:00"}
+                    {schedule.shift === "Chiều" && "12:30 - 17:00"}
+                    {schedule.shift === "Tối" && "17:30 - 22:00"}
+                  </span>
+                </div>
+                <div className="schedule-status">
+                  {schedule.attendanceStatus === "attended" && (
+                    <span className="status-badge attended">Đã điểm danh</span>
+                  )}
+                  {schedule.attendanceStatus === "absent" && (
+                    <span className="status-badge absent">Vắng mặt</span>
+                  )}
+                  {schedule.attendanceStatus === "not-yet" && (
+                    <span className="status-badge not-yet">Chưa điểm danh</span>
+                  )}
+                </div>
+                {schedule.checkInTime && (
+                  <div className="schedule-time">
+                    <span>Vào: {new Date(schedule.checkInTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</span>
+                  </div>
+                )}
+                {schedule.checkOutTime && (
+                  <div className="schedule-time">
+                    <span>Ra: {new Date(schedule.checkOutTime).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="schedule-view-all">
+          <button onClick={() => navigate("/staff/schedule")}>Xem lịch đầy đủ</button>
+        </div>
       </section>
 
       <section className="staff-actions-section">

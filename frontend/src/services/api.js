@@ -371,6 +371,15 @@ export const getShowtimesByCinema = async (cinemaId) => {
   }
 };
 
+export const getShowtimesByIds = async (ids) => {
+  try {
+    const response = await API.post("/showtimes/ids", { ids });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export const createShowtime = async (showtimeData) => {
   try {
     const response = await API.post("/showtimes", showtimeData);
@@ -498,6 +507,34 @@ export const getAuditLogs = async (params = {}) => {
   }
 };
 
+// Staff Schedule
+export const getMySchedule = async (params = {}) => {
+  try {
+    const response = await API.get("/staff/schedule", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const staffCheckIn = async (scheduleId) => {
+  try {
+    const response = await API.post(`/staff/schedule/${scheduleId}/check-in`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const staffCheckOut = async (scheduleId) => {
+  try {
+    const response = await API.post(`/staff/schedule/${scheduleId}/check-out`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 //Staff
 export const getAllStaff = async () => {
   try {
@@ -553,6 +590,43 @@ export const changeStaffPassword = async (id, passwordData) => {
       `/staffs/${id}/change-password`,
       passwordData,
     );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+// User Management (Admin)
+export const getAllUsers = async () => {
+  try {
+    const response = await API.get("/admin/users");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateUserStatus = async (id, status) => {
+  try {
+    const response = await API.patch(`/admin/users/${id}/status`, { status });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateUserRole = async (id, role) => {
+  try {
+    const response = await API.patch(`/admin/users/${id}/role`, { role });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getUserBookings = async (id) => {
+  try {
+    const response = await API.get(`/admin/users/${id}/bookings`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -949,6 +1023,33 @@ export const getShiftDetails = async (date) => {
 export const deleteSchedule = async (id) => {
   try {
     const response = await API.delete(`/api/schedules/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const checkInSchedule = async (scheduleId) => {
+  try {
+    const response = await API.post(`/api/schedules/${scheduleId}/check-in`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const checkOutSchedule = async (scheduleId) => {
+  try {
+    const response = await API.post(`/api/schedules/${scheduleId}/check-out`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const getAttendanceByWeek = async (params = {}) => {
+  try {
+    const response = await API.get("/api/schedules/attendance/week", { params });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;

@@ -1,17 +1,20 @@
+// OrderDetailsTable.jsx
 import React from "react";
-import { formatPrice, formatShowtime } from "../../utils/orderUtils";
+import { 
+  formatPrice, 
+  formatShowtime,
+  getMovieInfo,
+  getCinemaInfo,
+  getRoomInfo,
+  getShowtimeInfo 
+} from "../../utils/orderUtils";
 
-/**
- * Order details table component
- * @param {object} props - Component props
- * @param {object} props.orderData - Order data
- * @param {object} props.movie - Movie information
- * @param {object} props.cinema - Cinema information
- * @param {object} props.room - Room information
- * @param {object} props.showtime - Showtime information
- * @returns {JSX.Element} Order details table component
- */
-const OrderDetailsTable = ({ orderData, movie, cinema, room, showtime }) => {
+const OrderDetailsTable = ({ orderData }) => {
+  const movie = getMovieInfo(orderData);
+  const cinema = getCinemaInfo(orderData);
+  const room = getRoomInfo(orderData);
+  const showtime = getShowtimeInfo(orderData);
+
   return (
     <div className="order-details-table">
       <h2>Thông tin đơn hàng</h2>
@@ -30,24 +33,19 @@ const OrderDetailsTable = ({ orderData, movie, cinema, room, showtime }) => {
             <td className="table-value">{movie?.duration || "N/A"} phút</td>
           </tr>
           <tr>
-            <td className="table-label">Đạo diễn</td>
-            <td className="table-value">{movie?.director || "N/A"}</td>
-          </tr>
-          <tr>
             <td className="table-label">Ngày giờ chiếu</td>
             <td className="table-value">{formatShowtime(showtime?.startTime)}</td>
           </tr>
           <tr>
-            <td className="table-label">Rạp</td>
-            <td className="table-value">{cinema?.name || "N/A"}</td>
+            <td className="table-label">Rạp chiếu</td>
+            <td className="table-value">
+              {cinema?.name || "N/A"} 
+              {cinema?.address && ` - ${cinema.address}`}
+            </td>
           </tr>
           <tr>
-            <td className="table-label">Địa chỉ rạp</td>
-            <td className="table-value">{cinema?.address || "Hoà Lạc, Hà Nội, Việt Nam"}, {cinema?.city || ""}</td>
-          </tr>
-          <tr>
-            <td className="table-label">Phòng</td>
-            <td className="table-value">{room?.name || "N/A"}</td>
+            <td className="table-label">Phòng chiếu</td>
+            <td className="table-value">{room?.name || room?.roomName || "N/A"}</td>
           </tr>
           <tr>
             <td className="table-label">Ghế ngồi</td>
@@ -57,7 +55,7 @@ const OrderDetailsTable = ({ orderData, movie, cinema, room, showtime }) => {
                   <span key={index} className="seat-tag">
                     {seat.label || seat}
                   </span>
-                ))}
+                )) || "N/A"}
               </div>
             </td>
           </tr>
@@ -67,11 +65,13 @@ const OrderDetailsTable = ({ orderData, movie, cinema, room, showtime }) => {
           </tr>
           <tr>
             <td className="table-label">Giá vé</td>
-            <td className="table-value">{formatPrice(showtime?.price || 75000)} x {orderData.seats?.length || 0}</td>
+            <td className="table-value">
+              {formatPrice(showtime?.price || 75000)} × {orderData.seats?.length || 0}
+            </td>
           </tr>
           <tr className="total-row">
             <td className="table-label">Tổng cộng</td>
-            <td className="table-value">{formatPrice(orderData.totalPrice)}</td>
+            <td className="table-value total-price">{formatPrice(orderData.totalPrice)}</td>
           </tr>
         </tbody>
       </table>
