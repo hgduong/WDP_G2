@@ -137,8 +137,8 @@ function StaffBooking() {
 
       // Cinema filter (through room)
       if (selectedCinemaId) {
-        const stCinemaId = st.roomId?.cinemaId?._id || st.roomId?.cinemaId || 
-                          st.room?.cinemaId?._id || st.room?.cinemaId;
+        const stCinemaId = st.roomId?.cinemaId?._id || st.roomId?.cinemaId ||
+          st.room?.cinemaId?._id || st.room?.cinemaId;
         if (stCinemaId !== selectedCinemaId) return false;
       }
 
@@ -193,7 +193,7 @@ function StaffBooking() {
         setLoadingSeatMap(true);
         setSelectedSeatIds([]); // Only reset selection on manual/initial load
       }
-      
+
       const data = await getStaffBookingSeatMap(selectedShowtimeId);
       setSeatMapData(data);
     } catch (err) {
@@ -210,7 +210,7 @@ function StaffBooking() {
   useEffect(() => {
     loadSeatMap(false);
   }, [loadSeatMap]);
-  
+
   // Real-time sync: poll for held seats every 5 seconds
   useEffect(() => {
     if (!selectedShowtimeId) {
@@ -231,7 +231,7 @@ function StaffBooking() {
 
     // Fallback: Re-fetch entire seat map every 20 seconds
     const mapInterval = setInterval(() => loadSeatMap(true), 20000);
-    
+
     return () => {
       clearInterval(mapInterval);
     };
@@ -275,7 +275,7 @@ function StaffBooking() {
     if (status !== "available") {
       return;
     }
-    
+
     // Also prevent selection if seat is currently held by someone else (synced)
     if (heldSeatIds.includes(seat._id) && !selectedSeatIds.includes(seat._id)) {
       return;
@@ -319,12 +319,12 @@ function StaffBooking() {
       setVoucherError("Vui lòng chọn suất và ghế trước khi áp dụng mã.");
       return;
     }
-    
+
     try {
       setCheckingVoucher(true);
       setVoucherError("");
       setVoucherSuccess("");
-      
+
       const res = await staffApplyVoucher(voucherCode, totalPrice);
       if (res && res.discountAmount) {
         setDiscountAmount(res.discountAmount);
@@ -454,16 +454,16 @@ function StaffBooking() {
                 const d = new Date(date);
                 const weekDays = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
                 const label = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")} - ${weekDays[d.getDay()]}`;
-                
+
                 const count = allShowtimes.filter((st) => {
                   const stDate = getLocalDateString(st.startTime);
                   if (stDate !== date) return false;
                   if (selectedMovieId && st.movieId?._id !== selectedMovieId) return false;
-                  
+
                   const stCinemaId = st.roomId?.cinemaId?._id || st.roomId?.cinemaId ||
-                                    st.room?.cinemaId?._id || st.room?.cinemaId;
+                    st.room?.cinemaId?._id || st.room?.cinemaId;
                   if (selectedCinemaId && stCinemaId !== selectedCinemaId) return false;
-                  
+
                   return true;
                 }).length;
 
@@ -499,8 +499,8 @@ function StaffBooking() {
                   </option>
                 ))}
               </select>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="clear-btn"
                 onClick={() => {
                   setSelectedMovieId("");
@@ -533,7 +533,16 @@ function StaffBooking() {
                 <div className="time-grid-mini">
                   {group.sessions.map((showtime) => {
                     const isActive = selectedShowtimeId === showtime._id;
-                    const timeStr = new Date(showtime.startTime).toLocaleTimeString("vi-VN", {
+                    const startTime = new Date(showtime.startTime);
+
+                    // Default duration 120min if not set
+                    const durationMin = showtime.duration || 120;
+                    const endTime = new Date(startTime.getTime() + durationMin * 60 * 1000);
+                    const now = new Date();
+                    const isFinished = now > endTime;
+                    const isOngoing = now >= startTime && now <= endTime;
+
+                    const timeStr = startTime.toLocaleTimeString("vi-VN", {
                       hour: "2-digit",
                       minute: "2-digit",
                     });
@@ -544,14 +553,15 @@ function StaffBooking() {
                       <button
                         key={showtime._id}
                         type="button"
-                        className={`time-slot-btn ${isActive ? "active" : ""} ${isFull ? "full" : ""}`}
-                        onClick={() => setSelectedShowtimeId(showtime._id)}
-                        disabled={isFull}
+                        className={`time-slot-btn ${isActive ? "active" : ""} ${isFull ? "full" : ""} ${isFinished ? "past" : ""} ${isOngoing ? "ongoing" : ""}`}
+                        onClick={() => !isFinished && setSelectedShowtimeId(showtime._id)}
+                        disabled={isFull || isFinished}
+                        title={isFinished ? "Suất chiếu này đã kết thúc" : isOngoing ? "Đang trong quá trình chiếu" : ""}
                       >
                         <span className="slot-time">{timeStr}</span>
                         <span className="slot-room">{showtime.roomId?.name || showtime.room?.name || "N/A"}</span>
                         <span className="slot-seats">
-                          {isFull ? "Hết ghế" : `Còn ${available} ghế`}
+                          {isFinished ? "Đã chiếu xong" : isOngoing ? "Đang chiếu" : isFull ? "Hết ghế" : `Còn ${available} ghế`}
                         </span>
                       </button>
                     );
@@ -572,14 +582,14 @@ function StaffBooking() {
           <div className="panel-heading">
             <h2>5. Chọn ghế</h2>
             <div className="panel-actions">
-              <button 
-                type="button" 
-                className="refresh-btn" 
-                onClick={() => loadSeatMap(false)} 
+              <button
+                type="button"
+                className="refresh-btn"
+                onClick={() => loadSeatMap(false)}
                 title="Lấy lại sơ đồ ghế mới nhất"
                 disabled={loadingSeatMap}
               >
-                {loadingSeatMap ? "..." : "🔄 Làm mới"}
+                {loadingSeatMap ? "..." : " Làm mới"}
               </button>
               <span className="count-badge">
                 {selectedSeats.length > 0
@@ -616,14 +626,14 @@ function StaffBooking() {
                     <div className="row-seats">
                       {seats.map((seat) => {
                         const isSelected = selectedSeatIds.includes(seat._id);
-                        
+
                         // Dynamically determine the status to prioritize real-time sync
                         let displayStatus = seat.status.toLowerCase();
                         if (seat.status === "Holding" || seat.status === "holding") {
                           // For staff view, we treat 'Holding' (orange) as available/clear
                           displayStatus = "available";
                         }
-                        
+
                         const seatClass = [
                           "seat-button",
                           displayStatus,
@@ -782,7 +792,7 @@ function StaffBooking() {
             <div className="checkout-info">
               <span>Phim & Suất chiếu</span>
               <strong>
-                {selectedShowtime ? `${selectedShowtime.movieId?.title || 'Phim'} - ${new Date(selectedShowtime.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : "Chưa chọn"}
+                {selectedShowtime ? `${selectedShowtime.movieId?.title || 'Phim'} - ${new Date(selectedShowtime.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : "Chưa chọn"}
               </strong>
             </div>
             <div className="checkout-info">

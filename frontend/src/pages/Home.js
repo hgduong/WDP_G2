@@ -53,9 +53,6 @@ export default function Home() {
       case "nowShowing":
         filteredMovies = movies.filter((m)=>m.status === "NowShowing");
         break;
-      case "special":
-        filteredMovies = movies.filter((m)=>m.status === "Special");
-        break;
       default:
         filteredMovies = [];
     }
