@@ -6,7 +6,7 @@ const API = axios.create({
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// QR CODE API (Prefix: /api/qrcode)
+// QR CODE API (Prefix: /qrcode)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -16,7 +16,7 @@ const API = axios.create({
  */
 export const generateQRCode = async (data) => {
   try {
-    const res = await API.post("/api/qrcode/generate", { data });
+    const res = await API.post("/qrcode/generate", { data });
     return res.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -30,7 +30,7 @@ export const generateQRCode = async (data) => {
  */
 export const generateQRCodePNG = async (data) => {
   try {
-    const res = await API.post("/api/qrcode/generate-png", { data }, {
+    const res = await API.post("/qrcode/generate-png", { data }, {
       responseType: "blob",
     });
     return res.data;

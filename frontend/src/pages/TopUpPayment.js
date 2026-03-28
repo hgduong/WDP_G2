@@ -410,18 +410,6 @@ function TopUpPayment() {
                 className="qr-code"
               />
             </div>
-          ) : paymentData?.payment?.paymentUrl ? (
-            <div className="payment-link-container">
-              <p>Hoặc nhấn vào link bên dưới để thanh toán:</p>
-              <a
-                href={paymentData.payment.paymentUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="payment-link"
-              >
-                Thanh toán ngay
-              </a>
-            </div>
           ) : (
             <div className="qr-placeholder">
               <p>Đang tải mã QR...</p>
