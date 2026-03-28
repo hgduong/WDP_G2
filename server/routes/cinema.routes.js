@@ -15,14 +15,14 @@ const {
 } = require("../controllers/cinema.controller");
 
 // Cinema routes
-router.get("/cinemas", getAllCinemas);
-router.get("/cinemas/:id", getCinemaById);
-router.post("/cinemas", addCinema);
-router.put("/cinemas/:id", updateCinema);
-router.delete("/cinemas/:id", deleteCinema);
+router.get("/", getAllCinemas);
+router.get("/:id", getCinemaById);
+router.post("/", addCinema);
+router.put("/:id", updateCinema);
+router.delete("/:id", deleteCinema);
 
 // Room routes
-router.get("/cinemas/:cinemaId/rooms", getRoomsByCinema);
+router.get("/:cinemaId/rooms", getRoomsByCinema);
 router.get("/rooms/:id", getRoomById);
 router.post("/rooms", addRoom);
 router.put("/rooms/:id", updateRoom);

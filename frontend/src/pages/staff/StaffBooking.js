@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   createStaffBookingOrder,
-  getAllMovies,
-  getAllCinemas,
   getStaffBookingSeatMap,
   getStaffBookingShowtimes,
+  getAllMovies,
+  getAllCinemas,
   staffApplyVoucher,
 } from "../../services/api";
 import "../../assets/styles/StaffBooking.css";

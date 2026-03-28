@@ -6,6 +6,7 @@ import slider1 from "../assets/images/slider1.png";
 import slider2 from "../assets/images/slider2.png";
 import slider3 from "../assets/images/slider3.png";
 import MovieCard from "../components/MovieCard";
+import { getAllMovies } from "../services/api";
 const slides = [
   { id: 1, title_vi: "Rạp chiếu phim hiện đại", title_en: "Modern Movie Theater", image: slider1 },
   { id: 2, title_vi: "Phòng IMAX cực lớn", title_en: "Large IMAX Theater", image: slider2 },
@@ -22,8 +23,7 @@ export default function Home() {
 
   // GỌi API lấy danh sách phim từ sv
   useEffect(()=>{
-    fetch("http://localhost:9999/movies/all")
-    .then((res)=> res.json())
+    getAllMovies()
     .then((data)=>(setMovies(data)))
     .catch((error)=> console.error("Lỗi khi lấy danh sách phim:", error));
   },[]);

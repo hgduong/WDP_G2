@@ -1,47 +1,52 @@
 const express = require("express");
 const router = express.Router();
 const bookingController = require("../controllers/booking.controller");
-const { authenticateToken } = require("../config/auth.middleware");
+const { authenticateToken, authorizeRoles } = require("../config/auth.middleware"); 
 
-// Optional auth middleware - continues even without token
-const optionalAuth = (req, res, next) => {
-  const token = req.cookies.jwt;
-  
-  if (!token) {
-    req.user = null;
-    return next();
-  }
-
-  const jwt = require("jsonwebtoken");
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) {
-      req.user = null;
-    } else {
-      req.user = user;
-    }
+// Create new booking (chỉ user đã đăng nhập mới tạo được)
+router.post(
+  "/",
+  authenticateToken, // cho phép cả user và admin
+  (req, res, next) => {
+    console.log("=== BOOKING ROUTE HIT ===");
+    console.log("Headers:", req.headers);
+    console.log("Body:", req.body);
+    console.log("User:", req.user);
     next();
-  });
-};
+  },
+  bookingController.createBooking
+);
 
-// Create new booking (optional auth - guests can book too)
-router.post("/bookings", optionalAuth, (req, res, next) => {
-  console.log("=== BOOKING ROUTE HIT ===");
-  console.log("Headers:", req.headers);
-  console.log("Body:", req.body);
-  console.log("User:", req.user);
-  next();
-}, bookingController.createBooking);
+// Get booking by ID (chỉ admin mới xem được)
+router.get(
+  "/:bookingId",
+  authenticateToken,
+  authorizeRoles(["Admin"]),
+  bookingController.getBooking
+);
 
-// Get booking by ID
-router.get("/bookings/:bookingId", authenticateToken, bookingController.getBooking);
+// Get booking by code (cho phép user và admin)
+router.get(
+  "/code/:bookingCode",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff", "Manager"]),
+  bookingController.getBookingByCode
+);
 
-// Get booking by code
-router.get("/bookings/code/:bookingCode", bookingController.getBookingByCode);
+// Update payment status (chỉ admin mới được cập nhật)
+router.patch(
+  "/:bookingId/payment",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff", "Manager"]),
+  bookingController.updatePaymentStatus
+);
 
-// Update payment status (optional auth)
-router.patch("/bookings/:bookingId/payment", optionalAuth, bookingController.updatePaymentStatus);
-
-// Get user bookings
-router.get("/user/bookings", authenticateToken, bookingController.getUserBookings);
+// Get user bookings (chỉ user đã đăng nhập mới xem được)
+router.get(
+  "/user",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff", "Manager"]),
+  bookingController.getUserBookings
+);
 
 module.exports = router;

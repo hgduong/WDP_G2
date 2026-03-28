@@ -5,9 +5,8 @@ const passport = require("passport");
 const cookieParser = require("cookie-parser");
 const http = require("http");
 const connectDB = require("./config/db");
+
 const socketIO = require("./socket");
-const { startScheduler, generateShowtimes } = require("./utils/showtimeScheduler");
-const { authenticateToken, authorizeRoles } = require("./config/auth.middleware");
 require("./config/passport");
 
 const app = express();
@@ -27,11 +26,13 @@ app.use(
 );
 app.use(passport.initialize());
 
-connectDB().then(() => {
-  // Start auto-generating showtimes after DB connection
-  startScheduler();
-});
+connectDB();
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PUBLIC ROUTES (No authentication required)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Welcome route
 app.get("/", async (req, res) => {
   try {
     res.send({ message: "Welcome to Time Cinemas" });
@@ -40,6 +41,7 @@ app.get("/", async (req, res) => {
   }
 });
 
+// Location API routes (Provinces, Districts, Wards)
 app.get("/api/provinces", async (req, res) => {
   try {
     const response = await fetch("https://provinces.open-api.vn/api/v1/");
@@ -79,56 +81,67 @@ app.get("/api/wards/:districtCode", async (req, res) => {
   }
 });
 
-// Manual trigger: generate showtimes for next N days (Admin only)
-app.post("/api/showtimes/generate", authenticateToken, authorizeRoles(["Admin"]), async (req, res) => {
-  try {
-    const days = parseInt(req.body.days) || 7;
-    const result = await generateShowtimes(days);
-    res.json({
-      message: `Đã tạo ${result.created} suất chiếu mới, bỏ qua ${result.skipped} suất đã có.`,
-      ...result,
-    });
-  } catch (error) {
-    console.error("Lỗi khi tạo suất chiếu:", error);
-    res.status(500).json({ message: "Lỗi server khi tạo suất chiếu" });
-  }
-});
-
-const uploadRoutes = require("./routes/upload.route");
-app.use("/api", uploadRoutes);
+// Static files
 app.use("/upload", express.static("public/upload"));
 
+// QR Code routes
 const qrcodeRoutes = require("./routes/qrcode.routes");
 app.use("/qrcode", qrcodeRoutes);
 
+// Upload routes
+const uploadRoutes = require("./routes/upload.route");
+app.use("/api/upload", uploadRoutes);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTH ROUTES (Login, Register, OTP, etc.)
+// Prefix: /api/auth
+// ═══════════════════════════════════════════════════════════════════════════════
+
 const authRoutes = require("./routes/auth.routes");
-const userRoutes = require("./routes/user.routes");
+app.use("/api/auth", authRoutes);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PUBLIC DATA ROUTES (Movies, Cinemas, Vouchers - public access)
+// ═══════════════════════════════════════════════════════════════════════════════
+
 const moviesRoutes = require("./routes/movies.route");
+app.use("/api/movies", moviesRoutes);
+
 const cinemaRoutes = require("./routes/cinema.routes");
-const staffRoutes = require("./routes/staffs.route");
+app.use("/api/cinemas", cinemaRoutes);
+
 const voucherRoutes = require("./routes/voucher.routes");
-const seatsRoutes = require("./routes/seats.route");
+app.use("/api/vouchers", voucherRoutes);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTHENTICATED ROUTES (Require JWT token)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const userRoutes = require("./routes/user.routes");
+app.use("/api/users", userRoutes);
+
 const bookingRoutes = require("./routes/booking.route");
+app.use("/api/bookings", bookingRoutes);
+
 const transactionRoutes = require("./routes/transaction.routes");
+app.use("/api/transactions", transactionRoutes);
+
+const staffRoutes = require("./routes/staffs.route");
+app.use("/api/staff", staffRoutes);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADMIN ROUTES (Require Admin role)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const seatsRoutes = require("./routes/seats.route");
+app.use("/api/seats", seatsRoutes);
+
 const scheduleRoutes = require("./routes/schedule.routes");
-
-app.use(authRoutes);
-
-app.use(userRoutes);
-
-app.use(moviesRoutes);
-
-app.use(cinemaRoutes);
-
-app.use("/transactions", transactionRoutes);
-
-app.use(staffRoutes);
-app.use("/api", seatsRoutes);
-app.use("/api", bookingRoutes);
 app.use("/api/schedules", scheduleRoutes);
-app.use("/api", transactionRoutes);
-// Đăng ký voucher routes tại /vouchers (cùng cấp với các routes khác)
-app.use("/vouchers", voucherRoutes);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SERVER START
+// ═══════════════════════════════════════════════════════════════════════════════
 
 const PORT = process.env.PORT || 9999;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

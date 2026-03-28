@@ -1,7 +1,7 @@
 // src/pages/Checkout.jsx
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { createBooking } from "../services/bookingService";
+import { createBooking } from "../services/api";
 import { useContext } from "react";
 import { UserContext } from "../context/UserContext";
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getUserProfile, updateUserProfile } from "../../services/api";
+import { getUserProfile, updateUserProfile } from "../../services/userApi";
 import AddressSelector from "./AddressSelector";
 import { toast } from "react-toastify";
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { deposit, cancelUserTransaction, checkPayOSPaymentStatus, getQRCodeImage } from "../services/api";
+import { deposit, cancelUserTransaction, checkPayOSPaymentStatus, generateQRCode } from "../services/api";
 import "../assets/styles/TopUpPayment.css";
 
 function TopUpPayment() {
@@ -47,7 +47,7 @@ function TopUpPayment() {
       if (paymentData?.payment?.qrData) {
         const fetchQRCode = async () => {
           try {
-            const qrResponse = await getQRCodeImage(paymentData.payment.qrData);
+            const qrResponse = await generateQRCode(paymentData.payment.qrData);
             if (qrResponse.success) {
               setQRCodeImage(qrResponse.data);
               sessionStorage.setItem('topupQRImage', qrResponse.data);
@@ -86,7 +86,7 @@ function TopUpPayment() {
           // Fetch QR code image if qrData is available
           if (response.data?.payment?.qrData) {
             try {
-              const qrResponse = await getQRCodeImage(response.data.payment.qrData);
+              const qrResponse = await generateQRCode(response.data.payment.qrData);
               if (qrResponse.success) {
                 setQRCodeImage(qrResponse.data);
                 sessionStorage.setItem('topupQRImage', qrResponse.data);

@@ -13,14 +13,14 @@ const express = require("express");
 const router = express.Router();    
 
 // Movie routes
-router.get("/movies/all", getAllMovies);
-router.get("/movies/now-showing", getNowShowingMovies);
-router.get("/movies/coming-soon", getComingSoonMovies);
-router.get("/movies/special", getSpecialMovies);
-router.get("/movies/:id", getMoviesById);  
-router.post("/movies", addMovie);
-router.put("/movies/:id", updateMovie);
-router.delete("/movies/:id", deleteMovie);
+router.get("/all", getAllMovies);
+router.get("/now-showing", getNowShowingMovies);
+router.get("/coming-soon", getComingSoonMovies);
+router.get("/special", getSpecialMovies);
+router.get("/:id", getMoviesById);  
+router.post("/", addMovie);
+router.put("/:id", updateMovie);
+router.delete("/:id", deleteMovie);
 
 // Showtime routes
 router.get("/showtimes", require("../controllers/showtime.controller").getAllShowtimes);

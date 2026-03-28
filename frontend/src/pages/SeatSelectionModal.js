@@ -1,7 +1,6 @@
 // src/components/movie/SeatSelectionModal.jsx
 import { useState, useEffect } from "react";
-import { holdSeats, releaseSeats, getStaffBookingSeatMap } from "../services/api";
-import { createBooking } from "../services/bookingService";
+import { holdSeats, releaseSeats, getStaffBookingSeatMap, createBooking } from "../services/api";
 
 const HOLDING_TIME = 10; // giây
 

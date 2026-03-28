@@ -3,10 +3,10 @@ import {
   getAllShowtimes, 
   createShowtime, 
   updateShowtime, 
-  deleteShowtime,
-  getAllMovies,
-  getRoomsByCinema
-} from '../../services/api';
+  deleteShowtime
+} from '../../services/showtimesApi';
+import { getAllMovies } from '../../services/moviesApi';
+import { getRoomsByCinema } from '../../services/cinemasApi';
 import { toast } from 'react-toastify';
 import './AdminManagement.css';
 

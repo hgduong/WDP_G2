@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect, useContext } from "react";
 import "../assets/styles/Booking.css";
 import { getImageUrl } from "../utils/imageUtils";
-import { createBooking } from "../services/bookingService";
+import { createBooking, getShowtimeById } from "../services/api";
 import { UserContext } from "../context/UserContext";
 
 export default function Booking() {
@@ -61,8 +61,7 @@ export default function Booking() {
 
   useEffect(() => {
     if (showtimeId) {
-      fetch(`http://localhost:9999/showtimes/${showtimeId}`)
-        .then((res) => res.json())
+      getShowtimeById(showtimeId)
         .then((data) => {
           setShowtime(data);
           setLoading(false);
