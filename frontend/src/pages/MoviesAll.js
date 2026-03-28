@@ -20,8 +20,6 @@ const getStatusBadge = (status) => {
       return { text: "Đang chiếu", className: "movie-card__badge--now-showing" };
     case "ComingSoon":
       return { text: "Sắp chiếu", className: "movie-card__badge--coming-soon" };
-    case "Special":
-      return { text: "Đặc biệt", className: "movie-card__badge--special" };
     default:
       return { text: status || "-", className: "" };
   }

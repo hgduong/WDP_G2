@@ -147,7 +147,7 @@ export default function MovieDetail() {
   if (error) {
     return (
       <div className="movie-detail-error">
-        <div className="error-icon">⚠️</div>
+        <div className="error-icon"></div>
         <h2>Đã xảy ra lỗi</h2>
         <p>{error}</p>
         <button className="btn btn-retry" onClick={fetchMovieAndShowtimes}>
@@ -163,7 +163,7 @@ export default function MovieDetail() {
   if (!movie) {
     return (
       <div className="movie-detail-not-found">
-        <div className="not-found-icon">🎬</div>
+        <div className="not-found-icon"></div>
         <h2>Không tìm thấy phim</h2>
         <p>Phim bạn đang tìm kiếm không tồn tại hoặc đã bị xóa.</p>
         <button className="btn btn-back" onClick={() => navigate('/')}>

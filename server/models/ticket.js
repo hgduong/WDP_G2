@@ -7,7 +7,7 @@ const ticketSchema = new mongoose.Schema({
   showtimeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Showtime', required: true },
   cinemaId: { type: mongoose.Schema.Types.ObjectId, ref: 'Cinema', required: true },
   roomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Room', required: true },
-  seatId: { type: mongoose.Schema.Types.Mixed, required: true },
+  seatId: { type: mongoose.Schema.Types.ObjectId, ref: 'Seat', required: true },
   price: { type: Number, required: true },
   ticketCode: { type: String, required: true, unique: true },
   status: { type: String, enum: ['Valid', 'Used', 'Cancelled'], default: 'Valid' },

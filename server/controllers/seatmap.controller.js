@@ -120,141 +120,85 @@ exports.generateSeatLayout = async (req, res) => {
 exports.getSeatmapByShowtime = async (req, res) => {
   try {
     const showtimeId = req.params.showtimeId;
-    console.log("=== GET SEATMAP DEBUG ===");
-    console.log("showtimeId:", showtimeId);
+    const Showtime = require("../models/showtime");
+    const Room = require("../models/room");
     
-    // First, try to find seatmap by showtimes field (single ID, not array)
-    let seatmap = await Seatmap.findOne({ showtimes: showtimeId })
-      .populate("seats");
-    console.log("Method 1 - by showtimes:", seatmap ? "found" : "not found");
+    // 1. Try to find an existing seatmap specifically for this showtime
+    let seatmap = await Seatmap.findOne({ showtimes: showtimeId }).populate("seats");
     
-    // If not found, try to get seatmap from showtime's seatMap field
-    if (!seatmap) {
-      const Showtime = require("../models/showtime");
-      const showtime = await Showtime.findById(showtimeId);
-      console.log("showtime.seatMap:", showtime?.seatMap);
-      
-      if (showtime?.seatMap) {
-        seatmap = await Seatmap.findById(showtime.seatMap).populate("seats");
-        console.log("Method 2 - by showtime.seatMap:", seatmap ? "found" : "not found");
-      }
-      // If still not found, try room's seatmapId
-      else if (showtime?.roomId) {
-        const Room = require("../models/room");
-        const room = await Room.findById(showtime.roomId);
-        console.log("room.seatmapId:", room?.seatmapId);
-        if (room?.seatmapId) {
-          seatmap = await Seatmap.findById(room.seatmapId).populate("seats");
-          console.log("Method 3 - by room.seatmapId:", seatmap ? "found" : "not found");
-        }
-      }
-    }
-    
-    // If still not found, try finding template seatmap for this room
-    if (!seatmap) {
-      const Showtime = require("../models/showtime");
-      const showtime = await Showtime.findById(showtimeId).populate("roomId");
-      console.log("showtime.roomId:", showtime?.roomId?._id || showtime?.roomId);
-      
-      if (showtime?.roomId) {
-        // Find seatmap by roomId (any seatmap linked to this room)
-        seatmap = await Seatmap.findOne({ 
-          roomId: showtime.roomId._id || showtime.roomId
-        }).populate("seats");
-        console.log("Method 4 - by roomId:", seatmap ? "found" : "not found");
-      }
-    }
-    
-    // FIX: If seatmap exists but has NO seats or wrong count, auto-generate seats!
     if (seatmap) {
-      const Showtime = require("../models/showtime");
-      const showtime = await Showtime.findById(showtimeId);
-      
-      // Get room to know capacity - fetch fresh data!
-      const Room = require("../models/room");
-      const room = showtime?.roomId ? await Room.findById(showtime.roomId) : null;
-      const expectedCapacity = room?.capacity || 60;
-      console.log("Seatmap controller - Room capacity:", expectedCapacity, "Current seats:", seatmap.seats?.length);
-      
-      // Check if we need to regenerate seats
-      const needsRegeneration = !seatmap.seats || seatmap.seats.length === 0 || seatmap.seats.length !== expectedCapacity;
-      
-      // Also check if last 10 seats are couple seats
-      let hasCorrectCoupleSeats = false;
-      if (seatmap.seats && seatmap.seats.length === expectedCapacity) {
-        const lastTenSeats = seatmap.seats.slice(-10);
-        hasCorrectCoupleSeats = lastTenSeats.every(seat => seat.type === 'Couple');
-        console.log(`Last 10 seats are couple seats: ${hasCorrectCoupleSeats}`);
+      // Small check: if showtime has a specific seatmap but it's empty, we might need to fix it
+      if (!seatmap.seats || seatmap.seats.length === 0) {
+        // ... handled below in regeneration logic
+      } else {
+        return res.json(seatmap);
       }
-      
-      if (needsRegeneration || !hasCorrectCoupleSeats) {
-        console.log(`Seatmap needs regeneration. Count: ${seatmap.seats?.length || 0}/${expectedCapacity}, Couple seats correct: ${hasCorrectCoupleSeats}`);
-        
-        // Delete old seats first
-        if (seatmap.seats?.length > 0) {
-          await Seat.deleteMany({ _id: { $in: seatmap.seats } });
-        }
-        
-        // Generate seats (inline version to avoid circular require)
-        const effectiveCapacity = Math.max(Number(expectedCapacity) || 0, 50);
-        const seatsPerRow = 10;
-        const rowCount = Math.ceil(effectiveCapacity / seatsPerRow);
-        const seatsData = [];
-        
-        for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
-          const rowLetter = String.fromCharCode(65 + rowIndex);
-          const isLastRow = rowIndex === rowCount - 1;
-          const seatsInThisRow = Math.min(seatsPerRow, effectiveCapacity - rowIndex * seatsPerRow);
-          
-          if (isLastRow) {
-            // Last row: couple seats (5 couple pairs = 10 seats)
-            // E1-2, E3-4, E5-6, E7-8, E9-10
-            for (let i = 0; i < 5; i++) {
-              seatsData.push({
-                row: rowLetter,
-                number: (i * 2) + 1,
-                type: "Couple",
-                status: "Available"
-              });
-            }
-          } else {
-            // Other rows: standard seats (10 per row)
-            // A1-A10, B1-B10, C1-C10, D1-D10...
-            for (let seatNum = 1; seatNum <= seatsInThisRow; seatNum++) {
-              seatsData.push({
-                row: rowLetter,
-                number: seatNum,
-                type: rowIndex >= 3 ? "VIP" : "Standard",
-                status: "Available"
-              });
-            }
-          }
-        }
-        
-        const createdSeats = await Seat.insertMany(seatsData);
-        
-        // Update seatmap with new seats using findByIdAndUpdate to avoid VersionError
-        await Seatmap.findByIdAndUpdate(seatmap._id, {
-          $set: { seats: createdSeats.map(s => s._id) }
-        });
-        
-        // Reload with populated seats
-        seatmap = await Seatmap.findById(seatmap._id).populate("seats");
-        console.log("Auto-generated seats:", seatmap.seats.length);
-      }
-      
-      console.log("Final seatmap:", seatmap?._id);
-      console.log("Seats count:", seatmap?.seats?.length);
-      console.log("Seats array:", seatmap?.seats);
-      
-      res.json(seatmap);
-    } else {
-      // No seatmap found at all
-      console.log("No seatmap found for showtime:", showtimeId);
-      res.json(null);
     }
+
+    // 2. No showtime-specific seatmap found. We need to create one.
+    const showtime = await Showtime.findById(showtimeId).populate("roomId");
+    if (!showtime) {
+      return res.status(404).json({ message: "Showtime not found" });
+    }
+
+    const room = showtime.roomId;
+    const expectedCapacity = room?.capacity || 60;
+
+    // 3. Create a UNIQUE seatmap and set of seats for THIS showtime
+    console.log(`Creating isolated seatmap for showtime ${showtimeId} in room ${room?.name}`);
+    
+    // Generate new seats (isolated from other showtimes)
+    const effectiveCapacity = Math.max(Number(expectedCapacity) || 0, 50);
+    const seatsPerRow = 10;
+    const rowCount = Math.ceil(effectiveCapacity / seatsPerRow);
+    const seatsData = [];
+    
+    for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+      const rowLetter = String.fromCharCode(65 + rowIndex);
+      const isLastRow = rowIndex === rowCount - 1;
+      const seatsInThisRow = Math.min(seatsPerRow, effectiveCapacity - rowIndex * seatsPerRow);
+      
+      if (isLastRow) {
+        for (let i = 0; i < 5; i++) {
+          seatsData.push({
+            row: rowLetter,
+            number: (i * 2) + 1,
+            type: "Couple",
+            status: "Available"
+          });
+        }
+      } else {
+        for (let seatNum = 1; seatNum <= seatsInThisRow; seatNum++) {
+          seatsData.push({
+            row: rowLetter,
+            number: seatNum,
+            type: rowIndex >= 3 ? "VIP" : "Standard",
+            status: "Available"
+          });
+        }
+      }
+    }
+    
+    const createdSeats = await Seat.insertMany(seatsData);
+    
+    // Create the new seatmap record linked to this showtime
+    seatmap = await Seatmap.create({
+      roomId: room._id,
+      showtimes: showtimeId,
+      seats: createdSeats.map(s => s._id),
+      capacity: effectiveCapacity,
+      isTemplate: false
+    });
+
+    // Optionally update the showtime's own reference to this seatmap
+    await Showtime.findByIdAndUpdate(showtimeId, { seatMap: seatmap._id });
+    
+    // Reload with populated seats
+    seatmap = await Seatmap.findById(seatmap._id).populate("seats");
+    
+    res.json(seatmap);
   } catch (error) {
-    console.error("Error getting seatmap:", error);
+    console.error("Error isolating seatmap for showtime:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -303,13 +247,42 @@ exports.releaseSeats = async (req, res) => {
 // Get all held seats for a showtime (for real-time sync)
 exports.getHeldSeats = async (req, res) => {
   try {
-    const seatmap = await Seatmap.findOne({ showtimes: req.params.showtimeId });
+    const showtimeId = req.params.showtimeId;
+    
+    // Find the seatmap specifically for this isolated showtime
+    // We sort by createdAt: -1 to get the most recent one in case of duplicates
+    const seatmap = await Seatmap.findOne({ 
+      showtimes: showtimeId,
+      isTemplate: false 
+    }).sort({ createdAt: -1 });
+
     if (!seatmap) {
       return res.json([]);
     }
 
-    // Find seats that are being held and not expired
     const now = new Date();
+    
+    // Auto-release expired seats in this seatmap before returning the list
+    // Also release seats with null heldUntil if they are stuck in Holding status
+    await Seat.updateMany(
+      { 
+        _id: { $in: seatmap.seats }, 
+        status: "Holding", 
+        $or: [
+          { heldUntil: { $lte: now } },
+          { heldUntil: null }
+        ]
+      },
+      { 
+        $set: { 
+          status: "Available", 
+          heldBy: null, 
+          heldUntil: null 
+        } 
+      }
+    );
+
+    // Now find the seats that are STILL being held and haven't expired
     const heldSeats = await Seat.find({
       _id: { $in: seatmap.seats },
       status: "Holding",

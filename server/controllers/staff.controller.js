@@ -586,11 +586,13 @@ exports.createStaffBooking = async (req, res) => {
 
     // Validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (sendEmail && !customerEmail) {
-      return res.status(400).json({ message: "Vui lòng nhập Email nếu muốn gửi thông báo." });
-    }
-    if (customerEmail && !emailRegex.test(customerEmail)) {
-      return res.status(400).json({ message: "Email không đúng định dạng." });
+    if (sendEmail) {
+      if (!customerEmail) {
+        return res.status(400).json({ message: "Vui lòng nhập Email nếu muốn gửi thông báo." });
+      }
+      if (!emailRegex.test(customerEmail)) {
+        return res.status(400).json({ message: "Email không đúng định dạng." });
+      }
     }
 
     if (!showtimeId || !Array.isArray(seatIds) || seatIds.length === 0) {
@@ -707,10 +709,10 @@ exports.createStaffBooking = async (req, res) => {
       bookingId: booking._id,
       userId: booking.userId || (req.user?.id && mongoose.Types.ObjectId.isValid(req.user.id) ? req.user.id : null),
       showtimeId: showtime._id,
-      cinemaId: showtime.cinemasId?._id || showtime.cinemasId,
+      cinemaId: cinemaId, // Corrected from showtime.cinemasId
       roomId: showtime.roomId?._id || showtime.roomId,
       seatId: seat._id,
-      price: Number(showtime.price || 0),
+      price: seat.type === "Couple" ? basePrice * 2 : basePrice, // Corrected price from showtime.price
       ticketCode: createTicketCode(),
       status: "Valid",
     }));
@@ -937,14 +939,15 @@ exports.verifyTicket = async (req, res) => {
         .populate("seats", "row number")
         .populate({
           path: "tickets",
-          populate: { path: "seatId", select: "label" }
+          populate: { path: "seatId", select: "row number type" }
         });
     } else if (ticketCode) {
       ticket = await Ticket.findOne({ ticketCode })
         .populate("showtimeId")
         .populate("cinemaId")
         .populate("roomId")
-        .populate("bookingId");
+        .populate("bookingId")
+        .populate({ path: "seatId", select: "row number type" });
       if (ticket) {
         booking = await Booking.findById(ticket.bookingId)
           .populate({
@@ -956,7 +959,7 @@ exports.verifyTicket = async (req, res) => {
           .populate("seats", "row number")
           .populate({
             path: "tickets",
-            populate: { path: "seatId", select: "label" }
+            populate: { path: "seatId", select: "row number type" }
           });
       }
     }
@@ -999,36 +1002,46 @@ exports.verifyTicket = async (req, res) => {
         showtimeId: booking.showtimeId?._id,
       });
 
+      const formatSeatLabelLocal = (s) => {
+        if (!s || !s.row) return "Ghế";
+        return s.type === "Couple" ? `${s.row}${s.number}-${s.number + 1}` : `${s.row}${s.number}`;
+      };
+
       const ticketsData = (booking.tickets && booking.tickets.length > 0)
         ? booking.tickets
             .filter(t => t !== null)
             .map(t => ({
               ticketCode: t.ticketCode,
               status: t.status,
-              seatLabel: t.seatId?.label || (t.seatId?.row ? `${t.seatId.row}${t.seatId.number}` : t.seatId),
+              seatLabel: formatSeatLabelLocal(t.seatId),
             }))
         : (booking.seats || []).map((s, idx) => ({
             ticketCode: `${booking.bookingCode}-${idx + 1}`,
             status: "Valid",
-            seatLabel: s.row ? `${s.row}${s.number}` : "Ghế",
+            seatLabel: formatSeatLabelLocal(s),
           }));
 
       response.tickets = ticketsData;
       response.message = "Check-in thành công";
       response.checkedInTicket = ticket;
     } else {
+      const formatSeatLabelLocal = (s) => {
+        if (!s || !s.row) return "Ghế";
+        return s.type === "Couple" ? `${s.row}${s.number}-${s.number + 1}` : `${s.row}${s.number}`;
+      };
+
       const ticketsData = (booking.tickets && booking.tickets.length > 0)
         ? booking.tickets
             .filter(t => t !== null)
             .map(t => ({
               ticketCode: t.ticketCode,
               status: t.status,
-              seatLabel: t.seatId?.label || (t.seatId?.row ? `${t.seatId.row}${t.seatId.number}` : t.seatId),
+              seatLabel: formatSeatLabelLocal(t.seatId),
             }))
         : (booking.seats || []).map((s, idx) => ({
             ticketCode: `${booking.bookingCode}-${idx + 1}`,
             status: "Valid",
-            seatLabel: s.row ? `${s.row}${s.number}` : "Ghế",
+            seatLabel: formatSeatLabelLocal(s),
           }));
 
       response.tickets = ticketsData;
