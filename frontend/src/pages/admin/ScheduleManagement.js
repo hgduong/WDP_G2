@@ -75,6 +75,7 @@ const ScheduleManagement = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailSchedule, setDetailSchedule] = useState(null);
   const [next7Days, setNext7Days] = useState(getNext7Days());
+  const [activeTab, setActiveTab] = useState("schedule");
 
   const fetchStaff = async () => {
     try {
@@ -371,7 +372,7 @@ const ScheduleManagement = () => {
   return (
     <div className="admin-management">
       <div className="management-header">
-        <h2>Tạo lịch làm việc</h2>
+        <h2>Quản lý lịch làm việc</h2>
         <div>
           <input
             type="date"

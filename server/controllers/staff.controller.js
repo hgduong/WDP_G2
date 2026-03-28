@@ -4,6 +4,7 @@ const Showtime = require("../models/showtime");
 const Room = require("../models/room");
 const Seat = require("../models/seat");
 const Seatmap = require("../models/seatmap");
+const Ticket = require("../models/ticket");
 const bcrypt = require("bcrypt");
 const { sendMail } = require("../utils/mail");
 const mongoose = require("mongoose");
@@ -35,6 +36,12 @@ const createBookingCode = () =>
   `STF${Date.now().toString(36).toUpperCase()}${Math.random()
     .toString(36)
     .slice(2, 6)
+    .toUpperCase()}`;
+
+const createTicketCode = () =>
+  `TK${Date.now().toString(36).toUpperCase()}${Math.random()
+    .toString(36)
+    .slice(2, 4)
     .toUpperCase()}`;
 
 const populateSeatmap = async (seatmapId) =>
@@ -118,9 +125,10 @@ const ensureShowtimeSeatmap = async (showtimeInput) => {
         // Create new seats with correct capacity
         const seats = await Seat.insertMany(buildSeatBlueprint(expectedCapacity));
         
-        // Update seatmap
-        existingSeatmap.seats = seats.map(s => s._id);
-        await existingSeatmap.save();
+        // Update seatmap using findByIdAndUpdate to avoid VersionError
+        await Seatmap.findByIdAndUpdate(existingSeatmap._id, {
+          $set: { seats: seats.map(s => s._id) }
+        });
         
         // Reload with populated seats
         return await populateSeatmap(existingSeatmap._id);
@@ -143,14 +151,17 @@ const ensureShowtimeSeatmap = async (showtimeInput) => {
       console.log(`Staff: Found seatmap has ${seatmap.seats?.length || 0} seats! Generating...`, seatmap._id);
       
       const seats = await Seat.insertMany(buildSeatBlueprint(expectedCapacity));
-      seatmap.seats = seats.map(s => s._id);
-      await seatmap.save();
+      
+      // Update seatmap using findByIdAndUpdate to avoid VersionError
+      await Seatmap.findByIdAndUpdate(seatmap._id, {
+        $set: { seats: seats.map(s => s._id) }
+      });
+      
       seatmap = await populateSeatmap(seatmap._id);
     }
     
     if (!showtime.seatMap || showtime.seatMap.toString() !== seatmap._id.toString()) {
-      showtime.seatMap = seatmap._id;
-      await showtime.save();
+      await Showtime.findByIdAndUpdate(showtime._id, { $set: { seatMap: seatmap._id } });
     }
     return seatmap;
   }
@@ -573,6 +584,15 @@ exports.createStaffBooking = async (req, res) => {
       pricePerSeat,
     } = req.body;
 
+    // Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (sendEmail && !customerEmail) {
+      return res.status(400).json({ message: "Vui lòng nhập Email nếu muốn gửi thông báo." });
+    }
+    if (customerEmail && !emailRegex.test(customerEmail)) {
+      return res.status(400).json({ message: "Email không đúng định dạng." });
+    }
+
     if (!showtimeId || !Array.isArray(seatIds) || seatIds.length === 0) {
       return res.status(400).json({ message: "Suất chiếu và ghế là bắt buộc" });
     }
@@ -682,6 +702,27 @@ exports.createStaffBooking = async (req, res) => {
       await Voucher.findByIdAndUpdate(appliedVoucher, { $inc: { usedCount: 1 } });
     }
 
+    // Create tickets for each seat
+    const ticketDocs = selectedSeats.map((seat) => ({
+      bookingId: booking._id,
+      userId: booking.userId || (req.user?.id && mongoose.Types.ObjectId.isValid(req.user.id) ? req.user.id : null),
+      showtimeId: showtime._id,
+      cinemaId: showtime.cinemasId?._id || showtime.cinemasId,
+      roomId: showtime.roomId?._id || showtime.roomId,
+      seatId: seat._id,
+      price: Number(showtime.price || 0),
+      ticketCode: createTicketCode(),
+      status: "Valid",
+    }));
+
+    const savedTickets = await Ticket.insertMany(ticketDocs);
+
+    // Update booking with ticket IDs
+    await Booking.findByIdAndUpdate(booking._id, {
+      $set: { tickets: savedTickets.map((t) => t._id) },
+    });
+
+    // Update seat status to 'Booked'
     await Seat.updateMany(
       { _id: { $in: selectedSeats.map((seat) => seat._id) } },
       {
@@ -704,6 +745,13 @@ exports.createStaffBooking = async (req, res) => {
         });
       } catch (mailError) {
         console.error("Loi khi gui email dat cho staff:", mailError);
+        // If the mail error is specifically related to the recipient address, report it
+        if (mailError.code === 'EENVELOPE' || (mailError.responseCode && mailError.responseCode >= 500)) {
+           return res.status(400).json({ 
+             message: "Không thể gửi email vì địa chỉ email không tồn tại hoặc bị từ chối. Vui lòng kiểm tra lại email khách hàng.",
+             error: mailError.message 
+           });
+        }
       }
     }
 
@@ -849,6 +897,7 @@ exports.getAllBookings = async (req, res) => {
       .populate("cinemaId", "name address city")
       .populate("roomId", "name")
       .populate("tickets")
+      .populate("seats", "row number")
       .populate("bookedByStaffId", "fullName")
       .sort({ createdAt: -1 })
       .limit(parseInt(limit));
@@ -879,10 +928,17 @@ exports.verifyTicket = async (req, res) => {
 
     if (bookingCode) {
       booking = await Booking.findOne({ bookingCode })
-        .populate("showtimeId")
+        .populate({
+          path: "showtimeId",
+          populate: { path: "movieId", select: "title" }
+        })
         .populate("cinemaId")
         .populate("roomId")
-        .populate("tickets");
+        .populate("seats", "row number")
+        .populate({
+          path: "tickets",
+          populate: { path: "seatId", select: "label" }
+        });
     } else if (ticketCode) {
       ticket = await Ticket.findOne({ ticketCode })
         .populate("showtimeId")
@@ -891,10 +947,17 @@ exports.verifyTicket = async (req, res) => {
         .populate("bookingId");
       if (ticket) {
         booking = await Booking.findById(ticket.bookingId)
-          .populate("showtimeId")
+          .populate({
+            path: "showtimeId",
+            populate: { path: "movieId", select: "title" }
+          })
           .populate("cinemaId")
           .populate("roomId")
-          .populate("tickets");
+          .populate("seats", "row number")
+          .populate({
+            path: "tickets",
+            populate: { path: "seatId", select: "label" }
+          });
       }
     }
 
@@ -936,19 +999,39 @@ exports.verifyTicket = async (req, res) => {
         showtimeId: booking.showtimeId?._id,
       });
 
-      response.tickets = booking.tickets.map(t => ({
-        ticketCode: t.ticketCode,
-        status: t.status,
-        seatLabel: t.seatId?.label || t.seatId,
-      }));
+      const ticketsData = (booking.tickets && booking.tickets.length > 0)
+        ? booking.tickets
+            .filter(t => t !== null)
+            .map(t => ({
+              ticketCode: t.ticketCode,
+              status: t.status,
+              seatLabel: t.seatId?.label || (t.seatId?.row ? `${t.seatId.row}${t.seatId.number}` : t.seatId),
+            }))
+        : (booking.seats || []).map((s, idx) => ({
+            ticketCode: `${booking.bookingCode}-${idx + 1}`,
+            status: "Valid",
+            seatLabel: s.row ? `${s.row}${s.number}` : "Ghế",
+          }));
+
+      response.tickets = ticketsData;
       response.message = "Check-in thành công";
       response.checkedInTicket = ticket;
     } else {
-      response.tickets = booking.tickets.map(t => ({
-        ticketCode: t.ticketCode,
-        status: t.status,
-        seatLabel: t.seatId?.label || t.seatId,
-      }));
+      const ticketsData = (booking.tickets && booking.tickets.length > 0)
+        ? booking.tickets
+            .filter(t => t !== null)
+            .map(t => ({
+              ticketCode: t.ticketCode,
+              status: t.status,
+              seatLabel: t.seatId?.label || (t.seatId?.row ? `${t.seatId.row}${t.seatId.number}` : t.seatId),
+            }))
+        : (booking.seats || []).map((s, idx) => ({
+            ticketCode: `${booking.bookingCode}-${idx + 1}`,
+            status: "Valid",
+            seatLabel: s.row ? `${s.row}${s.number}` : "Ghế",
+          }));
+
+      response.tickets = ticketsData;
       response.message = "Xác thực thành công";
     }
 
@@ -966,7 +1049,7 @@ exports.overrideSeatStatus = async (req, res) => {
     const staffId = req.user?.id;
     const staffRole = req.user?.role;
 
-    if (!["Supervisor", "Manager", "Admin"].includes(staffRole)) {
+    if (!["Supervisor", "Manager", "Admin", "Staff"].includes(staffRole)) {
       return res.status(403).json({ message: "Không có quyền override ghế" });
     }
 
@@ -1012,7 +1095,7 @@ exports.unlockInternalSeats = async (req, res) => {
     const staffId = req.user?.id;
     const staffRole = req.user?.role;
 
-    if (!["Supervisor", "Manager", "Admin"].includes(staffRole)) {
+    if (!["Supervisor", "Manager", "Admin", "Staff"].includes(staffRole)) {
       return res.status(403).json({ message: "Không có quyền mở khóa ghế nội bộ" });
     }
 

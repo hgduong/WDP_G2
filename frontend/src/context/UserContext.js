@@ -26,12 +26,13 @@ const getStoredRole = () => {
 export function UserProvider({ children }) {
   const [user, setUser] = useState(getStoredUser);
   const [role, setRole] = useState(getStoredRole);
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
   // Khi app load lại, lấy user từ server
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await getUserInfo(); 
+        const res = await getUserInfo();
         const userData = res.data.user;
         if (userData && userData.role) {
           setUser(userData);
@@ -43,6 +44,8 @@ export function UserProvider({ children }) {
       } catch (err) {
         // Nếu lỗi, giữ nguyên user từ localStorage nếu có
         console.log("Không lấy được user từ server:", err.message);
+      } finally {
+        setIsAuthReady(true);
       }
     };
 
@@ -55,12 +58,13 @@ export function UserProvider({ children }) {
       // Use user data directly from login response
       setUser(userData);
       setRole(userData.role);
+      setIsAuthReady(true);
       // Lưu vào localStorage để persist
       localStorage.setItem("user", JSON.stringify(userData));
       localStorage.setItem("role", userData.role);
       // Call callback after state is set
       if (callback) {
-        setTimeout(callback, 0);
+        setTimeout(callback, 100);
       }
     } else {
       // Fallback: fetch from server
@@ -69,10 +73,11 @@ export function UserProvider({ children }) {
           const userData = res.data.user;
           setUser(userData);
           setRole(userData.role);
+          setIsAuthReady(true);
           localStorage.setItem("user", JSON.stringify(userData));
           localStorage.setItem("role", userData.role);
           if (callback) {
-            setTimeout(callback, 0);
+            setTimeout(callback, 100);
           }
         })
         .catch(() => {
@@ -95,7 +100,7 @@ export function UserProvider({ children }) {
   };
 
   return (
-    <UserContext.Provider value={{ user, setUser, login, logout, role }}>
+    <UserContext.Provider value={{ user, setUser, login, logout, role, isAuthReady }}>
       {children}
     </UserContext.Provider>
   );

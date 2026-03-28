@@ -8,12 +8,12 @@ import "../assets/styles/Profile.css";
 
 function Profile() {
   const [activeTab, setActiveTab] = useState("info");
-  const { user } = useContext(UserContext);
+  const { user, role } = useContext(UserContext);
 
   return (
     <div className="profile-container">
       <h1>Thông tin cá nhân</h1>
-      <ProfileNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <ProfileNav activeTab={activeTab} setActiveTab={setActiveTab} role={role} />
       {activeTab === "info" && <PersonalInfo user={user} />}
       {activeTab === "history" && <TransactionHistory />}
       {activeTab === "rewards" && (

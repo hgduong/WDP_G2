@@ -34,11 +34,13 @@ function TicketCheck() {
       setSuccess("");
       setResult(null);
 
+      const trimmedCode = searchCode.trim().toUpperCase();
       const payload = { action: "verify" };
-      if (searchCode.startsWith("BK")) {
-        payload.bookingCode = searchCode.trim();
+      
+      if (trimmedCode.startsWith("BK") || trimmedCode.startsWith("STF")) {
+        payload.bookingCode = trimmedCode;
       } else {
-        payload.ticketCode = searchCode.trim();
+        payload.ticketCode = trimmedCode;
       }
 
       const res = await verifyTicket(payload);
