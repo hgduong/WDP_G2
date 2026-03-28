@@ -35,6 +35,20 @@ const getRoomKey = (room) => {
   return String(room);
 };
 
+// Get cinemaId from room.cinemaId
+const getCinemaIdFromShowtime = (showtime) => {
+  if (!showtime) return null;
+  // Try to get from roomId.cinemaId
+  if (showtime.roomId?.cinemaId) {
+    return getId(showtime.roomId.cinemaId);
+  }
+  // Try to get from room.cinemaId
+  if (showtime.room?.cinemaId) {
+    return getId(showtime.room.cinemaId);
+  }
+  return null;
+};
+
 export default function ShowtimesByCinema() {
   const [showtimes, setShowtimes] = useState([]);
   const [movies, setMovies] = useState([]);
@@ -88,7 +102,8 @@ export default function ShowtimesByCinema() {
     const search = query.trim().toLowerCase();
     if (!search) return showtimes;
     return showtimes.filter((showtime) => {
-      const cinema = cinemaMap.get(getId(showtime.cinemaId));
+      const cinemaId = getCinemaIdFromShowtime(showtime);
+      const cinema = cinemaMap.get(cinemaId);
       const movie = movieMap.get(getId(showtime.movieId));
       const values = [
         cinema?.name,
@@ -107,11 +122,11 @@ export default function ShowtimesByCinema() {
   const groupedShowtimes = useMemo(() => {
     const grouped = new Map();
     filteredShowtimes.forEach((showtime) => {
+      const cinemaId = getCinemaIdFromShowtime(showtime);
       const key = [
-        getId(showtime.cinemaId),
+        cinemaId,
         getId(showtime.movieId),
         getRoomKey(showtime.roomId),
-        showtime.price ?? "-",
         showtime.language ?? "-",
         showtime.status ?? "-",
       ].join("|");
@@ -235,7 +250,8 @@ export default function ShowtimesByCinema() {
             </div>
             <div className="showtimes-cinema__table-content">
               {pagedShowtimes.map((showtime, index) => {
-                const cinema = cinemaMap.get(getId(showtime.cinemaId));
+                const cinemaId = getCinemaIdFromShowtime(showtime);
+                const cinema = cinemaMap.get(cinemaId);
                 const movie = movieMap.get(getId(showtime.movieId));
                 return (
                   <div key={showtime.groupKey || getId(showtime)} className="showtimes-cinema__table-row">

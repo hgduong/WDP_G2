@@ -33,8 +33,8 @@ export default function Checkout() {
         userId: user?._id || user?.id || null,
         // showtime._id or showtime.id or direct showtimeId
         showtimeId: showtimeData._id || showtimeData.id || orderData.showtimeId,
-        // showtime.cinemasId._id or showtime.cinemasId
-        cinemaId: showtimeData.cinemasId?._id || showtimeData.cinemasId || showtimeData.cinemaId?._id || showtimeData.cinemaId,
+        // Get cinemaId from room.cinemaId
+        cinemaId: showtimeData.roomId?.cinemaId?._id || showtimeData.roomId?.cinemaId || showtimeData.room?.cinemaId?._id || showtimeData.room?.cinemaId,
         // showtime.roomId._id or showtime.roomId
         roomId: showtimeData.roomId?._id || showtimeData.roomId || showtimeData.room?._id || showtimeData.room,
         seats: orderData.selectedSeats || [],
@@ -96,7 +96,7 @@ export default function Checkout() {
       <div className="bg-gray-700 p-4 rounded mb-4">
         <h2 className="font-semibold text-white mb-2">Thông tin đặt vé:</h2>
         <p className="text-gray-300">Phim: {orderData.showtime?.movieId?.title || "N/A"}</p>
-        <p className="text-gray-300">Suất chiếu: {orderData.showtime?.cinemasId?.name} - {orderData.showtime?.roomId?.name}</p>
+        <p className="text-gray-300">Suất chiếu: {orderData.showtime?.roomId?.cinemaId?.name || orderData.showtime?.room?.cinemaId?.name || "N/A"} - {orderData.showtime?.roomId?.name || orderData.showtime?.room?.name || "N/A"}</p>
         <p className="text-gray-300">Ngày chiếu: {orderData.showtime?.startTime ? new Date(orderData.showtime.startTime).toLocaleString("vi-VN") : "N/A"}</p>
         <p className="text-gray-300">Ghế: {orderData.selectedSeats?.map(s => s.label).join(", ")}</p>
         <p className="text-green-400 font-bold mt-2">Tổng tiền: {orderData.totalPrice?.toLocaleString("vi-VN")}đ</p>

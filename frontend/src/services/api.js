@@ -371,6 +371,15 @@ export const getShowtimesByCinema = async (cinemaId) => {
   }
 };
 
+export const getShowtimesByIds = async (ids) => {
+  try {
+    const response = await API.post("/showtimes/ids", { ids });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export const createShowtime = async (showtimeData) => {
   try {
     const response = await API.post("/showtimes", showtimeData);
