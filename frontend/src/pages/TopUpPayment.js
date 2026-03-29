@@ -74,7 +74,7 @@ function TopUpPayment() {
         const response = await deposit({
           amount: amount,
           description: `Nạp tiền vào ví - ${formatCurrency(amount)}`,
-          paymentMethod: "payos",
+          paymentMethod: "banking",
         });
 
         if (response.success) {
@@ -159,8 +159,24 @@ function TopUpPayment() {
           sessionStorage.removeItem('topupPaymentData');
           sessionStorage.removeItem('topupCountdown');
           sessionStorage.removeItem('topupQRImage');
-          // Navigate to failure page
-          if (!hasNavigatedAway.current) {
+          // Cancel transaction when countdown expires
+          if (paymentData?.transaction?._id && !hasNavigatedAway.current) {
+            hasNavigatedAway.current = true;
+            cancelUserTransaction(paymentData.transaction._id)
+              .catch((err) => {
+                console.error("Error canceling transaction on timeout:", err);
+              })
+              .finally(() => {
+                // Navigate to failure page after canceling
+                navigate("/topup-failure", {
+                  state: {
+                    reason: "timeout",
+                    amount: amount
+                  }
+                });
+              });
+          } else if (!hasNavigatedAway.current) {
+            // If no transaction ID, just navigate to failure page
             hasNavigatedAway.current = true;
             navigate("/topup-failure", {
               state: {
@@ -178,7 +194,7 @@ function TopUpPayment() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [countdown, navigate, amount]);
+  }, [countdown, navigate, amount, paymentData]);
 
   // Auto-check payment status after QR code is displayed
   useEffect(() => {

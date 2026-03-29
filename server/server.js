@@ -100,6 +100,10 @@ app.use("/api/upload", uploadRoutes);
 const authRoutes = require("./routes/auth.routes");
 app.use("/api/auth", authRoutes);
 
+// Social login routes (mounted directly without /api/auth prefix)
+const socialRoutes = require("./routes/social.routes");
+app.use("/", socialRoutes);
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // PUBLIC DATA ROUTES (Movies, Cinemas, Vouchers - public access)
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -11,10 +11,6 @@ const {
   verifyOtp,
   checkEmailExists,
   resetPassword,
-  loginWithFacebook,
-  facebookCallback,
-  loginWithGoogle,
-  googleCallback,
   logout,
   getUserIdentity,
 } = require("../controllers/auth.controller");
@@ -38,12 +34,6 @@ router.post("/logout", logout);
 router.post("/staff/login", staffLogin);
 router.post("/staff/login/request-otp", requestStaffLoginOtp);
 router.post("/staff/login/verify-otp", verifyStaffLoginOtp);
-
-// Social login routes
-router.get("/login-google", loginWithGoogle);
-router.get("/auth/google/callback", googleCallback);
-router.get("/login/federated/facebook", loginWithFacebook);
-router.get("/auth/facebook/callback", facebookCallback);
 
 // User info route (authenticated)
 router.get(

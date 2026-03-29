@@ -53,7 +53,7 @@ function TopUp() {
       const response = await createPendingDeposit({
         amount: selectedAmount,
         description: `Nạp tiền vào ví - ${formatCurrency(selectedAmount)}`,
-        paymentMethod: "payos",
+        paymentMethod: "banking",
       });
 
       if (response.success) {
