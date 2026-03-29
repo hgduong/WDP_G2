@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getTransactionById, getQRCodeImage, checkPayOSPaymentStatus, cancelUserTransaction } from "../services/api";
+import { getTransactionById, generateQRCode, checkPayOSPaymentStatus, cancelUserTransaction } from "../services/api";
 import { toast } from "react-toastify";
 import "../assets/styles/TransactionDetail.css";
 
@@ -56,7 +56,7 @@ function TransactionDetail() {
   const fetchQRCode = async (transactionData) => {
     try {
       // Sử dụng qrData từ metadata thay vì tạo object mới
-      const qrResponse = await getQRCodeImage(transactionData.metadata.qrData);
+      const qrResponse = await generateQRCode(transactionData.metadata.qrData);
       
       if (qrResponse.success) {
         setQRCodeImage(qrResponse.data);

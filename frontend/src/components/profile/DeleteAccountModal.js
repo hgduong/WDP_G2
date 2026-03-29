@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { deleteUserAccount } from "../../services/api";
+import { deleteUserAccount } from "../../services/userApi";
 import { UserContext } from "../../context/UserContext";
 
 export default function DeleteAccountModal({ isOpen, onClose }) {

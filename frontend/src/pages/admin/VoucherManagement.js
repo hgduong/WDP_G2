@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getAllVouchers, createVoucher, updateVoucher } from "../../services/api";
+import { getAllVouchers, createVoucher, updateVoucher } from "../../services/vouchersApi";
 import { toast } from "react-toastify";
 import "../../assets/styles/AdminManagement.css";
 

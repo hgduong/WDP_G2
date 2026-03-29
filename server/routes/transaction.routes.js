@@ -23,7 +23,7 @@ const {
 } = require("../controllers/transaction.controller");
 
 /**
- * @route   GET /api/transactions
+ * @route   GET /
  * @desc    Lấy lịch sử giao dịch của user hiện tại
  * @access  Private (User)
  */
@@ -35,7 +35,7 @@ router.get(
 );
 
 /**
- * @route   GET /api/transactions/stats
+ * @route   GET /stats
  * @desc    Lấy thống kê giao dịch của user
  * @access  Private (User)
  */
@@ -47,7 +47,7 @@ router.get(
 );
 
 /**
- * @route   GET /api/transactions/:id
+ * @route   GET /:id
  * @desc    Lấy chi tiết một giao dịch
  * @access  Private (User)
  */
@@ -59,7 +59,7 @@ router.get(
 );
 
 /**
- * @route   POST /api/transactions/create-pending-deposit
+ * @route   POST /create-pending-deposit
  * @desc    Tạo giao dịch nạp tiền pending (chưa xử lý)
  * @access  Private (User)
  */
@@ -71,7 +71,7 @@ router.post(
 );
 
 /**
- * @route   POST /api/transactions/deposit
+ * @route   POST /deposit
  * @desc    Nạp tiền vào ví
  * @access  Private (User)
  */
@@ -83,7 +83,7 @@ router.post(
 );
 
 /**
- * @route   POST /api/transactions/create-payment-link
+ * @route   POST /create-payment-link
  * @desc    Tạo payment link qua PayOS
  * @access  Private (User)
  */
@@ -95,7 +95,7 @@ router.post(
 );
 
 /**
- * @route   POST /api/transactions/check-payos-status
+ * @route   POST /check-payos-status
  * @desc    Kiểm tra trạng thái thanh toán từ PayOS API
  * @access  Private (User)
  */
@@ -107,7 +107,7 @@ router.post(
 );
 
 /**
- * @route   POST /api/transactions/withdraw
+ * @route   POST /withdraw
  * @desc    Rút tiền từ ví
  * @access  Private (User)
  */
@@ -119,7 +119,7 @@ router.post(
 );
 
 /**
- * @route   POST /api/transactions/pay
+ * @route   POST /pay
  * @desc    Thanh toán từ ví (cho booking)
  * @access  Private (User)
  */
@@ -131,7 +131,7 @@ router.post(
 );
 
 /**
- * @route   POST /api/transactions/refund
+ * @route   POST /refund
  * @desc    Hoàn tiền (Admin/Staff)
  * @access  Private (Admin, Staff)
  */
@@ -143,7 +143,7 @@ router.post(
 );
 
 /**
- * @route   PUT /api/transactions/:id/cancel
+ * @route   PUT /:id/cancel
  * @desc    Hủy giao dịch đang chờ (Admin)
  * @access  Private (Admin)
  */
@@ -155,7 +155,7 @@ router.put(
 );
 
 /**
- * @route   PUT /api/transactions/:id/cancel-user
+ * @route   PUT /:id/cancel-user
  * @desc    Hủy giao dịch đang chờ (Customer)
  * @access  Private (User)
  */
@@ -167,7 +167,7 @@ router.put(
 );
 
 /**
- * @route   PUT /api/transactions/:id/confirm
+ * @route   PUT /:id/confirm
  * @desc    Xác nhận đã thanh toán (Customer)
  * @access  Private (User)
  */
@@ -185,7 +185,7 @@ router.put(
  */
 
 /**
- * @route   GET /api/admin/transactions
+ * @route   GET /admin/all
  * @desc    Lấy tất cả giao dịch (Admin)
  * @access  Private (Admin)
  */
@@ -197,7 +197,7 @@ router.get(
 );
 
 /**
- * @route   GET /api/admin/transactions/stats
+ * @route   GET /admin/stats
  * @desc    Lấy thống kê giao dịch (Admin)
  * @access  Private (Admin)
  */

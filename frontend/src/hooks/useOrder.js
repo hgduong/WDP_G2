@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState, useContext } from "react";
 import { UserContext } from "../context/UserContext";
-import { createBooking, updatePaymentStatus } from "../services/bookingService";
+import { createBooking, updateBookingPaymentStatus } from "../services/api";
 import {
   getMovieInfo,
   getCinemaInfo,
@@ -118,7 +118,7 @@ export const useOrder = () => {
   const handlePaymentComplete = async () => {
     try {
       if (bookingId) {
-        await updatePaymentStatus(bookingId, "Paid");
+        await updateBookingPaymentStatus(bookingId, { paymentStatus: "Paid" });
       }
       setPaymentStatus("Paid");
       if (orderData) {

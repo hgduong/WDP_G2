@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getUserTransactions, getUserTransactionStats } from "../../services/api";
+import { getUserTransactions, getUserTransactionStats } from "../../services/transactionsApi";
 
 export default function TransactionHistory() {
   const [wallet, setWallet] = useState(null);

@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   createStaffBookingOrder,
-  getAllMovies,
-  getAllCinemas,
   getStaffBookingSeatMap,
   getStaffBookingShowtimes,
+  getAllMovies,
+  getAllCinemas,
   staffApplyVoucher,
   getHeldSeats,
 } from "../../services/api";

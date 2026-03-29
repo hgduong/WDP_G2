@@ -4,7 +4,7 @@ import {
   createMovie,
   updateMovie,
   deleteMovie,
-} from "../../services/api";
+} from "../../services/moviesApi";
 import { getImageUrl } from "../../utils/imageUtils";
 import { toast } from "react-toastify";
 import "./AdminManagement.css";

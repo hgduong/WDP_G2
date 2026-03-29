@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { deposit, cancelUserTransaction, checkPayOSPaymentStatus, getQRCodeImage } from "../services/api";
+import { deposit, cancelUserTransaction, checkPayOSPaymentStatus, generateQRCode } from "../services/api";
 import "../assets/styles/TopUpPayment.css";
 
 function TopUpPayment() {
@@ -47,7 +47,7 @@ function TopUpPayment() {
       if (paymentData?.payment?.qrData) {
         const fetchQRCode = async () => {
           try {
-            const qrResponse = await getQRCodeImage(paymentData.payment.qrData);
+            const qrResponse = await generateQRCode(paymentData.payment.qrData);
             if (qrResponse.success) {
               setQRCodeImage(qrResponse.data);
               sessionStorage.setItem('topupQRImage', qrResponse.data);
@@ -74,7 +74,7 @@ function TopUpPayment() {
         const response = await deposit({
           amount: amount,
           description: `Nạp tiền vào ví - ${formatCurrency(amount)}`,
-          paymentMethod: "payos",
+          paymentMethod: "banking",
         });
 
         if (response.success) {
@@ -86,7 +86,7 @@ function TopUpPayment() {
           // Fetch QR code image if qrData is available
           if (response.data?.payment?.qrData) {
             try {
-              const qrResponse = await getQRCodeImage(response.data.payment.qrData);
+              const qrResponse = await generateQRCode(response.data.payment.qrData);
               if (qrResponse.success) {
                 setQRCodeImage(qrResponse.data);
                 sessionStorage.setItem('topupQRImage', qrResponse.data);
@@ -159,8 +159,24 @@ function TopUpPayment() {
           sessionStorage.removeItem('topupPaymentData');
           sessionStorage.removeItem('topupCountdown');
           sessionStorage.removeItem('topupQRImage');
-          // Navigate to failure page
-          if (!hasNavigatedAway.current) {
+          // Cancel transaction when countdown expires
+          if (paymentData?.transaction?._id && !hasNavigatedAway.current) {
+            hasNavigatedAway.current = true;
+            cancelUserTransaction(paymentData.transaction._id)
+              .catch((err) => {
+                console.error("Error canceling transaction on timeout:", err);
+              })
+              .finally(() => {
+                // Navigate to failure page after canceling
+                navigate("/topup-failure", {
+                  state: {
+                    reason: "timeout",
+                    amount: amount
+                  }
+                });
+              });
+          } else if (!hasNavigatedAway.current) {
+            // If no transaction ID, just navigate to failure page
             hasNavigatedAway.current = true;
             navigate("/topup-failure", {
               state: {
@@ -178,7 +194,7 @@ function TopUpPayment() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [countdown, navigate, amount]);
+  }, [countdown, navigate, amount, paymentData]);
 
   // Auto-check payment status after QR code is displayed
   useEffect(() => {
@@ -409,18 +425,6 @@ function TopUpPayment() {
                 alt="QR Code"
                 className="qr-code"
               />
-            </div>
-          ) : paymentData?.payment?.paymentUrl ? (
-            <div className="payment-link-container">
-              <p>Hoặc nhấn vào link bên dưới để thanh toán:</p>
-              <a
-                href={paymentData.payment.paymentUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="payment-link"
-              >
-                Thanh toán ngay
-              </a>
             </div>
           ) : (
             <div className="qr-placeholder">
