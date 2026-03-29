@@ -143,3 +143,12 @@ export const getAllTransactionStats = async () => {
     throw error.response?.data || error;
   }
 };
+
+export const getWalletBalance = async () => {
+  try {
+    const response = await API.get("/api/transactions/stats");
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};

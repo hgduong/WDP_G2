@@ -95,7 +95,7 @@ export default function SeatSelectionModal({
 
       if (isSelected) {
         // Deselect
-        releaseSeats([seat.id]).catch(console.error);
+        releaseSeats({ seatIds: [seat.id] }).catch(console.error);
         socketRef.current?.emit("release_seat", {
           showtimeId: selectedShowtime._id,
           seatId: seat.id,
@@ -113,7 +113,11 @@ export default function SeatSelectionModal({
         const expiryTime = Date.now() + HOLDING_TIME * 1000;
         setHoldingSeats((prev) => ({ ...prev, [seat.id]: expiryTime }));
 
-        holdSeats(selectedShowtime._id, [seat.id], user?._id).catch(console.error);
+        holdSeats({
+          showtimeId: selectedShowtime._id,
+          seatIds: [seat.id],
+          userId: user?._id
+        }).catch(console.error);
 
         socketRef.current?.emit("hold_seat", {
           showtimeId: selectedShowtime._id,

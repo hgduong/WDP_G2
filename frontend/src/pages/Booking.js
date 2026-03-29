@@ -4,6 +4,7 @@ import "../assets/styles/Booking.css";
 import { getImageUrl } from "../utils/imageUtils";
 import { createBooking, getShowtimeById } from "../services/api";
 import { UserContext } from "../context/UserContext";
+import { getWalletBalance, pay } from "../services/transactionsApi";
 
 export default function Booking() {
   const { showtimeId } = useParams();
@@ -14,6 +15,8 @@ export default function Booking() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState("wallet");
   const [formData, setFormData] = useState({
     fullName: user?.fullName || "",
     email: user?.email || "",
@@ -73,6 +76,20 @@ export default function Booking() {
     }
   }, [showtimeId]);
 
+  useEffect(() => {
+    if (user) {
+      getWalletBalance()
+        .then((data) => {
+          if (data.success && data.data.wallet) {
+            setWalletBalance(data.data.wallet.balance || 0);
+          }
+        })
+        .catch((err) => {
+          console.error("Error loading wallet balance:", err);
+        });
+    }
+  }, [user]);
+
   const toggleSeat = (seat) => {
     setSelectedSeats((prev) => {
       const isSelected = prev.some((s) => s.id === seat.id);
@@ -112,6 +129,12 @@ export default function Booking() {
       return;
     }
 
+    // Kiểm tra số dư ví nếu chọn thanh toán bằng ví
+    if (paymentMethod === "wallet" && walletBalance < totalPrice) {
+      setError("Số dư ví không đủ. Vui lòng nạp thêm tiền hoặc chọn phương thức thanh toán khác.");
+      return;
+    }
+
     try {
       setSubmitting(true);
       setError("");
@@ -133,7 +156,7 @@ export default function Booking() {
           phone: formData.phone,
           notes: formData.notes
         },
-        paymentStatus: "Unpaid"
+        paymentStatus: paymentMethod === "wallet" ? "Paid" : "Unpaid"
       };
 
       console.log("Creating booking with data:", bookingData);
@@ -142,6 +165,32 @@ export default function Booking() {
 
       if (response.booking || response.message === "Đặt vé thành công") {
         const savedBooking = response.booking;
+        
+        // Nếu thanh toán bằng ví, thực hiện trừ tiền từ ví
+        if (paymentMethod === "wallet") {
+          try {
+            const paymentResponse = await pay({
+              amount: totalPrice,
+              description: `Thanh toán đặt vé ${savedBooking.bookingCode}`,
+              bookingId: savedBooking._id
+            });
+            
+            if (paymentResponse.success) {
+              // Cập nhật số dư ví
+              setWalletBalance(paymentResponse.data.wallet.balance);
+              console.log("Thanh toán bằng ví thành công");
+            } else {
+              setError("Thanh toán bằng ví thất bại: " + (paymentResponse.message || "Vui lòng thử lại."));
+              setSubmitting(false);
+              return;
+            }
+          } catch (paymentErr) {
+            console.error("Error paying with wallet:", paymentErr);
+            setError("Có lỗi xảy ra khi thanh toán bằng ví: " + (paymentErr.message || "Vui lòng thử lại."));
+            setSubmitting(false);
+            return;
+          }
+        }
         
         // Navigate to Order page with booking data
         navigate("/order", {
@@ -290,19 +339,62 @@ export default function Booking() {
               Tổng tiền: {totalPrice.toLocaleString("vi-VN")}đ
             </span>
           </div>
+          
+          {user && (
+            <div style={{ marginTop: '15px', padding: '15px', backgroundColor: '#f0f8ff', borderRadius: '5px', border: '1px solid #b3d9ff' }}>
+              <h4 style={{ marginBottom: '10px', color: '#0066cc' }}>Phương thức thanh toán</h4>
+              
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginBottom: '8px' }}>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="wallet"
+                    checked={paymentMethod === "wallet"}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    style={{ marginRight: '10px' }}
+                  />
+                  <span style={{ fontWeight: 'bold' }}>Thanh toán bằng ví</span>
+                  <span style={{ marginLeft: '10px', color: walletBalance >= totalPrice ? '#4CAF50' : '#f44336' }}>
+                    (Số dư: {walletBalance.toLocaleString("vi-VN")}đ)
+                  </span>
+                </label>
+                {paymentMethod === "wallet" && walletBalance < totalPrice && (
+                  <div style={{ color: '#f44336', fontSize: '0.9em', marginLeft: '24px', marginTop: '5px' }}>
+                    Số dư không đủ. Vui lòng nạp thêm tiền.
+                  </div>
+                )}
+              </div>
+              
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="other"
+                    checked={paymentMethod === "other"}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    style={{ marginRight: '10px' }}
+                  />
+                  <span style={{ fontWeight: 'bold' }}>Thanh toán sau (tại quầy)</span>
+                </label>
+              </div>
+            </div>
+          )}
+          
           <button 
             type="submit"
             className="btn" 
-            disabled={selectedSeats.length === 0 || submitting}
+            disabled={selectedSeats.length === 0 || submitting || (paymentMethod === "wallet" && walletBalance < totalPrice)}
             style={{ 
               marginTop: '15px',
               padding: '15px 30px',
               fontSize: '1.1em',
-              backgroundColor: selectedSeats.length === 0 ? '#ccc' : '#4CAF50',
+              backgroundColor: selectedSeats.length === 0 || (paymentMethod === "wallet" && walletBalance < totalPrice) ? '#ccc' : '#4CAF50',
               color: 'white',
               border: 'none',
               borderRadius: '5px',
-              cursor: selectedSeats.length === 0 ? 'not-allowed' : 'pointer'
+              cursor: selectedSeats.length === 0 || (paymentMethod === "wallet" && walletBalance < totalPrice) ? 'not-allowed' : 'pointer'
             }}
           >
             {submitting ? "Đang xử lý..." : "Xác nhận đặt vé"}
