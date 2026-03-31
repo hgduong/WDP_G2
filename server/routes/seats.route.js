@@ -21,4 +21,16 @@ router.post("/release", seatmapController.releaseSeats);
 // Book seats
 router.post("/book", seatmapController.bookSeats);
 
+// Get seats by room (from seatmap template)
+router.get("/room/:roomId", seatmapController.getSeatsByRoom);
+
+// Update seat (type, row, number)
+router.put("/:seatId", seatmapController.updateSeat);
+
+// Delete seat
+router.delete("/:seatId", seatmapController.deleteSeat);
+
+// Add new seat to room
+router.post("/room/:roomId", seatmapController.addSeat);
+
 module.exports = router;

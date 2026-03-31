@@ -13,29 +13,16 @@ const buildSeatLayout = (totalSeats) => {
 
   for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
     const rowLetter = String.fromCharCode(65 + rowIndex);
-    const isLastRow = rowIndex === rowCount - 1;
     const seatsInThisRow = Math.min(seatsPerRow, effectiveCapacity - rowIndex * seatsPerRow);
 
-    if (isLastRow && seatsInThisRow > 0) {
-      // Last row: couple seats
-      for (let i = 0; i < seatsInThisRow; i += 2) {
-        seats.push({
-          row: rowLetter,
-          number: i + 1,
-          type: "Couple",
-          status: "Available"
-        });
-      }
-    } else {
-      // Other rows: standard/VIP seats
-      for (let seatNum = 1; seatNum <= seatsInThisRow; seatNum++) {
-        seats.push({
-          row: rowLetter,
-          number: seatNum,
-          type: rowIndex >= 3 ? "VIP" : "Standard",
-          status: "Available"
-        });
-      }
+    // All rows: standard seats
+    for (let seatNum = 1; seatNum <= seatsInThisRow; seatNum++) {
+      seats.push({
+        row: rowLetter,
+        number: seatNum,
+        type: "Standard"
+        // status removed - tracked in SeatStatus per showtime
+      });
     }
   }
 

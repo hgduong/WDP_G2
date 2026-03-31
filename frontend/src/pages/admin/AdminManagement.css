@@ -1,8 +1,10 @@
 .modal-large {
     width: 90%;
-    max-width: 1000px; /* Tăng từ mức mặc định lên 1000px hoặc 1200px */
-    max-height: 90vh;
+    max-width: 1000px;
+    max-height: 95vh;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }/* Admin Management Styles */
 
 .admin-management {
@@ -499,6 +501,139 @@
   min-width: 150px;
 }
 
+/* Seat Management Styles */
+.seat-management {
+  display: flex;
+  gap: 20px;
+}
+
+.seat-form-section {
+  flex: 0 0 300px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.seat-form-section h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 16px;
+}
+
+.seat-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.seat-form .form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.seat-form .form-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.seat-form .form-group label {
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+
+.seat-form .form-group input,
+.seat-form .form-group select {
+  padding: 8px;
+  font-size: 13px;
+}
+
+.seat-form .form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.seat-list-section {
+  flex: 1;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.seat-list-section h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 16px;
+}
+
+.seat-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.seat-item {
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 120px;
+  flex: 0 0 auto;
+}
+
+.seat-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.seat-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: #333;
+}
+
+.seat-type {
+  font-size: 10px;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+.seat-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.seat-actions .btn-sm {
+  padding: 3px 6px;
+  font-size: 10px;
+}
+
+.no-seats {
+  width: 100%;
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 20px;
+}
+
+.btn-info {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.btn-info:hover {
+  background-color: #138496;
+}
+
 .attendance-info {
   margin: 15px 0;
   padding: 10px;
@@ -758,8 +893,6 @@
 
 .modal-body {
   padding: 25px;
-  max-height: 60vh;
-  overflow-y: auto;
 }
 
 .modal-header {

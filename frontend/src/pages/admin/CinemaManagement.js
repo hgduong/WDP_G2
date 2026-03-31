@@ -9,7 +9,11 @@ import {
   createRoom,
   updateRoom,
   deleteRoom,
-  generateSeatLayout
+  generateSeatLayout,
+  getSeatsByRoom,
+  updateSeat,
+  deleteSeat,
+  addSeat
 } from '../../services/api';
 import { toast } from 'react-toastify';
 import './AdminManagement.css';
@@ -70,6 +74,20 @@ const CinemaManagement = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingRoomId, setDeletingRoomId] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Seat management state
+  const [showSeatModal, setShowSeatModal] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [roomSeats, setRoomSeats] = useState([]);
+  const [editingSeat, setEditingSeat] = useState(null);
+  const [seatFormData, setSeatFormData] = useState({
+    row: '',
+    number: '',
+    type: 'Standard'
+  });
+  const [showSeatDeleteConfirm, setShowSeatDeleteConfirm] = useState(false);
+  const [deletingSeatId, setDeletingSeatId] = useState(null);
+  const [isSeatDeleting, setIsSeatDeleting] = useState(false);
 
   useEffect(() => {
     fetchTimeCinemas();
@@ -367,6 +385,100 @@ const CinemaManagement = () => {
     setDeletingRoomId(null);
   };
 
+  // Seat management functions
+  const fetchRoomSeats = async (room) => {
+    try {
+      const data = await getSeatsByRoom(room._id);
+      setRoomSeats(data.seats || []);
+      setSelectedRoom(room);
+      setShowSeatModal(true);
+    } catch (err) {
+      const errorMsg = err?.message || 'Có lỗi xảy ra khi tải danh sách ghế';
+      toast.error(errorMsg);
+    }
+  };
+
+  const handleSeatInputChange = (e) => {
+    const { name, value } = e.target;
+    setSeatFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditSeat = (seat) => {
+    setEditingSeat(seat);
+    setSeatFormData({
+      row: seat.row || '',
+      number: seat.number || '',
+      type: seat.type || 'Standard'
+    });
+  };
+
+  const handleSeatSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingSeat) {
+        await updateSeat(editingSeat._id, seatFormData);
+        toast.success('Cập nhật ghế thành công!');
+      } else {
+        await addSeat(selectedRoom._id, seatFormData);
+        toast.success('Thêm ghế mới thành công!');
+      }
+      // Refresh seats
+      const data = await getSeatsByRoom(selectedRoom._id);
+      setRoomSeats(data.seats || []);
+      closeSeatModal();
+    } catch (err) {
+      const errorMsg = err?.message || 'Có lỗi xảy ra khi lưu ghế';
+      toast.error(errorMsg);
+    }
+  };
+
+  const handleDeleteSeatClick = (seatId) => {
+    setDeletingSeatId(seatId);
+    setShowSeatDeleteConfirm(true);
+  };
+
+  const confirmDeleteSeat = async () => {
+    if (!deletingSeatId || isSeatDeleting) return;
+    
+    setIsSeatDeleting(true);
+    
+    try {
+      await deleteSeat(deletingSeatId);
+      // Refresh seats
+      const data = await getSeatsByRoom(selectedRoom._id);
+      setRoomSeats(data.seats || []);
+      toast.success('Xóa ghế thành công!');
+    } catch (err) {
+      const errorMsg = err?.message || 'Có lỗi xảy ra khi xóa ghế';
+      toast.error(errorMsg);
+    } finally {
+      setShowSeatDeleteConfirm(false);
+      setDeletingSeatId(null);
+      setIsSeatDeleting(false);
+    }
+  };
+
+  const cancelSeatDelete = () => {
+    setShowSeatDeleteConfirm(false);
+    setDeletingSeatId(null);
+  };
+
+  const openAddSeatModal = () => {
+    setEditingSeat(null);
+    setSeatFormData({
+      row: '',
+      number: '',
+      type: 'Standard'
+    });
+  };
+
+  const closeSeatModal = () => {
+    setShowSeatModal(false);
+    setSelectedRoom(null);
+    setRoomSeats([]);
+    setEditingSeat(null);
+  };
+
   const openEditCinemaModal = () => {
     if (selectedCinema) {
       handleEditCinema(selectedCinema);
@@ -482,6 +594,12 @@ const CinemaManagement = () => {
                     </td>
                     <td>{getStatusBadge(room.status)}</td>
                     <td>
+                      <button 
+                        className="btn btn-sm btn-info"
+                        onClick={() => fetchRoomSeats(room)}
+                      >
+                        Quản lý ghế
+                      </button>
                       <button 
                         className="btn btn-sm btn-edit"
                         onClick={() => handleEditRoom(room)}
@@ -763,6 +881,139 @@ const CinemaManagement = () => {
                 disabled={isDeleting}
               >
                 {isDeleting ? (
+                  <span>
+                    <span className="spinner"></span> Đang xóa...
+                  </span>
+                ) : 'Xóa'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seat Management Modal */}
+      {showSeatModal && selectedRoom && (
+        <div className="modal-overlay" onClick={closeSeatModal}>
+          <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Quản lý ghế - {selectedRoom.name}</h3>
+              <button className="modal-close" onClick={closeSeatModal}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="seat-management">
+                <div className="seat-form-section">
+                  <h4>{editingSeat ? 'Sửa ghế' : 'Thêm ghế mới'}</h4>
+                  <form onSubmit={handleSeatSubmit} className="seat-form">
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Hàng *</label>
+                        <input
+                          type="text"
+                          name="row"
+                          value={seatFormData.row}
+                          onChange={handleSeatInputChange}
+                          placeholder="VD: A, B, C"
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Số *</label>
+                        <input
+                          type="number"
+                          name="number"
+                          value={seatFormData.number}
+                          onChange={handleSeatInputChange}
+                          placeholder="VD: 1, 2, 3"
+                          required
+                          min="1"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Loại ghế</label>
+                        <select name="type" value={seatFormData.type} onChange={handleSeatInputChange}>
+                          <option value="Standard">Standard</option>
+                          <option value="VIP">VIP</option>
+                          <option value="Couple">Couple</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="form-actions">
+                      {editingSeat && (
+                        <button type="button" className="btn btn-secondary" onClick={openAddSeatModal}>
+                          Thêm mới
+                        </button>
+                      )}
+                      <button type="submit" className="btn btn-primary">
+                        {editingSeat ? 'Cập nhật' : 'Thêm ghế'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                <div className="seat-list-section">
+                  <h4>Danh sách ghế ({roomSeats.length})</h4>
+                  <div className="seat-grid">
+                    {roomSeats.map((seat) => (
+                      <div key={seat._id} className="seat-item">
+                        <div className="seat-info">
+                          <span className="seat-label">{seat.row}{seat.number}</span>
+                          <span className={`seat-type badge badge-${seat.type === 'VIP' ? 'warning' : seat.type === 'Couple' ? 'primary' : 'info'}`}>
+                            {seat.type}
+                          </span>
+                        </div>
+                        <div className="seat-actions">
+                          <button 
+                            className="btn btn-sm btn-edit"
+                            onClick={() => handleEditSeat(seat)}
+                          >
+                            Sửa
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-delete"
+                            onClick={() => handleDeleteSeatClick(seat._id)}
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {roomSeats.length === 0 && (
+                      <div className="no-seats">Chưa có ghế nào</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seat Delete Confirmation Modal */}
+      {showSeatDeleteConfirm && (
+        <div className="modal-overlay" onClick={isSeatDeleting ? undefined : cancelSeatDelete}>
+          <div 
+            className={`modal-content modal-small ${isSeatDeleting ? 'deleting' : ''}`} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3>Xác nhận xóa ghế</h3>
+              <button className="modal-close" onClick={cancelSeatDelete}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p>Bạn có chắc chắn muốn xóa ghế này không?</p>
+              <p className="text-muted">Hành động này không thể hoàn tác.</p>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={cancelSeatDelete}>
+                Hủy
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-danger" 
+                onClick={confirmDeleteSeat} 
+                disabled={isSeatDeleting}
+              >
+                {isSeatDeleting ? (
                   <span>
                     <span className="spinner"></span> Đang xóa...
                   </span>
