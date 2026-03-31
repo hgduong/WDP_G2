@@ -5,7 +5,6 @@ const showtimeSchema = new mongoose.Schema({
   movieId: { type: mongoose.Schema.Types.ObjectId, ref: 'Movie', required: true },
   roomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Room', required: true },
   startTime: { type: Date},
-  seatMap: { type: mongoose.Schema.Types.ObjectId, ref: 'Seatmap' },
   seatStatuses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'SeatStatus' }], // liên kết tới trạng thái ghế theo suất chiếu này
   duration: { type: Number, min: 0 },
   language: { type: String, default: 'Tiếng Việt' },

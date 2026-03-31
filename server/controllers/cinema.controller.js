@@ -1,7 +1,6 @@
 // controllers/cinema.controller.js
 const Cinema = require("../models/cinema");
 const Room = require("../models/room");
-const Seatmap = require("../models/seatmap");
 const Seat = require("../models/seat");
 
 // Helper function to build seat layout
@@ -130,14 +129,17 @@ exports.addRoom = async (req, res) => {
     const seats = buildSeatLayout(50);
     const seatIds = [];
     
-    // Check and reuse existing seats or create new ones
+    // Create seats for this room
     for (const seatData of seats) {
-      // Check if seat with same row/number already exists (reuse it)
-      let seat = await Seat.findOne({ row: seatData.row, number: seatData.number });
+      // Check if seat with same row/number already exists in this room
+      let seat = await Seat.findOne({ roomId: room._id, row: seatData.row, number: seatData.number });
       
       if (!seat) {
-        // Create new seat only if it doesn't exist
-        seat = await Seat.create(seatData);
+        // Create new seat for this room
+        seat = await Seat.create({
+          roomId: room._id,
+          ...seatData
+        });
       }
       
       seatIds.push(seat._id);
@@ -183,14 +185,17 @@ exports.updateRoom = async (req, res) => {
     const seats = buildSeatLayout(50);
     const seatIds = [];
     
-    // Check and reuse existing seats or create new ones
+    // Create seats for this room
     for (const seatData of seats) {
-      // Check if seat with same row/number already exists (reuse it)
-      let seat = await Seat.findOne({ row: seatData.row, number: seatData.number });
+      // Check if seat with same row/number already exists in this room
+      let seat = await Seat.findOne({ roomId: room._id, row: seatData.row, number: seatData.number });
       
       if (!seat) {
-        // Create new seat only if it doesn't exist
-        seat = await Seat.create(seatData);
+        // Create new seat for this room
+        seat = await Seat.create({
+          roomId: room._id,
+          ...seatData
+        });
       }
       
       seatIds.push(seat._id);

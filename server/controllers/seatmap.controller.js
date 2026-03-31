@@ -1,4 +1,3 @@
-const Seatmap = require("../models/seatmap");
 const Seat = require("../models/seat");
 const SeatStatus = require("../models/seatStatus");
 const Room = require("../models/room");
@@ -63,12 +62,13 @@ exports.generateSeatLayout = async (req, res) => {
       // All rows: standard seats (10 per row)
       // A1-A10, B1-B10, C1-C10, D1-D10...
       for (let seatNum = 1; seatNum <= seatsInThisRow; seatNum++) {
-        // Check if seat with same row/number already exists (reuse it)
-        let seat = await Seat.findOne({ row: rowLetter, number: seatNum });
+        // Check if seat with same row/number already exists in this room (reuse it)
+        let seat = await Seat.findOne({ roomId: roomId, row: rowLetter, number: seatNum });
         
         if (!seat) {
-          // Create new seat only if it doesn't exist
+          // Create new seat only if it doesn't exist in this room
           seat = await Seat.create({
+            roomId: roomId,
             row: rowLetter,
             number: seatNum,
             type: "Standard"
@@ -110,40 +110,7 @@ exports.getSeatmapByShowtime = async (req, res) => {
     const Showtime = require("../models/showtime");
     const Room = require("../models/room");
     
-    // 1. Try to find an existing seatmap specifically for this showtime
-    let seatmap = await Seatmap.findOne({ showtimes: showtimeId })
-      .populate("seatStatuses");
-    
-    if (seatmap) {
-      // Get seats from Room
-      const room = await Room.findById(seatmap.roomId).populate("seats");
-      
-      if (!room || !room.seats || room.seats.length === 0) {
-        return res.status(404).json({ message: "Không tìm thấy bố cục ghế cho phòng này. Vui lòng tạo bố cục ghế trước." });
-      }
-      
-      // Merge seats with their statuses for this showtime
-      const seatsWithStatus = room.seats.map(seat => {
-        const status = seatmap.seatStatuses.find(
-          s => s.seatId.toString() === seat._id.toString()
-        );
-        return {
-          ...seat.toObject(),
-          status: status?.status || 'Available',
-          price: status?.price || 0,
-          heldBy: status?.heldBy,
-          heldUntil: status?.heldUntil,
-          bookedBy: status?.bookedBy
-        };
-      });
-      
-      return res.json({
-        ...seatmap.toObject(),
-        seats: seatsWithStatus
-      });
-    }
-
-    // 2. No showtime-specific seatmap found. Create one using seats from Room.
+    // 1. Find the showtime
     const showtime = await Showtime.findById(showtimeId).populate("roomId");
     if (!showtime) {
       return res.status(404).json({ message: "Showtime not found" });
@@ -151,43 +118,36 @@ exports.getSeatmapByShowtime = async (req, res) => {
 
     const room = showtime.roomId;
     
-    // 3. Get seats from Room
-    console.log(`Creating seatmap for showtime ${showtimeId} using seats from room ${room?.name}`);
-    
+    // 2. Get seats from Room
     const roomWithSeats = await Room.findById(room._id).populate("seats");
     
     if (!roomWithSeats || !roomWithSeats.seats || roomWithSeats.seats.length === 0) {
       return res.status(404).json({ message: "Không tìm thấy bố cục ghế cho phòng này. Vui lòng tạo bố cục ghế trước." });
     }
     
-    // 4. Create SeatStatus for each seat in this showtime
-    const seatStatusesData = roomWithSeats.seats.map(seat => ({
-      seatId: seat._id,
-      showtimeId: showtimeId,
-      status: 'Available',
-      price: calculateSeatPrice(seat.type, showtime.startTime)
-    }));
+    // 3. Get existing seatStatuses for this showtime
+    let seatStatuses = await SeatStatus.find({ showtimeId: showtimeId });
     
-    const createdStatuses = await SeatStatus.insertMany(seatStatusesData);
+    // 4. If no seatStatuses exist, create them for each seat
+    if (!seatStatuses || seatStatuses.length === 0) {
+      const seatStatusesData = roomWithSeats.seats.map(seat => ({
+        seatId: seat._id,
+        showtimeId: showtimeId,
+        status: 'Available',
+        price: calculateSeatPrice(seat.type, showtime.startTime)
+      }));
+      
+      seatStatuses = await SeatStatus.insertMany(seatStatusesData);
+      
+      // Update showtime with seatStatuses references
+      await Showtime.findByIdAndUpdate(showtimeId, { 
+        seatStatuses: seatStatuses.map(s => s._id) 
+      });
+    }
     
-    // 5. Create seatmap for this showtime
-    seatmap = await Seatmap.create({
-      roomId: room._id,
-      showtimes: showtimeId,
-      seatStatuses: createdStatuses.map(s => s._id),
-      capacity: roomWithSeats.seats.length
-    });
-
-    // Update the showtime's reference to this seatmap
-    await Showtime.findByIdAndUpdate(showtimeId, { seatMap: seatmap._id });
-    
-    // Reload with populated seatStatuses
-    seatmap = await Seatmap.findById(seatmap._id)
-      .populate("seatStatuses");
-    
-    // Merge seats with their statuses
+    // 5. Merge seats with their statuses
     const seatsWithStatus = roomWithSeats.seats.map(seat => {
-      const status = seatmap.seatStatuses.find(
+      const status = seatStatuses.find(
         s => s.seatId.toString() === seat._id.toString()
       );
       return {
@@ -201,11 +161,13 @@ exports.getSeatmapByShowtime = async (req, res) => {
     });
     
     res.json({
-      ...seatmap.toObject(),
-      seats: seatsWithStatus
+      roomId: room._id,
+      showtimeId: showtimeId,
+      seats: seatsWithStatus,
+      capacity: roomWithSeats.seats.length
     });
   } catch (error) {
-    console.error("Error isolating seatmap for showtime:", error);
+    console.error("Error getting seatmap for showtime:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -377,18 +339,19 @@ exports.getSeatsByRoom = async (req, res) => {
   }
 };
 
-// Update seat (type, row, number)
+// Update seat (type, row, number, status)
 exports.updateSeat = async (req, res) => {
   try {
     const { seatId } = req.params;
-    const { type, row, number } = req.body;
+    const { type, row, number, status } = req.body;
     
     const updateData = {};
     if (type) updateData.type = type;
     if (row) updateData.row = row;
     if (number) updateData.number = parseInt(number);
+    if (status) updateData.status = status;
     
-    // Check if another seat with same row/number already exists
+    // Check if another seat with same row/number already exists in the same room
     if (row || number) {
       const currentSeat = await Seat.findById(seatId);
       if (!currentSeat) {
@@ -399,6 +362,7 @@ exports.updateSeat = async (req, res) => {
       const checkNumber = number ? parseInt(number) : currentSeat.number;
       
       const existingSeat = await Seat.findOne({ 
+        roomId: currentSeat.roomId,
         row: checkRow, 
         number: checkNumber,
         _id: { $ne: seatId } // Exclude current seat
@@ -406,7 +370,7 @@ exports.updateSeat = async (req, res) => {
       
       if (existingSeat) {
         return res.status(400).json({ 
-          message: `Ghế ${checkRow}${checkNumber} đã tồn tại trong hệ thống` 
+          message: `Ghế ${checkRow}${checkNumber} đã tồn tại trong phòng này` 
         });
       }
     }
@@ -461,7 +425,7 @@ exports.deleteSeat = async (req, res) => {
 exports.addSeat = async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { row, number, type } = req.body;
+    const { row, number, type, status } = req.body;
     
     if (!row || !number) {
       return res.status(400).json({ message: "Vui lòng nhập hàng và số ghế" });
@@ -474,30 +438,24 @@ exports.addSeat = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy phòng" });
     }
     
-    // Check if seat with same row/number already exists (reuse it)
-    let seat = await Seat.findOne({ row, number: parseInt(number) });
+    // Check if seat with same row/number already exists in this room
+    let seat = await Seat.findOne({ roomId: roomId, row, number: parseInt(number) });
     
     if (seat) {
-      // Seat already exists, check if it's already in this room
-      if (room.seats && room.seats.includes(seat._id)) {
-        return res.status(400).json({ 
-          message: `Ghế ${row}${number} đã tồn tại trong phòng này` 
-        });
-      }
-      
-      // Update seat type if provided and different
-      if (type && seat.type !== type) {
-        seat.type = type;
-        await seat.save();
-      }
-    } else {
-      // Create new seat
-      seat = await Seat.create({
-        row,
-        number: parseInt(number),
-        type: type || "Standard"
+      // Seat already exists in this room
+      return res.status(400).json({ 
+        message: `Ghế ${row}${number} đã tồn tại trong phòng này` 
       });
     }
+    
+    // Create new seat for this room
+    seat = await Seat.create({
+      roomId: roomId,
+      row,
+      number: parseInt(number),
+      type: type || "Standard",
+      status: status || "Available"
+    });
     
     // Add seat to room
     if (!room.seats) {

@@ -18,10 +18,18 @@ import {
 import { toast } from "react-toastify";
 import "./AdminManagement.css";
 
+// Import components
+import CinemaModal from "./components/CinemaModal";
+import RoomModal from "./components/RoomModal";
+import TimeSlotsModal from "./components/TimeSlotsModal";
+import DeleteConfirmModal from "./components/DeleteConfirmModal";
+import SeatConfigModal from "./components/SeatConfigModal";
+import SeatDeleteConfirmModal from "./components/SeatDeleteConfirmModal";
+import SeatPermanentDeleteConfirmModal from "./components/SeatPermanentDeleteConfirmModal";
+import RoomTable from "./components/RoomTable";
+
 // ID của rạp Time Cinemas (hardcoded theo DB)
 const TIME_CINEMAS_ID = "69ad9a89012ada8e95feb9cf";
-
-const ROOM_TYPES = ["Standard", "VIP", "IMAX", "Double"];
 
 // Format date as dd/mm/yyyy
 const formatDate = (date) => {
@@ -87,6 +95,11 @@ const CinemaManagement = () => {
   const [showSeatDeleteConfirm, setShowSeatDeleteConfirm] = useState(false);
   const [deletingSeatId, setDeletingSeatId] = useState(null);
   const [isSeatDeleting, setIsSeatDeleting] = useState(false);
+
+  // Permanent seat deletion state
+  const [showPermanentDeleteConfirm, setShowPermanentDeleteConfirm] = useState(false);
+  const [permanentDeletingSeat, setPermanentDeletingSeat] = useState(null);
+  const [isPermanentDeleting, setIsPermanentDeleting] = useState(false);
 
   // Grid-based seat configuration state
   const [seatGrid, setSeatGrid] = useState({
@@ -482,7 +495,7 @@ const CinemaManagement = () => {
       // Refresh seats
       const data = await getSeatsByRoom(selectedRoom._id);
       setRoomSeats(data.seats || []);
-      toast.success("Xóa ghế thành công!");
+      toast.success("Ẩn ghế thành công!");
     } catch (err) {
       const errorMsg = err?.message || "Có lỗi xảy ra khi xóa ghế";
       toast.error(errorMsg);
@@ -496,6 +509,43 @@ const CinemaManagement = () => {
   const cancelSeatDelete = () => {
     setShowSeatDeleteConfirm(false);
     setDeletingSeatId(null);
+  };
+
+  // Permanent seat deletion functions
+  const handlePermanentDeleteSeatClick = (seat) => {
+    setPermanentDeletingSeat(seat);
+    setShowPermanentDeleteConfirm(true);
+  };
+
+  const confirmPermanentDeleteSeat = async () => {
+    if (!permanentDeletingSeat || isPermanentDeleting) return;
+
+    setIsPermanentDeleting(true);
+
+    try {
+      await deleteSeat(permanentDeletingSeat.id);
+      // Remove seat from grid
+      setSeatGrid((prev) => ({
+        ...prev,
+        seats: prev.seats.filter((seat) => seat.id !== permanentDeletingSeat.id),
+      }));
+      // Refresh seats
+      const data = await getSeatsByRoom(selectedRoom._id);
+      setRoomSeats(data.seats || []);
+      toast.success("Đã xóa ghế vĩnh viễn!");
+    } catch (err) {
+      const errorMsg = err?.message || "Có lỗi xảy ra khi xóa ghế";
+      toast.error(errorMsg);
+    } finally {
+      setShowPermanentDeleteConfirm(false);
+      setPermanentDeletingSeat(null);
+      setIsPermanentDeleting(false);
+    }
+  };
+
+  const cancelPermanentDeleteSeat = () => {
+    setShowPermanentDeleteConfirm(false);
+    setPermanentDeletingSeat(null);
   };
 
   const openAddSeatModal = () => {
@@ -571,104 +621,6 @@ const CinemaManagement = () => {
     return grid;
   };
 
-  // Add new row
-  const handleAddRow = () => {
-    if (seatGrid.rows >= 26) {
-      toast.error("Không thể thêm quá 26 hàng (A-Z)");
-      return;
-    }
-
-    const rowLabels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const newRowIndex = seatGrid.rows;
-    const newRowLabel = rowLabels[newRowIndex];
-
-    const newSeats = [];
-    for (let c = 1; c <= seatGrid.columns; c++) {
-      newSeats.push({
-        id: `temp_${newRowLabel}${c}`,
-        row: newRowLabel,
-        number: c,
-        type: "Standard",
-        status: "Available",
-        isNew: true,
-        isModified: false,
-      });
-    }
-
-    setSeatGrid((prev) => ({
-      ...prev,
-      rows: prev.rows + 1,
-      seats: [...prev.seats, ...newSeats],
-    }));
-
-    toast.success(`Đã thêm hàng ${newRowLabel}`);
-  };
-
-  // Add new column
-  const handleAddColumn = () => {
-    if (seatGrid.columns >= 50) {
-      toast.error("Không thể thêm quá 50 cột");
-      return;
-    }
-
-    const newColumnNumber = seatGrid.columns + 1;
-    const rowLabels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-    const newSeats = [];
-    for (let r = 0; r < seatGrid.rows; r++) {
-      const rowLabel = rowLabels[r];
-      newSeats.push({
-        id: `temp_${rowLabel}${newColumnNumber}`,
-        row: rowLabel,
-        number: newColumnNumber,
-        type: "Standard",
-        status: "Available",
-        isNew: true,
-        isModified: false,
-      });
-    }
-
-    setSeatGrid((prev) => ({
-      ...prev,
-      columns: prev.columns + 1,
-      seats: [...prev.seats, ...newSeats],
-    }));
-
-    toast.success(`Đã thêm cột ${newColumnNumber}`);
-  };
-
-  // Delete row
-  const handleDeleteRow = (rowLabel) => {
-    if (seatGrid.rows <= 1) {
-      toast.error("Phải có ít nhất 1 hàng");
-      return;
-    }
-
-    setSeatGrid((prev) => ({
-      ...prev,
-      rows: prev.rows - 1,
-      seats: prev.seats.filter((seat) => seat.row !== rowLabel),
-    }));
-
-    toast.success(`Đã xóa hàng ${rowLabel}`);
-  };
-
-  // Delete column
-  const handleDeleteColumn = (columnNumber) => {
-    if (seatGrid.columns <= 1) {
-      toast.error("Phải có ít nhất 1 cột");
-      return;
-    }
-
-    setSeatGrid((prev) => ({
-      ...prev,
-      columns: prev.columns - 1,
-      seats: prev.seats.filter((seat) => seat.number !== columnNumber),
-    }));
-
-    toast.success(`Đã xóa cột ${columnNumber}`);
-  };
-
   // Update seat type or status
   const handleUpdateSeatInGrid = (seatId, updates) => {
     setSeatGrid((prev) => ({
@@ -683,51 +635,9 @@ const CinemaManagement = () => {
     }
   };
 
-  // Delete seat from grid
-  const handleDeleteSeatFromGrid = (seatId) => {
-    setSeatGrid((prev) => ({
-      ...prev,
-      seats: prev.seats.filter((seat) => seat.id !== seatId),
-    }));
-
-    if (selectedSeat && selectedSeat.id === seatId) {
-      setSelectedSeat(null);
-    }
-
-    toast.success("Đã xóa ghế");
-  };
-
   // Select seat for configuration
   const handleSelectSeat = (seat) => {
     setSelectedSeat(seat);
-  };
-
-  // Apply changes to entire row
-  const handleApplyToRow = (rowLabel, updates) => {
-    setSeatGrid((prev) => ({
-      ...prev,
-      seats: prev.seats.map((seat) =>
-        seat.row === rowLabel
-          ? { ...seat, ...updates, isModified: true }
-          : seat,
-      ),
-    }));
-
-    toast.success(`Đã áp dụng cho tất cả ghế hàng ${rowLabel}`);
-  };
-
-  // Apply changes to entire column
-  const handleApplyToColumn = (columnNumber, updates) => {
-    setSeatGrid((prev) => ({
-      ...prev,
-      seats: prev.seats.map((seat) =>
-        seat.number === columnNumber
-          ? { ...seat, ...updates, isModified: true }
-          : seat,
-      ),
-    }));
-
-    toast.success(`Đã áp dụng cho tất cả ghế cột ${columnNumber}`);
   };
 
   // Save all seat changes
@@ -881,27 +791,6 @@ const CinemaManagement = () => {
     setEditingRoom(null);
   };
 
-  const getStatusBadge = (status) => (
-    <span
-      className={`badge ${status === "Active" ? "badge-success" : "badge-secondary"}`}
-    >
-      {status === "Active" ? "Hoạt động" : "Ngừng hoạt động"}
-    </span>
-  );
-
-  const getRoomTypeBadge = (type) => {
-    const typeClasses = {
-      Standard: "badge-info",
-      VIP: "badge-warning",
-      IMAX: "badge-primary",
-    };
-    return (
-      <span className={`badge ${typeClasses[type] || "badge-info"}`}>
-        {type}
-      </span>
-    );
-  };
-
   if (loading) {
     return <div className="loading">Loading...</div>;
   }
@@ -930,768 +819,89 @@ const CinemaManagement = () => {
             </div>
           </div>
 
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>STT</th>
-                  <th>Tên phòng</th>
-                  <th>Loại phòng</th>
-                  <th>Số ghế</th>
-                  <th>Phim đang chiếu</th>
-                  <th>Trạng thái</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cinemaRooms.map((room, index) => {
-                  const movie = getMovieForRoom(room);
-                  return (
-                    <tr key={room._id}>
-                      <td>{index + 1}</td>
-                      <td>{room.name}</td>
-                      <td>{getRoomTypeBadge(room.type)}</td>
-                      <td>{room.capacity}</td>
-                      <td>
-                        {movie ? (
-                          <span className="movie-playing">
-                            {typeof movie === "object" && movie.title
-                              ? movie.title
-                              : "Phim đã xóa"}
-                          </span>
-                        ) : (
-                          <span className="no-movie">Chưa có phim</span>
-                        )}
-                      </td>
-                      <td>{getStatusBadge(room.status)}</td>
-                      <td>
-                        <button
-                          className="btn btn-sm btn-info"
-                          onClick={() => openSeatConfigModal(room)}
-                        >
-                          Cấu hình ghế
-                        </button>
-                        <button
-                          className="btn btn-sm btn-edit"
-                          onClick={() => handleEditRoom(room)}
-                        >
-                          Sửa
-                        </button>
-                        <button
-                          className="btn btn-sm btn-delete"
-                          onClick={() => handleDeleteClick(room._id)}
-                        >
-                          Xóa
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {cinemaRooms.length === 0 && (
-                  <tr>
-                    <td colSpan="7" className="no-data">
-                      Không có phòng nào
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <RoomTable
+            rooms={cinemaRooms}
+            movies={movies}
+            getMovieForRoom={getMovieForRoom}
+            onEditRoom={handleEditRoom}
+            onDeleteClick={handleDeleteClick}
+            onOpenSeatConfig={openSeatConfigModal}
+          />
         </div>
       )}
 
       {/* Cinema Modal */}
-      {showCinemaModal && (
-        <div className="modal-overlay" onClick={closeCinemaModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{editingCinema ? "Sửa Rạp" : "Thêm Rạp Mới"}</h3>
-              <button className="modal-close" onClick={closeCinemaModal}>
-                &times;
-              </button>
-            </div>
-            <form onSubmit={handleCinemaSubmit} className="modal-form">
-              <div className="form-group">
-                <label>Tên rạp *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={cinemaFormData.name}
-                  onChange={handleCinemaInputChange}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Địa chỉ *</label>
-                <input
-                  type="text"
-                  name="address"
-                  value={cinemaFormData.address}
-                  onChange={handleCinemaInputChange}
-                  required
-                />
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Thành phố *</label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={cinemaFormData.city}
-                    onChange={handleCinemaInputChange}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Điện thoại</label>
-                  <input
-                    type="text"
-                    name="phone"
-                    value={cinemaFormData.phone}
-                    onChange={handleCinemaInputChange}
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Email</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={cinemaFormData.email}
-                    onChange={handleCinemaInputChange}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Trạng thái</label>
-                  <select
-                    name="status"
-                    value={cinemaFormData.status}
-                    onChange={handleCinemaInputChange}
-                  >
-                    <option value="Active">Hoạt động</option>
-                    <option value="Inactive">Ngừng hoạt động</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Mô tả</label>
-                <textarea
-                  name="description"
-                  value={cinemaFormData.description}
-                  onChange={handleCinemaInputChange}
-                  rows="3"
-                />
-              </div>
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={closeCinemaModal}
-                >
-                  Hủy
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  {editingCinema ? "Cập nhật" : "Thêm mới"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <CinemaModal
+        show={showCinemaModal}
+        editingCinema={editingCinema}
+        formData={cinemaFormData}
+        onInputChange={handleCinemaInputChange}
+        onSubmit={handleCinemaSubmit}
+        onClose={closeCinemaModal}
+      />
 
       {/* Room Modal */}
-      {showRoomModal && (
-        <div className="modal-overlay" onClick={closeRoomModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{editingRoom ? "Sửa Phòng" : "Thêm Phòng Mới"}</h3>
-              <button className="modal-close" onClick={closeRoomModal}>
-                &times;
-              </button>
-            </div>
-            <form onSubmit={handleRoomSubmit} className="modal-form">
-              <div className="form-group">
-                <label>Tên phòng *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={roomFormData.name}
-                  onChange={handleRoomInputChange}
-                  placeholder="VD: Phòng 1, Phòng VIP..."
-                  required
-                />
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Loại phòng</label>
-                  <select
-                    name="type"
-                    value={roomFormData.type}
-                    onChange={handleRoomInputChange}
-                  >
-                    {ROOM_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-group">
-                {/* <label>Cấu hình ghế</label>
-                <button
-                  type="button"
-                  className="btn btn-info"
-                  onClick={() => {
-                    if (editingRoom) {
-                      openSeatConfigModal(editingRoom);
-                    } else {
-                      toast.error("Vui lòng lưu phòng trước khi cấu hình ghế");
-                    }
-                  }}
-                >
-                  Mở cấu hình ghế
-                </button>
-                {editingRoom && roomSeats.length > 0 && (
-                  <div className="seat-summary">
-                    <span className="seat-summary-text">
-                      {roomSeats.filter((s) => s.status !== "Deleted").length}{" "}
-                      ghế ({seatGrid.rows} hàng × {seatGrid.columns} ghế) -
-                      Standard:{" "}
-                      {
-                        roomSeats.filter(
-                          (s) =>
-                            s.type === "Standard" && s.status !== "Deleted",
-                        ).length
-                      }
-                      , VIP:{" "}
-                      {
-                        roomSeats.filter(
-                          (s) => s.type === "VIP" && s.status !== "Deleted",
-                        ).length
-                      }
-                      , Double:{" "}
-                      {
-                        roomSeats.filter(
-                          (s) => s.type === "Double" && s.status !== "Deleted",
-                        ).length
-                      }
-                    </span>
-                  </div>
-                )} */}
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Chọn phim</label>
-                  <select
-                    name="movieId"
-                    value={roomFormData.movieId}
-                    onChange={handleRoomInputChange}
-                  >
-                    <option value="">-- Chưa có phim --</option>
-                    {getAvailableMovies(
-                      editingRoom ? editingRoom._id : null,
-                    ).map((movie) => (
-                      <option key={movie._id} value={movie._id}>
-                        {movie.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Trạng thái</label>
-                <select
-                  name="status"
-                  value={roomFormData.status}
-                  onChange={handleRoomInputChange}
-                >
-                  <option value="Active">Hoạt động</option>
-                  <option value="Inactive">Ngừng hoạt động</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Mô tả</label>
-                <textarea
-                  name="description"
-                  value={roomFormData.description}
-                  onChange={handleRoomInputChange}
-                  rows="3"
-                />
-              </div>
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={closeRoomModal}
-                >
-                  Hủy
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  {editingRoom ? "Cập nhật" : "Thêm mới"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <RoomModal
+        show={showRoomModal}
+        editingRoom={editingRoom}
+        formData={roomFormData}
+        movies={movies}
+        getAvailableMovies={getAvailableMovies}
+        onInputChange={handleRoomInputChange}
+        onSubmit={handleRoomSubmit}
+        onClose={closeRoomModal}
+      />
 
       {/* Time Slots Modal */}
-      {showTimeSlotsModal && (
-        <div className="modal-overlay" onClick={closeTimeSlotsModal}>
-          <div
-            className="modal-content modal-small"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h3>Quản lý khung giờ - {editingTimeSlotsRoom?.name}</h3>
-              <button className="modal-close" onClick={closeTimeSlotsModal}>
-                &times;
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label>Nhập khung giờ (cách nhau bằng dấu phẩy)</label>
-                <input
-                  type="text"
-                  value={timeSlotsInput}
-                  onChange={(e) => setTimeSlotsInput(e.target.value)}
-                  placeholder="VD: 09:00, 13:00, 17:00, 21:00"
-                />
-                <small className="form-hint">
-                  Định dạng: HH:mm (ví dụ: 09:00, 13:00, 17:00, 21:00)
-                </small>
-              </div>
-
-              <div className="time-slots-preview">
-                <h4>Xem trước:</h4>
-                <div className="slots-list">
-                  {timeSlotsInput.split(",").map((s, idx) => {
-                    const trimmed = s.trim();
-                    if (!trimmed || !/^\d{1,2}:\d{2}$/.test(trimmed))
-                      return null;
-                    return (
-                      <span key={idx} className="time-slot-badge-large">
-                        {trimmed}
-                      </span>
-                    );
-                  })}
-                  {timeSlotsInput
-                    .split(",")
-                    .filter((s) => s.trim() && /^\d{1,2}:\d{2}$/.test(s.trim()))
-                    .length === 0 && (
-                    <span className="no-slots">Chưa có khung giờ hợp lệ</span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={closeTimeSlotsModal}
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleSaveTimeSlots}
-              >
-                Lưu
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <TimeSlotsModal
+        show={showTimeSlotsModal}
+        editingRoom={editingTimeSlotsRoom}
+        timeSlotsInput={timeSlotsInput}
+        onTimeSlotsInputChange={setTimeSlotsInput}
+        onSave={handleSaveTimeSlots}
+        onClose={closeTimeSlotsModal}
+      />
 
       {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div
-          className="modal-overlay"
-          onClick={isDeleting ? undefined : cancelDelete}
-        >
-          <div
-            className={`modal-content modal-small ${isDeleting ? "deleting" : ""}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h3>Xác nhận xóa</h3>
-              <button className="modal-close" onClick={cancelDelete}>
-                &times;
-              </button>
-            </div>
-            <div className="modal-body">
-              <p>Bạn có chắc chắn muốn xóa phòng chiếu này không?</p>
-              <p className="text-muted">Hành động này không thể hoàn tác.</p>
-            </div>
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={cancelDelete}
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={confirmDeleteRoom}
-                disabled={isDeleting}
-              >
-                {isDeleting ? (
-                  <span>
-                    <span className="spinner"></span> Đang xóa...
-                  </span>
-                ) : (
-                  "Xóa"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteConfirmModal
+        show={showDeleteConfirm}
+        isDeleting={isDeleting}
+        onConfirm={confirmDeleteRoom}
+        onCancel={cancelDelete}
+      />
 
-      {/* Seat Configuration Modal - New Design */}
-      {showSeatModal && selectedRoom && (
-        <div className="modal-overlay" onClick={closeSeatModal}>
-          <div
-            className="modal-content modal-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h3>Cấu hình ghế - {selectedRoom.name}</h3>
-              <button className="modal-close" onClick={closeSeatModal}>
-                &times;
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="seat-config-container">
-                {/* Row/Column Configuration - Show only when seat map is not generated */}
-                {!seatMapGenerated && (
-                  <div className="seat-config-toolbar">
-                    <div className="seat-config-inputs">
-                      <div className="seat-config-input-group">
-                        <label>Số hàng:</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="26"
-                          value={seatGrid.rows}
-                          onChange={(e) => {
-                            const newRows = parseInt(e.target.value) || 1;
-                            if (newRows >= 1 && newRows <= 26) {
-                              setSeatGrid((prev) => ({
-                                ...prev,
-                                rows: newRows,
-                              }));
-                            }
-                          }}
-                          className="seat-config-input"
-                        />
-                      </div>
-                      <div className="seat-config-input-group">
-                        <label>Số ghế mỗi hàng:</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="50"
-                          value={seatGrid.columns}
-                          onChange={(e) => {
-                            const newCols = parseInt(e.target.value) || 1;
-                            if (newCols >= 1 && newCols <= 50) {
-                              setSeatGrid((prev) => ({
-                                ...prev,
-                                columns: newCols,
-                              }));
-                            }
-                          }}
-                          className="seat-config-input"
-                        />
-                      </div>
-                      <button
-                        className="btn btn-primary"
-                        onClick={() => {
-                          const newSeats = [];
-                          const rowLabels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-                          for (let r = 0; r < seatGrid.rows; r++) {
-                            const rowLabel = rowLabels[r];
-                            for (let c = 1; c <= seatGrid.columns; c++) {
-                              const existingSeat = seatGrid.seats.find(
-                                (s) => s.row === rowLabel && s.number === c,
-                              );
-                              if (existingSeat) {
-                                newSeats.push(existingSeat);
-                              } else {
-                                newSeats.push({
-                                  id: `temp_${rowLabel}${c}`,
-                                  row: rowLabel,
-                                  number: c,
-                                  type: "Standard",
-                                  status: "Available",
-                                  isNew: true,
-                                  isModified: false,
-                                });
-                              }
-                            }
-                          }
-                          setSeatGrid((prev) => ({ ...prev, seats: newSeats }));
-                          setSeatMapGenerated(true);
-                          toast.success("Đã tạo sơ đồ ghế mới!");
-                        }}
-                      >
-                        Tạo sơ đồ
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Screen Display - Show only when seat map is generated */}
-                {seatMapGenerated && (
-                  <div className="screen-display">
-                    <div className="screen-label">MÀN HÌNH CHIẾU</div>
-                    <div className="screen-line"></div>
-                  </div>
-                )}
-                {/* Seat Grid */}
-                <div className="seat-grid-container">
-                  <div className="seat-grid-wrapper">
-                    {getRowLabels().map((rowLabel) => {
-                      return (
-                        <div key={rowLabel} className="seat-row">
-                          <div className="seat-cells">
-                            {getColumnNumbers().map((colNumber) => {
-                              const seat = getSeatByPosition(
-                                rowLabel,
-                                colNumber,
-                              );
-
-                              if (seat) {
-                                return (
-                                  <div
-                                    key={seat.id}
-                                    className={`seat-cell ${seat.type.toLowerCase()} ${seat.status === "Deleted" ? "deleted" : ""} ${selectedSeat?.id === seat.id ? "selected" : ""}`}
-                                    onClick={(e) => {
-                                      if (e.button === 0) {
-                                        // Left click
-                                        if (seat.status === "Deleted") {
-                                          // Restore deleted seat
-                                          handleUpdateSeatInGrid(seat.id, {
-                                            status: "Available",
-                                          });
-                                          toast.success(
-                                            `Đã khôi phục ghế ${seat.row}${seat.number}`,
-                                          );
-                                        } else {
-                                          // Toggle between Standard, VIP, and Double
-                                          const types = [
-                                            "Standard",
-                                            "VIP",
-                                            "Double",
-                                          ];
-                                          const currentIndex = types.indexOf(
-                                            seat.type,
-                                          );
-                                          const newType =
-                                            types[
-                                              (currentIndex + 1) % types.length
-                                            ];
-                                          handleUpdateSeatInGrid(seat.id, {
-                                            type: newType,
-                                          });
-                                          toast.success(
-                                            `Đã chuyển ghế ${seat.row}${seat.number} sang ${newType}`,
-                                          );
-                                        }
-                                      }
-                                    }}
-                                    onContextMenu={(e) => {
-                                      e.preventDefault();
-                                      if (seat.status !== "Deleted") {
-                                        handleUpdateSeatInGrid(seat.id, {
-                                          status: "Deleted",
-                                        });
-                                        toast.success(
-                                          `Đã xóa ghế ${seat.row}${seat.number}`,
-                                        );
-                                      }
-                                    }}
-                                    title={`${seat.row}${seat.number} - ${seat.type} - ${seat.status === "Deleted" ? "Đã xóa (Click để khôi phục)" : seat.status === "Available" ? "Còn trống" : "Đã đặt"}\nClick trái: Chuyển Standard ↔ VIP ↔ Double\nClick phải: Xóa ghế`}
-                                  >
-                                    {seat.status === "Deleted" ? (
-                                      <span className="seat-deleted-x">×</span>
-                                    ) : (
-                                      <span className="seat-number">
-                                        {seat.row}
-                                        {seat.number}
-                                      </span>
-                                    )}
-                                  </div>
-                                );
-                              } else {
-                                // Empty cell - show add button
-                                return (
-                                  <div
-                                    key={`empty_${rowLabel}${colNumber}`}
-                                    className="seat-cell empty"
-                                    onClick={() => {
-                                      // Add new seat at this position
-                                      const newSeat = {
-                                        id: `temp_${rowLabel}${colNumber}`,
-                                        row: rowLabel,
-                                        number: colNumber,
-                                        type: "Standard",
-                                        status: "Available",
-                                        isNew: true,
-                                        isModified: false,
-                                      };
-                                      setSeatGrid((prev) => ({
-                                        ...prev,
-                                        seats: [...prev.seats, newSeat],
-                                      }));
-                                      toast.success(
-                                        `Đã thêm ghế ${rowLabel}${colNumber}`,
-                                      );
-                                    }}
-                                    title={`Thêm ghế ${rowLabel}${colNumber}`}
-                                  >
-                                    <span className="seat-add-icon">+</span>
-                                  </div>
-                                );
-                              }
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Legend */}
-                <div className="seat-legend">
-                  <div className="legend-item">
-                    <div className="legend-color standard"></div>
-                    <span>Standard</span>
-                  </div>
-                  <div className="legend-item">
-                    <div className="legend-color vip"></div>
-                    <span>VIP</span>
-                  </div>
-                  <div className="legend-item">
-                    <div className="legend-color double"></div>
-                    <span>Double</span>
-                  </div>
-                  <div className="legend-item">
-                    <div className="legend-color deleted"></div>
-                    <span>Đã xóa</span>
-                  </div>
-                  <div className="legend-item">
-                    <div className="legend-color empty"></div>
-                    <span>Trống (Click để thêm)</span>
-                  </div>
-                </div>
-
-                {/* Instructions */}
-                <div className="seat-instructions">
-                  <h4>Thao tác:</h4>
-                  <ul>
-                    <li>
-                      <strong>Click ô trống</strong> → Thêm ghế mới
-                    </li>
-                    <li>
-                      <strong>Click ghế</strong> → Chuyển Standard ↔ VIP ↔
-                      Double
-                    </li>
-                    <li>
-                      <strong>Click chuột phải</strong> → Xóa ghế
-                    </li>
-                    <li>
-                      <strong>Click ghế đã xóa</strong> → Khôi phục
-                    </li>
-                  </ul>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="modal-actions">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={closeSeatModal}
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={handleSaveAllSeats}
-                  >
-                    Lưu cấu hình
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Seat Configuration Modal */}
+      <SeatConfigModal
+        show={showSeatModal}
+        selectedRoom={selectedRoom}
+        seatGrid={seatGrid}
+        selectedSeat={selectedSeat}
+        seatMapGenerated={seatMapGenerated}
+        onClose={closeSeatModal}
+        onSeatGridChange={setSeatGrid}
+        onSeatMapGeneratedChange={setSeatMapGenerated}
+        onSeatSelect={handleSelectSeat}
+        onUpdateSeatInGrid={handleUpdateSeatInGrid}
+        onPermanentDeleteSeatClick={handlePermanentDeleteSeatClick}
+        onSaveAllSeats={handleSaveAllSeats}
+      />
 
       {/* Seat Delete Confirmation Modal */}
-      {showSeatDeleteConfirm && (
-        <div
-          className="modal-overlay"
-          onClick={isSeatDeleting ? undefined : cancelSeatDelete}
-        >
-          <div
-            className={`modal-content modal-small ${isSeatDeleting ? "deleting" : ""}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h3>Xác nhận xóa ghế</h3>
-              <button className="modal-close" onClick={cancelSeatDelete}>
-                &times;
-              </button>
-            </div>
-            <div className="modal-body">
-              <p>Bạn có chắc chắn muốn xóa ghế này không?</p>
-              <p className="text-muted">Hành động này không thể hoàn tác.</p>
-            </div>
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={cancelSeatDelete}
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={confirmDeleteSeat}
-                disabled={isSeatDeleting}
-              >
-                {isSeatDeleting ? (
-                  <span>
-                    <span className="spinner"></span> Đang xóa...
-                  </span>
-                ) : (
-                  "Xóa"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SeatDeleteConfirmModal
+        show={showSeatDeleteConfirm}
+        isDeleting={isSeatDeleting}
+        onConfirm={confirmDeleteSeat}
+        onCancel={cancelSeatDelete}
+      />
+
+      {/* Permanent Seat Delete Confirmation Modal */}
+      <SeatPermanentDeleteConfirmModal
+        show={showPermanentDeleteConfirm}
+        seat={permanentDeletingSeat}
+        isDeleting={isPermanentDeleting}
+        onConfirm={confirmPermanentDeleteSeat}
+        onCancel={cancelPermanentDeleteSeat}
+      />
     </div>
   );
 };

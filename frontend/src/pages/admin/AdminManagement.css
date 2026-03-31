@@ -9,7 +9,7 @@
 
 .modal-xl {
     width: 95%;
-    max-width: 1200px;
+    max-width: 1800px;
     max-height: 95vh;
     overflow-y: auto;
     display: flex;
@@ -264,8 +264,8 @@
   background: white;
   padding: 25px;
   border-radius: 8px;
-  min-width: 400px;
-  max-width: 500px;
+  min-width: 700px;
+  max-width: 1000px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
@@ -1985,9 +1985,6 @@
 .seat-cell.double {
   background: #f3e5f5;
   color: #7b1fa2;
-  width: 84px;
-  min-width: 60px;
-  flex-shrink: 1;
 }
 
 .seat-cell.empty {
