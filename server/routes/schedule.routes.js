@@ -28,13 +28,4 @@ router.put("/:id", scheduleController.updateSchedule);
 // Delete schedule
 router.delete("/:id", scheduleController.deleteSchedule);
 
-// Check-in for a schedule
-router.post("/:scheduleId/check-in", scheduleController.checkIn);
-
-// Check-out for a schedule
-router.post("/:scheduleId/check-out", scheduleController.checkOut);
-
-// Get attendance data for a specific week
-router.get("/attendance/week", scheduleController.getAttendanceByWeek);
-
 module.exports = router;

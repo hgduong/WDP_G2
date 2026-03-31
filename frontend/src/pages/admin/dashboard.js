@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAllMovies, getAllCinemas, getAllShowtimes } from "../../services/api";
+import { getAllMovies } from "../../services/moviesApi";
+import { getAllCinemas } from "../../services/cinemasApi";
+import { getAllShowtimes } from "../../services/showtimesApi";
 import "./Dashboard.css";
 
 const Dashboard = () => {

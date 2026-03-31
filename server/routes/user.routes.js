@@ -15,55 +15,66 @@ const {
   authorizeRoles,
 } = require("../config/auth.middleware");
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// USER PROFILE ROUTES (Authenticated users)
+// ═══════════════════════════════════════════════════════════════════════════════
+
 router.get(
-  "/user/profile",
+  "/profile",
   authenticateToken,
   authorizeRoles(["Admin", "Customer", "Staff", "Manager"]),
   getUserProfile,
 );
 router.put(
-  "/user/profile",
+  "/profile",
   authenticateToken,
   authorizeRoles(["Admin", "Customer", "Staff", "Manager"]),
   updateUserProfile,
 );
 router.post(
-  "/user/change-password",
+  "/change-password",
   authenticateToken,
   authorizeRoles(["Admin", "Customer", "Staff", "Manager"]),
   changePassword,
 );
 router.put(
-  "/user/account",
+  "/account",
   authenticateToken,
   authorizeRoles(["Admin", "Customer", "Staff", "Manager"]),
   deleteAccount,
 );
 
-// ==================== ADMIN USER MANAGEMENT ROUTES ====================
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADMIN USER MANAGEMENT ROUTES (Admin only)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Lấy danh sách tất cả người dùng (Admin)
 router.get(
-  "/admin/users",
+  "/",
   authenticateToken,
   authorizeRoles(["Admin"]),
   getAllUsers,
 );
 
+// Cập nhật trạng thái người dùng (Admin)
 router.patch(
-  "/admin/users/:id/status",
+  "/:id/status",
   authenticateToken,
   authorizeRoles(["Admin"]),
   updateUserStatus,
 );
 
+// Cập nhật vai trò người dùng (Admin)
 router.patch(
-  "/admin/users/:id/role",
+  "/:id/role",
   authenticateToken,
   authorizeRoles(["Admin"]),
   updateUserRole,
 );
 
+// Lấy lịch sử đặt vé của người dùng (Admin)
 router.get(
-  "/admin/users/:id/bookings",
+  "/:id/bookings",
   authenticateToken,
   authorizeRoles(["Admin"]),
   getUserBookings,

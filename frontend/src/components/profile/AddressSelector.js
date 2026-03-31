@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getProvinces, getDistricts, getWards } from "../../services/api";
+import { getProvinces, getDistricts, getWards } from "../../services/userApi";
 
 export default function AddressSelector({ formData, setFormData }) {
   const [provinces, setProvinces] = useState([]);

@@ -12,7 +12,7 @@ import TrailerSection from "./TrailerSection";
 import ShowtimeSelector from "./ShowtimeSelector";
 import SeatSelectionModal from "./SeatSelectionModal";
 
-import { getShowtimesByIds, getMovieById } from "../services/api";
+import { getShowtimesByIds, getShowtimesByMovie, getMovieById } from "../services/api";
 
 export default function MovieDetail() {
   const { id } = useParams();
@@ -55,10 +55,7 @@ export default function MovieDetail() {
         showtimesData = await getShowtimesByIds(showtimeIds);
       } else {
         // Fallback
-        const res = await fetch(`http://localhost:9999/showtimes/movie/${id}`);
-        if (res.ok) {
-          showtimesData = await res.json();
-        }
+        showtimesData = await getShowtimesByMovie(id);
       }
 
       setMovie(movieData);

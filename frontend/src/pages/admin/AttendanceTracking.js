@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getAllSchedules, getStaffList } from "../../services/api";
+import { getAllSchedules, getStaffList } from "../../services/schedulesApi";
 import "./AdminManagement.css";
 
 const SHIFTS = [

@@ -6,7 +6,7 @@ import {
   deleteSchedule,
   getStaffList,
   getShiftDetails,
-} from "../../services/api";
+} from "../../services/schedulesApi";
 import { UserContext } from "../../context/UserContext";
 import "./AdminManagement.css";
 

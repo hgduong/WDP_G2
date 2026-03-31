@@ -5,6 +5,7 @@ import logo from "../assets/images/logo.png";
 import ava from "../assets/images/person.png";
 import { LanguageContext } from "../context/LanguageContext";
 import { UserContext } from "../context/UserContext.js";
+import { getImageUrl } from "../utils/imageUtils";
 
 export default function Navbar() {
   const { lang } = useContext(LanguageContext);
@@ -88,7 +89,7 @@ export default function Navbar() {
           {user ? (
             <div className="navbar-user">
               <img
-                src={user.avatarUrl || ava}
+                src={getImageUrl(user.avatarUrl) || ava}
                 alt="avatar"
                 className="navbar-avatar"
                 onClick={() => setShowDropdown((prev) => !prev)}
