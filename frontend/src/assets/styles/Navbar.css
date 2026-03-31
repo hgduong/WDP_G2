@@ -80,7 +80,7 @@
 }
 
 .navbar-link:hover {
-  color: #facc15; /* vÃ ng khi hover */
+  color: #facc15; /* vàng khi hover */
 }
 
 .navbar-link--active {
@@ -170,6 +170,7 @@
   margin-bottom: 5px;
   padding-bottom: 5px;
 }
+
 
 
 

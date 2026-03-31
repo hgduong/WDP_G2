@@ -111,6 +111,12 @@ app.use("/", socialRoutes);
 const moviesRoutes = require("./routes/movies.route");
 app.use("/api/movies", moviesRoutes);
 
+const actorsRoutes = require("./routes/actors.route");
+app.use("/api/actors", actorsRoutes);
+
+const directorsRoutes = require("./routes/directors.route");
+app.use("/api/directors", directorsRoutes);
+
 const cinemaRoutes = require("./routes/cinema.routes");
 app.use("/api/cinemas", cinemaRoutes);
 

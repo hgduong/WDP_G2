@@ -9,8 +9,8 @@ const movieSchema = new mongoose.Schema({
   releaseDate: { type: Date },
   endDate: { type: Date }, // Ngày kết thúc lịch chiếu
   language: { type: String },
-  director: { type: String },
-  cast: { type: String }, // có thể chuyển thành mảng nếu cần
+  directors: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Director' }],
+  cast: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Actor' }],
   rating: { type: Number, min: 0, max: 10 },
   posterUrl: { type: String },
   trailerUrl: { type: String },
