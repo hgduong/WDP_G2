@@ -21,7 +21,7 @@ import './AdminManagement.css';
 // ID của rạp Time Cinemas (hardcoded theo DB)
 const TIME_CINEMAS_ID = '69ad9a89012ada8e95feb9cf';
 
-const ROOM_TYPES = ['Standard', 'VIP', 'IMAX'];
+const ROOM_TYPES = ['Standard', 'VIP', 'IMAX', 'Double'];
 
 // Format date as dd/mm/yyyy
 const formatDate = (date) => {
@@ -58,7 +58,6 @@ const CinemaManagement = () => {
   const [roomFormData, setRoomFormData] = useState({
     cinemaId: '',
     name: '',
-    capacity: '',
     type: 'Standard',
     movieId: '',
     startTime: '',
@@ -88,6 +87,15 @@ const CinemaManagement = () => {
   const [showSeatDeleteConfirm, setShowSeatDeleteConfirm] = useState(false);
   const [deletingSeatId, setDeletingSeatId] = useState(null);
   const [isSeatDeleting, setIsSeatDeleting] = useState(false);
+
+  // Grid-based seat configuration state
+  const [seatGrid, setSeatGrid] = useState({
+    rows: 5,
+    columns: 10,
+    seats: []
+  });
+  const [selectedSeat, setSelectedSeat] = useState(null);
+  const [originalSeats, setOriginalSeats] = useState([]);
 
   useEffect(() => {
     fetchTimeCinemas();
@@ -279,7 +287,6 @@ const CinemaManagement = () => {
       const roomData = {
         cinemaId: roomFormData.cinemaId,
         name: roomFormData.name,
-        capacity: parseInt(roomFormData.capacity),
         type: roomFormData.type,
         timeSlots: roomFormData.timeSlots || [],
         description: roomFormData.description,
@@ -327,7 +334,6 @@ const CinemaManagement = () => {
     setRoomFormData({
       cinemaId: room.cinemaId || selectedCinema._id,
       name: room.name || '',
-      capacity: room.capacity || '',
       type: room.type || 'Standard',
       movieId: room.movieId || '',
       startTime: room.startTime || '',
@@ -345,13 +351,8 @@ const CinemaManagement = () => {
   };
 
   const handleGenerateSeats = async (room) => {
-    if (!room.capacity) {
-      toast.error('Vui lòng nhập số ghế cho phòng trước');
-      return;
-    }
-    
     try {
-      await generateSeatLayout(room._id, room.capacity);
+      await generateSeatLayout(room._id);
       toast.success(`Tạo bố cục ghế thành công cho phòng ${room.name}!`);
       // Refresh rooms
       await fetchRooms(selectedCinema._id);
@@ -477,6 +478,329 @@ const CinemaManagement = () => {
     setSelectedRoom(null);
     setRoomSeats([]);
     setEditingSeat(null);
+    setSelectedSeat(null);
+    setSeatGrid({ rows: 5, columns: 10, seats: [] });
+  };
+
+  // Initialize seat grid from existing seats
+  const initializeSeatGrid = (seats, rows = 5, columns = 10) => {
+    const grid = [];
+    const rowLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    
+    // If no seats exist, create empty grid with default size
+    if (!seats || seats.length === 0) {
+      for (let r = 0; r < rows; r++) {
+        const rowLabel = rowLabels[r];
+        for (let c = 1; c <= columns; c++) {
+          grid.push({
+            id: `temp_${rowLabel}${c}`,
+            row: rowLabel,
+            number: c,
+            type: 'Standard',
+            status: 'Available',
+            isNew: true,
+            isModified: false
+          });
+        }
+      }
+      return grid;
+    }
+    
+    // Calculate grid size based on actual seats
+    const maxRow = Math.max(...seats.map(s => s.row.charCodeAt(0) - 65)) + 1;
+    const maxCol = Math.max(...seats.map(s => s.number));
+    const actualRows = Math.max(rows, maxRow);
+    const actualCols = Math.max(columns, maxCol);
+    
+    // Create grid only for positions that have seats
+    for (let r = 0; r < actualRows; r++) {
+      const rowLabel = rowLabels[r];
+      for (let c = 1; c <= actualCols; c++) {
+        const existingSeat = seats.find(s => s.row === rowLabel && s.number === c);
+        // Only add seat if it exists in database
+        if (existingSeat) {
+          grid.push({
+            id: existingSeat._id,
+            row: rowLabel,
+            number: c,
+            type: existingSeat.type || 'Standard',
+            status: existingSeat.status || 'Available',
+            isNew: false,
+            isModified: false
+          });
+        }
+      }
+    }
+    
+    return grid;
+  };
+
+  // Add new row
+  const handleAddRow = () => {
+    if (seatGrid.rows >= 26) {
+      toast.error('Không thể thêm quá 26 hàng (A-Z)');
+      return;
+    }
+    
+    const rowLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const newRowIndex = seatGrid.rows;
+    const newRowLabel = rowLabels[newRowIndex];
+    
+    const newSeats = [];
+    for (let c = 1; c <= seatGrid.columns; c++) {
+      newSeats.push({
+        id: `temp_${newRowLabel}${c}`,
+        row: newRowLabel,
+        number: c,
+        type: 'Standard',
+        status: 'Available',
+        isNew: true,
+        isModified: false
+      });
+    }
+    
+    setSeatGrid(prev => ({
+      ...prev,
+      rows: prev.rows + 1,
+      seats: [...prev.seats, ...newSeats]
+    }));
+    
+    toast.success(`Đã thêm hàng ${newRowLabel}`);
+  };
+
+  // Add new column
+  const handleAddColumn = () => {
+    if (seatGrid.columns >= 50) {
+      toast.error('Không thể thêm quá 50 cột');
+      return;
+    }
+    
+    const newColumnNumber = seatGrid.columns + 1;
+    const rowLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    
+    const newSeats = [];
+    for (let r = 0; r < seatGrid.rows; r++) {
+      const rowLabel = rowLabels[r];
+      newSeats.push({
+        id: `temp_${rowLabel}${newColumnNumber}`,
+        row: rowLabel,
+        number: newColumnNumber,
+        type: 'Standard',
+        status: 'Available',
+        isNew: true,
+        isModified: false
+      });
+    }
+    
+    setSeatGrid(prev => ({
+      ...prev,
+      columns: prev.columns + 1,
+      seats: [...prev.seats, ...newSeats]
+    }));
+    
+    toast.success(`Đã thêm cột ${newColumnNumber}`);
+  };
+
+  // Delete row
+  const handleDeleteRow = (rowLabel) => {
+    if (seatGrid.rows <= 1) {
+      toast.error('Phải có ít nhất 1 hàng');
+      return;
+    }
+    
+    setSeatGrid(prev => ({
+      ...prev,
+      rows: prev.rows - 1,
+      seats: prev.seats.filter(seat => seat.row !== rowLabel)
+    }));
+    
+    toast.success(`Đã xóa hàng ${rowLabel}`);
+  };
+
+  // Delete column
+  const handleDeleteColumn = (columnNumber) => {
+    if (seatGrid.columns <= 1) {
+      toast.error('Phải có ít nhất 1 cột');
+      return;
+    }
+    
+    setSeatGrid(prev => ({
+      ...prev,
+      columns: prev.columns - 1,
+      seats: prev.seats.filter(seat => seat.number !== columnNumber)
+    }));
+    
+    toast.success(`Đã xóa cột ${columnNumber}`);
+  };
+
+  // Update seat type or status
+  const handleUpdateSeatInGrid = (seatId, updates) => {
+    setSeatGrid(prev => ({
+      ...prev,
+      seats: prev.seats.map(seat => 
+        seat.id === seatId 
+          ? { ...seat, ...updates, isModified: true }
+          : seat
+      )
+    }));
+    
+    if (selectedSeat && selectedSeat.id === seatId) {
+      setSelectedSeat(prev => ({ ...prev, ...updates }));
+    }
+  };
+
+  // Delete seat from grid
+  const handleDeleteSeatFromGrid = (seatId) => {
+    setSeatGrid(prev => ({
+      ...prev,
+      seats: prev.seats.filter(seat => seat.id !== seatId)
+    }));
+    
+    if (selectedSeat && selectedSeat.id === seatId) {
+      setSelectedSeat(null);
+    }
+    
+    toast.success('Đã xóa ghế');
+  };
+
+  // Select seat for configuration
+  const handleSelectSeat = (seat) => {
+    setSelectedSeat(seat);
+  };
+
+  // Apply changes to entire row
+  const handleApplyToRow = (rowLabel, updates) => {
+    setSeatGrid(prev => ({
+      ...prev,
+      seats: prev.seats.map(seat => 
+        seat.row === rowLabel 
+          ? { ...seat, ...updates, isModified: true }
+          : seat
+      )
+    }));
+    
+    toast.success(`Đã áp dụng cho tất cả ghế hàng ${rowLabel}`);
+  };
+
+  // Apply changes to entire column
+  const handleApplyToColumn = (columnNumber, updates) => {
+    setSeatGrid(prev => ({
+      ...prev,
+      seats: prev.seats.map(seat => 
+        seat.number === columnNumber 
+          ? { ...seat, ...updates, isModified: true }
+          : seat
+      )
+    }));
+    
+    toast.success(`Đã áp dụng cho tất cả ghế cột ${columnNumber}`);
+  };
+
+  // Save all seat changes
+  const handleSaveAllSeats = async () => {
+    if (!selectedRoom) return;
+    
+    try {
+      const currentSeats = seatGrid.seats;
+      const originalIds = originalSeats.map(s => s._id);
+      
+      // Find seats to create, update, or delete
+      const toCreate = currentSeats.filter(s => s.isNew);
+      const toUpdate = currentSeats.filter(s => !s.isNew && s.isModified);
+      const toDelete = originalSeats.filter(orig => 
+        !currentSeats.find(curr => curr.id === orig._id)
+      );
+      
+      // Execute batch operations
+      const promises = [];
+      
+      // Create new seats
+      for (const seat of toCreate) {
+        promises.push(
+          addSeat(selectedRoom._id, {
+            row: seat.row,
+            number: seat.number,
+            type: seat.type,
+            status: seat.status
+          })
+        );
+      }
+      
+      // Update modified seats
+      for (const seat of toUpdate) {
+        promises.push(
+          updateSeat(seat.id, {
+            row: seat.row,
+            number: seat.number,
+            type: seat.type,
+            status: seat.status
+          })
+        );
+      }
+      
+      // Delete removed seats
+      for (const seat of toDelete) {
+        promises.push(deleteSeat(seat._id));
+      }
+      
+      await Promise.all(promises);
+      
+      // Refresh seats
+      const data = await getSeatsByRoom(selectedRoom._id);
+      setRoomSeats(data.seats || []);
+      
+      toast.success('Đã lưu cấu hình ghế thành công!');
+      closeSeatModal();
+    } catch (err) {
+      const errorMsg = err?.message || 'Có lỗi xảy ra khi lưu cấu hình ghế';
+      toast.error(errorMsg);
+    }
+  };
+
+  // Open seat config modal with grid
+  const openSeatConfigModal = async (room) => {
+    try {
+      const data = await getSeatsByRoom(room._id);
+      const seats = data.seats || [];
+      
+      setRoomSeats(seats);
+      setSelectedRoom(room);
+      setOriginalSeats(seats);
+      
+      // Initialize grid based on actual seats
+      const grid = initializeSeatGrid(seats, 5, 10);
+      
+      // Calculate actual grid size from the grid
+      const maxRow = grid.length > 0 ? Math.max(...grid.map(s => s.row.charCodeAt(0) - 65)) + 1 : 5;
+      const maxCol = grid.length > 0 ? Math.max(...grid.map(s => s.number)) : 10;
+      
+      setSeatGrid({
+        rows: Math.max(5, maxRow),
+        columns: Math.max(10, maxCol),
+        seats: grid
+      });
+      
+      setShowSeatModal(true);
+    } catch (err) {
+      const errorMsg = err?.message || 'Có lỗi xảy ra khi tải danh sách ghế';
+      toast.error(errorMsg);
+    }
+  };
+
+  // Get seat by row and number
+  const getSeatByPosition = (row, number) => {
+    return seatGrid.seats.find(s => s.row === row && s.number === number);
+  };
+
+  // Get row labels
+  const getRowLabels = () => {
+    const rowLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    return rowLabels.slice(0, seatGrid.rows).split('');
+  };
+
+  // Get column numbers
+  const getColumnNumbers = () => {
+    return Array.from({ length: seatGrid.columns }, (_, i) => i + 1);
   };
 
   const openEditCinemaModal = () => {
@@ -596,9 +920,9 @@ const CinemaManagement = () => {
                     <td>
                       <button 
                         className="btn btn-sm btn-info"
-                        onClick={() => fetchRoomSeats(room)}
+                        onClick={() => openSeatConfigModal(room)}
                       >
-                        Quản lý ghế
+                        Cấu hình ghế
                       </button>
                       <button 
                         className="btn btn-sm btn-edit"
@@ -744,17 +1068,6 @@ const CinemaManagement = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Số ghế *</label>
-                  <input
-                    type="number"
-                    name="capacity"
-                    value={roomFormData.capacity}
-                    onChange={handleRoomInputChange}
-                    required
-                    min="1"
-                  />
-                </div>
-                <div className="form-group">
                   <label>Loại phòng</label>
                   <select name="type" value={roomFormData.type} onChange={handleRoomInputChange}>
                     {ROOM_TYPES.map(type => (
@@ -762,6 +1075,33 @@ const CinemaManagement = () => {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="form-group">
+                <label>Cấu hình ghế</label>
+                <button 
+                  type="button" 
+                  className="btn btn-info"
+                  onClick={() => {
+                    if (editingRoom) {
+                      openSeatConfigModal(editingRoom);
+                    } else {
+                      toast.error('Vui lòng lưu phòng trước khi cấu hình ghế');
+                    }
+                  }}
+                >
+                  Mở cấu hình ghế
+                </button>
+                {editingRoom && roomSeats.length > 0 && (
+                  <div className="seat-summary">
+                    <span className="seat-summary-text">
+                      {roomSeats.filter(s => s.status !== 'Deleted').length} ghế ({seatGrid.rows} hàng × {seatGrid.columns} ghế) - 
+                      Standard: {roomSeats.filter(s => s.type === 'Standard' && s.status !== 'Deleted').length}, 
+                      VIP: {roomSeats.filter(s => s.type === 'VIP' && s.status !== 'Deleted').length},
+                      Double: {roomSeats.filter(s => s.type === 'Double' && s.status !== 'Deleted').length}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="form-row">
@@ -891,96 +1231,217 @@ const CinemaManagement = () => {
         </div>
       )}
 
-      {/* Seat Management Modal */}
+      {/* Seat Configuration Modal - New Design */}
       {showSeatModal && selectedRoom && (
         <div className="modal-overlay" onClick={closeSeatModal}>
-          <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content modal-xl" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Quản lý ghế - {selectedRoom.name}</h3>
+              <h3>Cấu hình ghế - {selectedRoom.name}</h3>
               <button className="modal-close" onClick={closeSeatModal}>&times;</button>
             </div>
             <div className="modal-body">
-              <div className="seat-management">
-                <div className="seat-form-section">
-                  <h4>{editingSeat ? 'Sửa ghế' : 'Thêm ghế mới'}</h4>
-                  <form onSubmit={handleSeatSubmit} className="seat-form">
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Hàng *</label>
-                        <input
-                          type="text"
-                          name="row"
-                          value={seatFormData.row}
-                          onChange={handleSeatInputChange}
-                          placeholder="VD: A, B, C"
-                          required
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Số *</label>
-                        <input
-                          type="number"
-                          name="number"
-                          value={seatFormData.number}
-                          onChange={handleSeatInputChange}
-                          placeholder="VD: 1, 2, 3"
-                          required
-                          min="1"
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Loại ghế</label>
-                        <select name="type" value={seatFormData.type} onChange={handleSeatInputChange}>
-                          <option value="Standard">Standard</option>
-                          <option value="VIP">VIP</option>
-                          <option value="Couple">Couple</option>
-                        </select>
-                      </div>
+              <div className="seat-config-container">
+                {/* Row/Column Configuration */}
+                <div className="seat-config-toolbar">
+                  <div className="seat-config-inputs">
+                    <div className="seat-config-input-group">
+                      <label>Số hàng:</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="26"
+                        value={seatGrid.rows}
+                        onChange={(e) => {
+                          const newRows = parseInt(e.target.value) || 1;
+                          if (newRows >= 1 && newRows <= 26) {
+                            setSeatGrid(prev => ({ ...prev, rows: newRows }));
+                          }
+                        }}
+                        className="seat-config-input"
+                      />
                     </div>
-                    <div className="form-actions">
-                      {editingSeat && (
-                        <button type="button" className="btn btn-secondary" onClick={openAddSeatModal}>
-                          Thêm mới
-                        </button>
-                      )}
-                      <button type="submit" className="btn btn-primary">
-                        {editingSeat ? 'Cập nhật' : 'Thêm ghế'}
-                      </button>
+                    <div className="seat-config-input-group">
+                      <label>Số ghế mỗi hàng:</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="50"
+                        value={seatGrid.columns}
+                        onChange={(e) => {
+                          const newCols = parseInt(e.target.value) || 1;
+                          if (newCols >= 1 && newCols <= 50) {
+                            setSeatGrid(prev => ({ ...prev, columns: newCols }));
+                          }
+                        }}
+                        className="seat-config-input"
+                      />
                     </div>
-                  </form>
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => {
+                        const newSeats = [];
+                        const rowLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                        for (let r = 0; r < seatGrid.rows; r++) {
+                          const rowLabel = rowLabels[r];
+                          for (let c = 1; c <= seatGrid.columns; c++) {
+                            const existingSeat = seatGrid.seats.find(s => s.row === rowLabel && s.number === c);
+                            if (existingSeat) {
+                              newSeats.push(existingSeat);
+                            } else {
+                              newSeats.push({
+                                id: `temp_${rowLabel}${c}`,
+                                row: rowLabel,
+                                number: c,
+                                type: 'Standard',
+                                status: 'Available',
+                                isNew: true,
+                                isModified: false
+                              });
+                            }
+                          }
+                        }
+                        setSeatGrid(prev => ({ ...prev, seats: newSeats }));
+                        toast.success('Đã tạo sơ đồ ghế mới!');
+                      }}
+                    >
+                      Tạo sơ đồ
+                    </button>
+                  </div>
                 </div>
 
-                <div className="seat-list-section">
-                  <h4>Danh sách ghế ({roomSeats.length})</h4>
-                  <div className="seat-grid">
-                    {roomSeats.map((seat) => (
-                      <div key={seat._id} className="seat-item">
-                        <div className="seat-info">
-                          <span className="seat-label">{seat.row}{seat.number}</span>
-                          <span className={`seat-type badge badge-${seat.type === 'VIP' ? 'warning' : seat.type === 'Couple' ? 'primary' : 'info'}`}>
-                            {seat.type}
-                          </span>
+                {/* Screen Display */}
+                <div className="screen-display">
+                  <div className="screen-label">MÀN HÌNH CHIẾU</div>
+                  <div className="screen-line"></div>
+                </div>
+
+                {/* Seat Grid */}
+                <div className="seat-grid-container">
+                  <div className="seat-grid-wrapper">
+                    {getRowLabels().map(rowLabel => {
+                      return (
+                        <div key={rowLabel} className="seat-row">
+                          <div className="seat-cells">
+                            {getColumnNumbers().map(colNumber => {
+                              const seat = getSeatByPosition(rowLabel, colNumber);
+                              
+                              if (seat) {
+                                return (
+                                  <div
+                                    key={seat.id}
+                                    className={`seat-cell ${seat.type.toLowerCase()} ${seat.status === 'Deleted' ? 'deleted' : ''} ${selectedSeat?.id === seat.id ? 'selected' : ''}`}
+                                    onClick={(e) => {
+                                      if (e.button === 0) { // Left click
+                                        if (seat.status === 'Deleted') {
+                                          // Restore deleted seat
+                                          handleUpdateSeatInGrid(seat.id, { status: 'Available' });
+                                          toast.success(`Đã khôi phục ghế ${seat.row}${seat.number}`);
+                                        } else {
+                                          // Toggle between Standard, VIP, and Double
+                                          const types = ['Standard', 'VIP', 'Double'];
+                                          const currentIndex = types.indexOf(seat.type);
+                                          const newType = types[(currentIndex + 1) % types.length];
+                                          handleUpdateSeatInGrid(seat.id, { type: newType });
+                                          toast.success(`Đã chuyển ghế ${seat.row}${seat.number} sang ${newType}`);
+                                        }
+                                      }
+                                    }}
+                                    onContextMenu={(e) => {
+                                      e.preventDefault();
+                                      if (seat.status !== 'Deleted') {
+                                        handleUpdateSeatInGrid(seat.id, { status: 'Deleted' });
+                                        toast.success(`Đã xóa ghế ${seat.row}${seat.number}`);
+                                      }
+                                    }}
+                                    title={`${seat.row}${seat.number} - ${seat.type} - ${seat.status === 'Deleted' ? 'Đã xóa (Click để khôi phục)' : seat.status === 'Available' ? 'Còn trống' : 'Đã đặt'}\nClick trái: Chuyển Standard ↔ VIP ↔ Double\nClick phải: Xóa ghế`}
+                                  >
+                                    {seat.status === 'Deleted' ? (
+                                      <span className="seat-deleted-x">×</span>
+                                    ) : (
+                                      <span className="seat-number">{seat.row}{seat.number}</span>
+                                    )}
+                                  </div>
+                                );
+                              } else {
+                                // Empty cell - show add button
+                                return (
+                                  <div
+                                    key={`empty_${rowLabel}${colNumber}`}
+                                    className="seat-cell empty"
+                                    onClick={() => {
+                                      // Add new seat at this position
+                                      const newSeat = {
+                                        id: `temp_${rowLabel}${colNumber}`,
+                                        row: rowLabel,
+                                        number: colNumber,
+                                        type: 'Standard',
+                                        status: 'Available',
+                                        isNew: true,
+                                        isModified: false
+                                      };
+                                      setSeatGrid(prev => ({
+                                        ...prev,
+                                        seats: [...prev.seats, newSeat]
+                                      }));
+                                      toast.success(`Đã thêm ghế ${rowLabel}${colNumber}`);
+                                    }}
+                                    title={`Thêm ghế ${rowLabel}${colNumber}`}
+                                  >
+                                    <span className="seat-add-icon">+</span>
+                                  </div>
+                                );
+                              }
+                            })}
+                          </div>
                         </div>
-                        <div className="seat-actions">
-                          <button 
-                            className="btn btn-sm btn-edit"
-                            onClick={() => handleEditSeat(seat)}
-                          >
-                            Sửa
-                          </button>
-                          <button 
-                            className="btn btn-sm btn-delete"
-                            onClick={() => handleDeleteSeatClick(seat._id)}
-                          >
-                            Xóa
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    {roomSeats.length === 0 && (
-                      <div className="no-seats">Chưa có ghế nào</div>
-                    )}
+                      );
+                    })}
                   </div>
+                </div>
+
+                {/* Legend */}
+                <div className="seat-legend">
+                  <div className="legend-item">
+                    <div className="legend-color standard"></div>
+                    <span>Standard</span>
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-color vip"></div>
+                    <span>VIP</span>
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-color double"></div>
+                    <span>Double</span>
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-color deleted"></div>
+                    <span>Đã xóa</span>
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-color empty"></div>
+                    <span>Trống (Click để thêm)</span>
+                  </div>
+                </div>
+
+                {/* Instructions */}
+                <div className="seat-instructions">
+                  <h4>Thao tác:</h4>
+                  <ul>
+                    <li><strong>Click ô trống</strong> → Thêm ghế mới</li>
+                    <li><strong>Click ghế</strong> → Chuyển Standard ↔ VIP ↔ Double</li>
+                    <li><strong>Click chuột phải</strong> → Xóa ghế</li>
+                    <li><strong>Click ghế đã xóa</strong> → Khôi phục</li>
+                  </ul>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="modal-actions">
+                  <button type="button" className="btn btn-secondary" onClick={closeSeatModal}>
+                    Hủy
+                  </button>
+                  <button type="button" className="btn btn-primary" onClick={handleSaveAllSeats}>
+                    Lưu cấu hình
+                  </button>
                 </div>
               </div>
             </div>

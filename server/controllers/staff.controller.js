@@ -44,23 +44,33 @@ const createTicketCode = () =>
     .slice(2, 4)
     .toUpperCase()}`;
 
-const populateSeatmap = async (seatmapId) =>
-  Seatmap.findById(seatmapId).populate("seats");
+const populateSeatmap = async (seatmapId) => {
+  const seatmap = await Seatmap.findById(seatmapId);
+  if (!seatmap) return null;
+  
+  // Get seats from Room instead of Seatmap
+  const room = await Room.findById(seatmap.roomId).populate("seats");
+  if (!room) return seatmap;
+  
+  // Return seatmap with seats from Room
+  return {
+    ...seatmap.toObject(),
+    seats: room.seats || []
+  };
+};
 
-const cloneRoomSeatmapToShowtime = async (roomSeatmap, showtimeId) => {
-  const clonedSeats = await Seat.insertMany(
-    (roomSeatmap.seats || []).map((seat) => ({
-      row: seat.row,
-      number: seat.number,
-      type: seat.type || "Standard",
-      status: "Available",
-    })),
-  );
+const cloneRoomSeatmapToShowtime = async (room, showtimeId) => {
+  // Get seats from Room
+  const roomWithSeats = await Room.findById(room._id || room).populate("seats");
+  if (!roomWithSeats || !roomWithSeats.seats || roomWithSeats.seats.length === 0) {
+    throw new Error("Room has no seats");
+  }
 
+  // Create seatmap for showtime (seats are already in Room)
   return Seatmap.create({
-    roomId: roomSeatmap.roomId,
+    roomId: roomWithSeats._id,
     showtimes: showtimeId,
-    seats: clonedSeats.map((seat) => seat._id),
+    capacity: roomWithSeats.seats.length
   });
 };
 
@@ -78,18 +88,24 @@ const createSeatmapForShowtime = async (showtime, room) => {
   const actualCapacity = roomData?.capacity || 60; // Default to 60 if still 0
   console.log("Creating seatmap with capacity:", actualCapacity);
   
-  if (roomData?.seatmapId) {
-    const roomSeatmap = await Seatmap.findById(roomData.seatmapId).populate("seats");
-    if (roomSeatmap && roomSeatmap.seats?.length > 0) {
-      return cloneRoomSeatmapToShowtime(roomSeatmap, showtime._id);
-    }
+  // Check if room already has seats
+  if (roomData?.seats && roomData.seats.length > 0) {
+    return cloneRoomSeatmapToShowtime(roomData, showtime._id);
   }
 
+  // If room has no seats, create them
   const seats = await Seat.insertMany(buildSeatBlueprint(actualCapacity));
+  
+  // Update room with seats
+  await Room.findByIdAndUpdate(roomData._id, {
+    seats: seats.map((seat) => seat._id),
+    capacity: seats.length
+  });
+  
   return Seatmap.create({
     roomId: roomData._id,
     showtimes: showtime._id,
-    seats: seats.map((seat) => seat._id),
+    capacity: seats.length
   });
 };
 
@@ -114,8 +130,7 @@ const ensureShowtimeSeatmap = async (showtimeInput) => {
     console.log("Method 1: Checking showtime.seatMap field...");
     const existingSeatmap = await populateSeatmap(showtime.seatMap);
     if (existingSeatmap) {
-      // FIX: Check if seatmap has seats, if not generate them!
-      // Also check if number of seats matches room capacity
+      // Check if seatmap has seats (from Room)
       const room = await Room.findById(showtime.roomId);
       const expectedCapacity = room?.capacity || 60;
       
@@ -125,9 +140,9 @@ const ensureShowtimeSeatmap = async (showtimeInput) => {
         // Create new seats with correct capacity
         const seats = await Seat.insertMany(buildSeatBlueprint(expectedCapacity));
         
-        // Update seatmap using findByIdAndUpdate to avoid VersionError
-        await Seatmap.findByIdAndUpdate(existingSeatmap._id, {
-          $set: { seats: seats.map(s => s._id) }
+        // Update room with seats
+        await Room.findByIdAndUpdate(showtime.roomId, {
+          $set: { seats: seats.map(s => s._id), capacity: seats.length }
         });
         
         // Reload with populated seats
@@ -137,37 +152,35 @@ const ensureShowtimeSeatmap = async (showtimeInput) => {
     }
   }
 
-  let seatmap = await Seatmap.findOne({ showtimes: showtime._id }).populate("seats");
+  let seatmap = await Seatmap.findOne({ showtimes: showtime._id });
   console.log("Method 2: Finding by showtimes field:", seatmap ? "found" : "not found");
   
   if (seatmap) {
-    // FIX: Also check if found seatmap has correct number of seats
+    // Check if found seatmap has correct number of seats
     console.log("Method 2: Seatmap found, checking capacity...");
     const room = await Room.findById(showtime.roomId);
     console.log("Method 2: Room found:", room ? "yes" : "no", "| capacity:", room?.capacity);
     const expectedCapacity = room?.capacity || 60;
     
-    if (!seatmap.seats || seatmap.seats.length === 0) {
-      console.log(`Staff: Found seatmap has ${seatmap.seats?.length || 0} seats! Generating...`, seatmap._id);
+    if (!room.seats || room.seats.length === 0) {
+      console.log(`Staff: Room has ${room.seats?.length || 0} seats! Generating...`, room._id);
       
       const seats = await Seat.insertMany(buildSeatBlueprint(expectedCapacity));
       
-      // Update seatmap using findByIdAndUpdate to avoid VersionError
-      await Seatmap.findByIdAndUpdate(seatmap._id, {
-        $set: { seats: seats.map(s => s._id) }
+      // Update room with seats
+      await Room.findByIdAndUpdate(room._id, {
+        $set: { seats: seats.map(s => s._id), capacity: seats.length }
       });
-      
-      seatmap = await populateSeatmap(seatmap._id);
     }
     
     if (!showtime.seatMap || showtime.seatMap.toString() !== seatmap._id.toString()) {
       await Showtime.findByIdAndUpdate(showtime._id, { $set: { seatMap: seatmap._id } });
     }
-    return seatmap;
+    return await populateSeatmap(seatmap._id);
   }
 
   const room = await Room.findById(showtime.roomId);
-  console.log("Method 4: Trying room.seatmapId:", room?.seatmapId || "none");
+  console.log("Method 4: Trying room.seats:", room?.seats?.length || 0, "seats");
   
   if (!room) {
     const error = new Error("Phòng chiếu không tồn tại");
@@ -1117,8 +1130,14 @@ exports.unlockInternalSeats = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy seatmap" });
     }
 
+    // Get seats from Room instead of Seatmap
+    const room = await Room.findById(seatmap.roomId).populate("seats");
+    if (!room || !room.seats || room.seats.length === 0) {
+      return res.status(404).json({ message: "Không tìm thấy ghế trong phòng" });
+    }
+
     const internalSeats = await Seat.find({
-      _id: { $in: seatmap.seats },
+      _id: { $in: room.seats.map(s => s._id) },
       status: "Internal",
     });
 
