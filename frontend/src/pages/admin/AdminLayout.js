@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+﻿import React, { useState, useContext } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { UserContext } from "../../context/UserContext";
 import "../../assets/styles/AdminLayout.css";
@@ -13,6 +13,8 @@ const AdminLayout = ({ children }) => {
   const allMenuItems = [
     { path: "/admin/dashboard", label: "Dashboard" },
     { path: "/admin/movies", label: "Quản lý Phim" },
+    { path: "/admin/actors", label: "Quản lý Diễn viên" },
+    { path: "/admin/directors", label: "Quản lý Đạo diễn" },
     { path: "/admin/cinemas", label: "Quản lý Rạp & Phòng" },
     { path: "/admin/showtimes", label: "Quản lý Lịch Chiếu" },
     // { path: "/admin/staff-register", label: "Đăng ký Staff" },

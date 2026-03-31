@@ -51,7 +51,7 @@ export default function MovieDetail() {
       let showtimesData = [];
 
       if (movieData.showtimes && movieData.showtimes.length > 0) {
-        const showtimeIds = movieData.showtimes.map(s => s._id || s);
+        const showtimeIds = movieData.showtimes.map((s) => s._id || s);
         showtimesData = await getShowtimesByIds(showtimeIds);
       } else {
         // Fallback
@@ -97,7 +97,14 @@ export default function MovieDetail() {
         title: movie.title,
         posterUrl: movie.posterUrl,
         duration: movie.duration,
-        director: movie.director,
+        director: Array.isArray(movie.directors)
+          ? movie.directors
+              .map((d) => (typeof d === "string" ? d : d?.name))
+              .filter(Boolean)
+              .join(", ")
+          : typeof movie.director === "string"
+          ? movie.director
+          : movie.director?.name,
       },
       cinema: {
         _id: cinema?._id,
@@ -166,7 +173,7 @@ export default function MovieDetail() {
         <div className="not-found-icon"></div>
         <h2>Không tìm thấy phim</h2>
         <p>Phim bạn đang tìm kiếm không tồn tại hoặc đã bị xóa.</p>
-        <button className="btn btn-back" onClick={() => navigate('/')}>
+        <button className="btn btn-back" onClick={() => navigate("/")}>
           Về trang chủ
         </button>
       </div>

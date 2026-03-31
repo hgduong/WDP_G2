@@ -4,6 +4,27 @@ import "../assets/styles/MovieDetail/_movie-info.css";
 export default function MovieInfo({ movie, onBookingClick }) {
   if (!movie) return null;
 
+
+
+
+  const directorName = Array.isArray(movie.directors)
+    ? movie.directors
+        .map((d) => (typeof d === "string" ? d : d?.name))
+        .filter(Boolean)
+        .join(", ")
+    : typeof movie.director === "string"
+    ? movie.director
+    : movie.director?.name || "";
+
+  const castNames = Array.isArray(movie.cast)
+    ? movie.cast
+        .map((member) => (typeof member === "string" ? member : member?.name))
+        .filter(Boolean)
+        .join(", ")
+    : typeof movie.cast === "string"
+    ? movie.cast
+    : "";
+
   return (
     <div className="movie-info">
       <div className="movie-poster">
@@ -36,7 +57,7 @@ export default function MovieInfo({ movie, onBookingClick }) {
           )}
           {/* {movie.rating && (
             <span className="meta-item">
-              <span className="meta-icon">⭐</span>
+              <span className="meta-icon">â­</span>
               <span className="meta-label">Đánh giá:</span>
               <span className="meta-value">{movie.rating}/10</span>
             </span>
@@ -47,28 +68,22 @@ export default function MovieInfo({ movie, onBookingClick }) {
           <div className="movie-genre">
             <span className="genre-label">Thể loại:</span>
             <span className="genre-value">
-              {Array.isArray(movie.genre)
-                ? movie.genre.join(", ")
-                : movie.genre}
+              {Array.isArray(movie.genre) ? movie.genre.join(", ") : movie.genre}
             </span>
           </div>
         )}
 
-        {movie.director && (
+        {directorName && (
           <div className="movie-director">
             <span className="director-label">Đạo diễn:</span>
-            <span className="director-value">{movie.director}</span>
+            <span className="director-value">{directorName}</span>
           </div>
         )}
 
-        {movie.cast && (
+        {castNames && (
           <div className="movie-cast">
             <span className="cast-label">Diễn viên:</span>
-            <span className="cast-value">
-              {Array.isArray(movie.cast)
-                ? movie.cast.join(", ")
-                : movie.cast}
-            </span>
+            <span className="cast-value">{castNames}</span>
           </div>
         )}
 

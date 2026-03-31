@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   getAllMovies,
+  getMovieById,
   createMovie,
   updateMovie,
   deleteMovie,
@@ -33,6 +34,8 @@ const MovieManagement = () => {
   const [deletingMovieId, setDeletingMovieId] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [editingMovie, setEditingMovie] = useState(null);
+  const [displayDirectorName, setDisplayDirectorName] = useState("");
+  const [displayCastNames, setDisplayCastNames] = useState("");
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -41,8 +44,7 @@ const MovieManagement = () => {
     releaseDate: "",
     endDate: "",
     language: "",
-    director: "",
-    cast: "",
+    cast: [],
     rating: "",
     posterUrl: "",
     trailerUrl: "",
@@ -165,22 +167,48 @@ const MovieManagement = () => {
     }
   };
 
-  const handleEdit = (movie) => {
-    setEditingMovie(movie);
+  const handleEdit = async (movie) => {
+    let latestMovie = movie;
+    try {
+      const refreshed = await getMovieById(movie._id);
+      if (refreshed) latestMovie = refreshed;
+    } catch (err) {
+      console.error(err);
+    }
+
+    const directorName = Array.isArray(latestMovie.directors)
+      ? latestMovie.directors
+          .map((d) => (typeof d === "string" ? d : d?.name))
+          .filter(Boolean)
+          .join(", ")
+      : typeof latestMovie.director === "string"
+      ? latestMovie.director
+      : latestMovie.director?.name || "";
+    const castNames = Array.isArray(latestMovie.cast)
+      ? latestMovie.cast
+          .map((member) => (typeof member === "string" ? member : member?.name))
+          .filter(Boolean)
+          .join(", ")
+      : "";
+
+    setEditingMovie(latestMovie);
+    setDisplayDirectorName(directorName);
+    setDisplayCastNames(castNames);
     setFormData({
-      title: movie.title || "",
-      description: movie.description || "",
-      genre: movie.genre || [],
-      duration: movie.duration || "",
-      releaseDate: movie.releaseDate ? movie.releaseDate.split("T")[0] : "",
-      endDate: movie.endDate ? movie.endDate.split("T")[0] : "",
-      language: movie.language || "",
-      director: movie.director || "",
-      cast: movie.cast || "",
-      rating: movie.rating || "",
-      posterUrl: movie.posterUrl || "",
-      trailerUrl: movie.trailerUrl || "",
-      status: movie.status || "ComingSoon",
+      title: latestMovie.title || "",
+      description: latestMovie.description || "",
+      genre: latestMovie.genre || [],
+      duration: latestMovie.duration || "",
+      releaseDate: latestMovie.releaseDate ? latestMovie.releaseDate.split("T")[0] : "",
+      endDate: latestMovie.endDate ? latestMovie.endDate.split("T")[0] : "",
+      language: latestMovie.language || "",
+      cast: Array.isArray(latestMovie.cast)
+        ? latestMovie.cast.map((member) => (typeof member === "string" ? member : member?._id)).filter(Boolean)
+        : [],
+      rating: latestMovie.rating || "",
+      posterUrl: latestMovie.posterUrl || "",
+      trailerUrl: latestMovie.trailerUrl || "",
+      status: latestMovie.status || "ComingSoon",
     });
     setShowModal(true);
   };
@@ -224,8 +252,7 @@ const MovieManagement = () => {
       releaseDate: "",
       endDate: "",
       language: "",
-      director: "",
-      cast: "",
+      cast: [],
       rating: "",
       posterUrl: "",
       trailerUrl: "",
@@ -237,6 +264,8 @@ const MovieManagement = () => {
   const closeModal = () => {
     setShowModal(false);
     setEditingMovie(null);
+    setDisplayDirectorName("");
+    setDisplayCastNames("");
   };
 
   const getStatusBadge = (status) => {
@@ -339,9 +368,9 @@ const MovieManagement = () => {
             <form onSubmit={handleSubmit} className="modal-form">
               <div className="form-row">
                 <div className="form-group">
-  <label>Tên phim *</label>
-  <input type="text" name="title" value={formData.title} onChange={handleInputChange} required style={{width: '100%', maxWidth: '500px'}} />
-</div>
+                  <label>Tên phim *</label>
+                  <input type="text" name="title" value={formData.title} onChange={handleInputChange} required style={{width: '100%', maxWidth: '500px'}} />
+                </div>
                 <div className="form-group">
                   <label>Thể loại (chọn nhiều)</label>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "5px" }}>
@@ -361,17 +390,16 @@ const MovieManagement = () => {
 
               <div className="form-row">
                 <div className="form-group">
-  <label>Thời lượng (phút)</label>
-  <input type="number" name="duration" value={formData.duration} onChange={handleInputChange} min="0" style={{ MozAppearance: 'textfield' }} />
-</div>
+                  <label>Thời lượng (phút)</label>
+                  <input type="number" name="duration" value={formData.duration} onChange={handleInputChange} min="0" style={{ MozAppearance: 'textfield' }} />
+                </div>
                 <div className="form-group">
-  <label>Ngôn ngữ</label>
-  <select name="language" value={formData.language} onChange={handleInputChange}>
-    <option value="Tiếng Việt">Tiếng Việt</option>
-    <option value="Tiếng Anh">Tiếng Anh</option>
-   
-  </select>
-</div>
+                  <label>Ngôn ngữ</label>
+                  <select name="language" value={formData.language} onChange={handleInputChange}>
+                    <option value="Tiếng Việt">Tiếng Việt</option>
+                    <option value="Tiếng Anh">Tiếng Anh</option>
+                  </select>
+                </div>
               </div>
 
               <div className="form-row">
@@ -409,18 +437,18 @@ const MovieManagement = () => {
               </div>
 
               <div className="form-group">
-                <label>Đạo diễn</label>
-                <input type="text" name="director" value={formData.director} onChange={handleInputChange} />
+                <label>Đạo diễn (Tự động hiển thị) </label>
+                <input type="text" value={displayDirectorName} disabled />
+              </div>
+
+              <div className="form-group">
+                <label>Diễn viên(Tự động hiển thị)</label>
+                <textarea value={displayCastNames} rows="2" disabled />
               </div>
 
               <div className="form-group">
                 <label>Mô tả</label>
                 <textarea name="description" value={formData.description} onChange={handleInputChange} rows="3" />
-              </div>
-
-              <div className="form-group">
-                <label>Diễn viên</label>
-                <input type="text" name="cast" value={formData.cast} onChange={handleInputChange} />
               </div>
 
               <div className="form-row">
@@ -498,3 +526,5 @@ const MovieManagement = () => {
 };
 
 export default MovieManagement;
+
+

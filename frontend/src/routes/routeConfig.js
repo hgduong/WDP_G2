@@ -42,6 +42,8 @@ import UserManagement from "../pages/admin/UserManagement";
 import VoucherManagement from "../pages/admin/VoucherManagement";
 import ScheduleManagement from "../pages/admin/ScheduleManagement";
 import AttendanceTracking from "../pages/admin/AttendanceTracking";
+import ActorsManagement from "../pages/admin/ActorsManagement";
+import DirectorsManagement from "../pages/admin/DirectorsManagement";
 
 export const routesConfig = [
   {
@@ -172,6 +174,16 @@ export const routesConfig = [
   {
     path: "/admin/movies",
     element: <MovieManagement />,
+    allowedRoles: ["Admin"],
+  },
+  {
+    path: "/admin/actors",
+    element: <ActorsManagement />,
+    allowedRoles: ["Admin"],
+  },
+  {
+    path: "/admin/directors",
+    element: <DirectorsManagement />,
     allowedRoles: ["Admin"],
   },
   {
