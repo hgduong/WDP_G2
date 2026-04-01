@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState, useRef } from "react";
+import { toast } from "react-toastify";
 import {
   getAllStaff,
   createStaff,
@@ -42,6 +43,7 @@ const StaffManagement = () => {
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
@@ -55,11 +57,29 @@ const StaffManagement = () => {
   const [provinces, setProvinces] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [wards, setWards] = useState([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState("");
+  const confirmActionRef = useRef(null);
+  const lastPasswordByStaffRef = useRef({});
 
   useEffect(() => {
     fetchStaff();
     fetchProvinces();
   }, []);
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      setError("");
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (success) {
+      toast.success(success);
+      setSuccess("");
+    }
+  }, [success]);
 
   const fetchStaff = async () => {
     try {
@@ -67,8 +87,10 @@ const StaffManagement = () => {
       const data = await getAllStaff();
       setStaffList(Array.isArray(data) ? data : []);
       setError("");
+      setSuccess("");
     } catch (err) {
       setError(getApiErrorMessage(err, "Không thể tải danh sách staff"));
+      setSuccess("");
     } finally {
       setLoading(false);
     }
@@ -182,6 +204,7 @@ const StaffManagement = () => {
 
   const openAddModal = () => {
     setError("");
+    setSuccess("");
     setEditingStaff(null);
     setStaffFormData(defaultStaffFormData);
     setDistricts([]);
@@ -193,6 +216,7 @@ const StaffManagement = () => {
     const staffAddress = staff.address || {};
 
     setError("");
+    setSuccess("");
     setEditingStaff(staff);
     setStaffFormData({
       email: staff.email || "",
@@ -234,9 +258,29 @@ const StaffManagement = () => {
 
   const openPasswordModal = (staff) => {
     setError("");
+    setSuccess("");
     setSelectedStaff(staff);
     setPasswordFormData(defaultPasswordFormData);
     setShowPasswordModal(true);
+  };
+
+  const openConfirm = (message, action) => {
+    setConfirmMessage(message);
+    confirmActionRef.current = action;
+    setConfirmOpen(true);
+  };
+
+  const handleConfirm = () => {
+    if (confirmActionRef.current) {
+      confirmActionRef.current();
+    }
+    confirmActionRef.current = null;
+    setConfirmOpen(false);
+  };
+
+  const handleCancelConfirm = () => {
+    confirmActionRef.current = null;
+    setConfirmOpen(false);
   };
 
   const handleSubmit = async (e) => {
@@ -248,56 +292,77 @@ const StaffManagement = () => {
       if (editingStaff) {
         delete staffData.password;
         await updateStaff(editingStaff._id, staffData);
+        setSuccess("Cập nhật nhân viên thành công");
       } else {
         await createStaff(staffData);
+        setSuccess("Thêm nhân viên thành công");
       }
 
+      setError("");
       await fetchStaff();
       closeModal();
     } catch (err) {
       setError(getApiErrorMessage(err, "Không thể lưu staff"));
+      setSuccess("");
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn vô hiệu hóa nhân viên này?")) {
-      return;
-    }
-
-    try {
-      await deleteStaff(id);
-      await fetchStaff();
-    } catch (err) {
-      setError(getApiErrorMessage(err, "Không thể vô hiệu hóa staff"));
-    }
+  const handleDelete = (id) => {
+    openConfirm("Bạn có chắc muốn vô hiệu hóa nhân viên này?", async () => {
+      try {
+        await deleteStaff(id);
+        await fetchStaff();
+      } catch (err) {
+        setError(getApiErrorMessage(err, "Không thể vô hiệu hóa staff"));
+      }
+    });
   };
 
-  const handleStatusChange = async (id, currentStatus) => {
-    const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
-
+  const handleActivate = async (id) => {
     try {
-      await updateStaffStatus(id, newStatus);
+      await updateStaffStatus(id, { status: "Active" });
+      setSuccess("Cập nhật trạng thái thành công");
+      setError("");
       await fetchStaff();
     } catch (err) {
       setError(getApiErrorMessage(err, "Không thể cập nhật trạng thái"));
+      setSuccess("");
+    }
+  };
+
+  const handleBan = async (id) => {
+    try {
+      await updateStaffStatus(id, { status: "Banned" });
+      setSuccess("Đã chuyển nhân viên sang trạng thái bị cấm");
+      setError("");
+      await fetchStaff();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Không thể cập nhật trạng thái"));
+      setSuccess("");
     }
   };
 
   const handleApprove = async (id) => {
     try {
-      await updateStaffStatus(id, "Active");
+      await updateStaffStatus(id, { status: "Active" });
+      setSuccess("Duyệt nhân viên thành công");
+      setError("");
       await fetchStaff();
     } catch (err) {
       setError(getApiErrorMessage(err, "Không thể duyệt staff"));
+      setSuccess("");
     }
   };
 
   const handleReject = async (id) => {
     try {
-      await updateStaffStatus(id, "Inactive");
+      await updateStaffStatus(id, { status: "Inactive" });
+      setSuccess("Từ chối nhân viên thành công");
+      setError("");
       await fetchStaff();
     } catch (err) {
       setError(getApiErrorMessage(err, "Không thể từ chối staff"));
+      setSuccess("");
     }
   };
 
@@ -309,12 +374,24 @@ const StaffManagement = () => {
       return;
     }
 
+    const staffId = selectedStaff?._id;
+    if (
+      staffId &&
+      lastPasswordByStaffRef.current[staffId] === passwordFormData.newPassword
+    ) {
+      setError("Mật khẩu mới không được trùng với mật khẩu gần nhất");
+      return;
+    }
+
     try {
       await changeStaffPassword(selectedStaff._id, {
         newPassword: passwordFormData.newPassword,
       });
+      if (staffId) {
+        lastPasswordByStaffRef.current[staffId] = passwordFormData.newPassword;
+      }
       closePasswordModal();
-      window.alert("Đổi mật khẩu thành công");
+      setSuccess("Đổi mật khẩu thành công");
     } catch (err) {
       setError(getApiErrorMessage(err, "Không thể đổi mật khẩu"));
     }
@@ -388,7 +465,6 @@ const StaffManagement = () => {
         </div>
       </div>
 
-      {error && <div className="alert alert-danger">{error}</div>}
 
       <div className="section-header">
         <h3>Danh sách nhân viên ({filteredStaff.length})</h3>
@@ -432,46 +508,65 @@ const StaffManagement = () => {
                 </td>
                 <td>{getStatusBadge(staff.status)}</td>
                 <td>
-                  {staff.status === "Pending" ? (
-                    <>
+                  <div className="staff-actions">
+                    {staff.status === "Pending" ? (
+                      <>
+                        <button
+                          className="btn btn-sm btn-primary"
+                          onClick={() => handleApprove(staff._id)}
+                        >
+                          Duyệt
+                        </button>
+                        <button
+                          className="btn btn-sm btn-delete"
+                          onClick={() => handleReject(staff._id)}
+                        >
+                          Từ chối
+                        </button>
+                      </>
+                    ) : null}
+                    <button
+                      className="btn btn-sm btn-edit"
+                      onClick={() => openEditModal(staff)}
+                    >
+                      Sửa
+                    </button>
+                    <button
+                      className="btn btn-sm btn-change-password"
+                      onClick={() => openPasswordModal(staff)}
+                    >
+                      Đổi MK
+                    </button>
+                    {staff.status === "Active" && (
+                      <>
+                        <button
+                          className="btn btn-sm btn-delete"
+                          onClick={() => handleDelete(staff._id)}
+                        >
+                          Vô hiệu hóa
+                        </button>
+                        <button
+                          className="btn btn-sm btn-ban"
+                          onClick={() =>
+                            openConfirm(
+                              "Bạn có chắc muốn chuyển nhân viên này sang trạng thái bị cấm?",
+                              () => handleBan(staff._id),
+                            )
+                          }
+                        >
+                          Bị cấm
+                        </button>
+                      </>
+                    )}
+                    {(staff.status === "Inactive" || staff.status === "Banned") && (
                       <button
-                        className="btn btn-sm btn-primary"
-                        onClick={() => handleApprove(staff._id)}
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => handleActivate(staff._id)}
                       >
-                        Duyệt
+                        Mở lại
                       </button>
-                      <button
-                        className="btn btn-sm btn-delete"
-                        onClick={() => handleReject(staff._id)}
-                      >
-                        Từ chối
-                      </button>
-                    </>
-                  ) : null}
-                  <button
-                    className="btn btn-sm btn-edit"
-                    onClick={() => openEditModal(staff)}
-                  >
-                    Sửa
-                  </button>
-                  <button
-                    className="btn btn-sm btn-delete"
-                    onClick={() => handleDelete(staff._id)}
-                  >
-                    Vô hiệu hóa
-                  </button>
-                  <button
-                    className="btn btn-sm btn-change-password"
-                    onClick={() => openPasswordModal(staff)}
-                  >
-                    Đổi MK
-                  </button>
-                  <button
-                    className="btn btn-sm btn-secondary"
-                    onClick={() => handleStatusChange(staff._id, staff.status)}
-                  >
-                    {staff.status === "Active" ? "Tắt" : "Bật"}
-                  </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -739,8 +834,49 @@ const StaffManagement = () => {
           </div>
         </div>
       )}
+
+      {confirmOpen && (
+        <div className="modal-overlay" onClick={handleCancelConfirm}>
+          <div
+            className="modal-content modal-small"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3>Xác nhận</h3>
+              <button className="modal-close" onClick={handleCancelConfirm}>
+                &times;
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>{confirmMessage}</p>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleCancelConfirm}
+              >
+                Hủy
+              </button>
+              <button type="button" className="btn btn-danger" onClick={handleConfirm}>
+                Xác nhận
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default StaffManagement;
+
+
+
+
+
+
+
+
+
+
