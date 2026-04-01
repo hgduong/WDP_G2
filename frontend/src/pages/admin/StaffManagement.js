@@ -134,6 +134,18 @@ const StaffManagement = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
 
+    if (name === "phone") {
+      const digitsOnly = String(value).replace(/\D/g, "").slice(0, 11);
+      setStaffFormData((prev) => ({ ...prev, phone: digitsOnly }));
+      return;
+    }
+
+    if (name === "idCard") {
+      const digitsOnly = String(value).replace(/\D/g, "").slice(0, 12);
+      setStaffFormData((prev) => ({ ...prev, idCard: digitsOnly }));
+      return;
+    }
+
     if (name.startsWith("address.")) {
       const addressField = name.split(".")[1];
       setStaffFormData((prev) => ({
@@ -534,6 +546,9 @@ const StaffManagement = () => {
                     value={staffFormData.phone}
                     onChange={handleInputChange}
                     required
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={11}
                   />
                 </div>
                 <div className="form-group">
@@ -567,6 +582,9 @@ const StaffManagement = () => {
                     name="idCard"
                     value={staffFormData.idCard}
                     onChange={handleInputChange}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={12}
                   />
                 </div>
               </div>

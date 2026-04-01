@@ -49,6 +49,18 @@ function StaffRegistration() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
 
+    if (name === "phone") {
+      const digitsOnly = String(value).replace(/\D/g, "").slice(0, 11);
+      setFormData((prev) => ({ ...prev, phone: digitsOnly }));
+      return;
+    }
+
+    if (name === "idCard") {
+      const digitsOnly = String(value).replace(/\D/g, "").slice(0, 12);
+      setFormData((prev) => ({ ...prev, idCard: digitsOnly }));
+      return;
+    }
+
     if (name.startsWith("address.")) {
       const addressField = name.split(".")[1];
       setFormData((prev) => ({
@@ -207,6 +219,9 @@ function StaffRegistration() {
                 value={formData.phone}
                 onChange={handleInputChange}
                 required
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={11}
               />
             </div>
             <div className="form-group">
@@ -240,6 +255,9 @@ function StaffRegistration() {
                 name="idCard"
                 value={formData.idCard}
                 onChange={handleInputChange}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={12}
               />
             </div>
           </div>
