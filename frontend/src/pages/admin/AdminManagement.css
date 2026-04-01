@@ -602,6 +602,16 @@
   border-collapse: collapse;
 }
 
+.user-table {
+  table-layout: fixed;
+}
+
+.user-table th,
+.user-table td {
+  word-break: break-word;
+  white-space: normal;
+}
+
 .data-table th,
 .data-table td {
   padding: 14px 12px;
