@@ -1,13 +1,34 @@
-// OrderDetailsTable.jsx
 import React from "react";
-import { 
-  formatPrice, 
+import {
+  formatPrice,
   formatShowtime,
   getMovieInfo,
   getCinemaInfo,
   getRoomInfo,
-  getShowtimeInfo 
+  getShowtimeInfo,
 } from "../../utils/orderUtils";
+
+const seatLabel = (seat) => {
+  if (!seat) {
+    return "N/A";
+  }
+
+  if (typeof seat === "string") {
+    return seat;
+  }
+
+  if (seat.label) {
+    return seat.label;
+  }
+
+  if (seat.row) {
+    return seat.type === "Couple"
+      ? `${seat.row}${seat.number}-${seat.number + 1}`
+      : `${seat.row}${seat.number}`;
+  }
+
+  return "N/A";
+};
 
 const OrderDetailsTable = ({ orderData }) => {
   const movie = getMovieInfo(orderData);
@@ -39,8 +60,8 @@ const OrderDetailsTable = ({ orderData }) => {
           <tr>
             <td className="table-label">Rạp chiếu</td>
             <td className="table-value">
-              {cinema?.name || "N/A"} 
-              {cinema?.address && ` - ${cinema.address}`}
+              {cinema?.name || "N/A"}
+              {cinema?.address ? ` - ${cinema.address}` : ""}
             </td>
           </tr>
           <tr>
@@ -51,11 +72,11 @@ const OrderDetailsTable = ({ orderData }) => {
             <td className="table-label">Ghế ngồi</td>
             <td className="table-value">
               <div className="seats-list">
-                {orderData.seats?.map((seat, index) => (
-                  <span key={index} className="seat-tag">
-                    {seat.label || seat}
+                {(orderData.seats || []).map((seat, index) => (
+                  <span key={`${seat._id || seat}-${index}`} className="seat-tag">
+                    {seatLabel(seat)}
                   </span>
-                )) || "N/A"}
+                ))}
               </div>
             </td>
           </tr>
@@ -66,7 +87,7 @@ const OrderDetailsTable = ({ orderData }) => {
           <tr>
             <td className="table-label">Giá vé</td>
             <td className="table-value">
-              {formatPrice(showtime?.price || 75000)} × {orderData.seats?.length || 0}
+              {formatPrice(showtime?.price || 75000)} x {orderData.seats?.length || 0}
             </td>
           </tr>
           <tr className="total-row">

@@ -5,13 +5,18 @@ const API = axios.create({
   withCredentials: true,
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// BOOKINGS API (Prefix: /api/bookings)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-export const createBooking = async (bookingData) => {
+export const prepareQrBooking = async (bookingData) => {
   try {
-    const response = await API.post("/api/bookings", bookingData);
+    const response = await API.post("/api/bookings/prepare-qr", bookingData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const cancelBooking = async (bookingId) => {
+  try {
+    const response = await API.post(`/api/bookings/${bookingId}/cancel`);
     return response.data;
   } catch (error) {
     throw error.response?.data || error;
@@ -36,19 +41,9 @@ export const getBookingByCode = async (bookingCode) => {
   }
 };
 
-export const updateBookingPaymentStatus = async (bookingId, paymentData) => {
+export const getUserBookings = async () => {
   try {
-    const response = await API.patch(`/api/bookings/${bookingId}/payment`, paymentData);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
-export const getUserBookings = async (userId) => {
-  try {
-    const url = userId ? `/api/bookings/user/${userId}` : "/api/bookings/user";
-    const response = await API.get(url);
+    const response = await API.get("/api/bookings/user");
     return response.data;
   } catch (error) {
     throw error.response?.data || error;

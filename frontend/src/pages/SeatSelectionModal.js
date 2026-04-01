@@ -1,8 +1,38 @@
-// src/components/movie/SeatSelectionModal.jsx
-import { useState, useEffect } from "react";
-import { holdSeats, releaseSeats, getStaffBookingSeatMap, createBooking } from "../services/api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  getSeatmapByShowtime,
+  holdSeats,
+  prepareQrBooking,
+  releaseSeats,
+} from "../services/api";
 
-const HOLDING_TIME = 10; // giây
+const DEFAULT_PRICE = 75000;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const formatSeatLabel = (seat) => {
+  if (!seat) {
+    return "";
+  }
+
+  if (seat.label) {
+    return seat.label;
+  }
+
+  return seat.type === "Couple"
+    ? `${seat.row}${seat.number}-${seat.number + 1}`
+    : `${seat.row}${seat.number}`;
+};
+
+const formatCountdown = (totalSeconds) => {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+};
+
+const normalizePhone = (value) => value.replace(/[^\d]/g, "").slice(0, 11);
+
+const seatPrice = (seat, basePrice) =>
+  seat?.type === "Couple" ? basePrice * 2 : basePrice;
 
 export default function SeatSelectionModal({
   isOpen,
@@ -13,320 +43,541 @@ export default function SeatSelectionModal({
   onClose,
   onBookingSuccess,
 }) {
-  const [selectedSeats, setSelectedSeats] = useState([]);
-  const [availableSeats, setAvailableSeats] = useState([]);
+  const [seatMapData, setSeatMapData] = useState(null);
   const [seatModalLoading, setSeatModalLoading] = useState(false);
-  const [holdingSeats, setHoldingSeats] = useState({});
-  const [countdown, setCountdown] = useState(0);
-  const [remoteHeldSeats, setRemoteHeldSeats] = useState([]);
+  const [seatActionLoading, setSeatActionLoading] = useState(false);
+  const [preparingBooking, setPreparingBooking] = useState(false);
+  const [error, setError] = useState("");
+  const [nowTick, setNowTick] = useState(Date.now());
+  const [customerInfo, setCustomerInfo] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    notes: "",
+  });
 
-  // Socket listener
+  const bookingPreparedRef = useRef(false);
+  const releaseInFlightRef = useRef(false);
+  const selectedSeatIdsRef = useRef([]);
+  const showtimeIdRef = useRef(null);
+
+  const showtimeId = selectedShowtime?._id || null;
+  const basePrice = Number(selectedShowtime?.price || DEFAULT_PRICE);
+
   useEffect(() => {
-    if (!isOpen || !selectedShowtime || !socketRef?.current) return;
+    setCustomerInfo((current) => ({
+      ...current,
+      fullName: current.fullName || user?.fullName || "",
+      email: current.email || user?.email || "",
+      phone: current.phone || user?.phone || "",
+    }));
+  }, [user]);
 
-    const showtimeId = selectedShowtime._id;
+  const loadSeatMap = useCallback(
+    async (options = {}) => {
+      if (!showtimeId) {
+        return;
+      }
+
+      const { silent = false } = options;
+
+      try {
+        if (!silent) {
+          setSeatModalLoading(true);
+        }
+
+        const seatmap = await getSeatmapByShowtime(showtimeId);
+        setSeatMapData(seatmap);
+        setError("");
+      } catch (loadError) {
+        console.error("Error loading seatmap:", loadError);
+        if (!silent) {
+          setError(loadError?.message || "Không thể tải sơ đồ ghế.");
+        }
+      } finally {
+        if (!silent) {
+          setSeatModalLoading(false);
+        }
+      }
+    },
+    [showtimeId],
+  );
+
+  useEffect(() => {
+    if (!isOpen || !showtimeId) {
+      bookingPreparedRef.current = false;
+      setSeatMapData(null);
+      setError("");
+      return;
+    }
+
+    bookingPreparedRef.current = false;
+    loadSeatMap();
+  }, [isOpen, showtimeId, loadSeatMap]);
+
+  const selectedSeats = useMemo(
+    () => (seatMapData?.seats || []).filter((seat) => seat.isHeldByMe),
+    [seatMapData],
+  );
+
+  useEffect(() => {
+    selectedSeatIdsRef.current = selectedSeats.map((seat) => seat._id);
+    showtimeIdRef.current = showtimeId;
+  }, [selectedSeats, showtimeId]);
+
+  useEffect(() => {
+    if (!isOpen || selectedSeats.length === 0) {
+      setNowTick(Date.now());
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setNowTick(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isOpen, selectedSeats.length]);
+
+  const holdDeadline = useMemo(() => {
+    if (selectedSeats.length === 0) {
+      return null;
+    }
+
+    return selectedSeats.reduce((earliest, seat) => {
+      const seatDeadline = seat.heldUntil ? new Date(seat.heldUntil).getTime() : null;
+      if (!seatDeadline) {
+        return earliest;
+      }
+
+      if (!earliest) {
+        return seatDeadline;
+      }
+
+      return Math.min(earliest, seatDeadline);
+    }, null);
+  }, [selectedSeats]);
+
+  const countdownSeconds = holdDeadline
+    ? Math.max(0, Math.floor((holdDeadline - nowTick) / 1000))
+    : 0;
+
+  const totalPrice = selectedSeats.reduce(
+    (sum, seat) => sum + seatPrice(seat, basePrice),
+    0,
+  );
+
+  const releaseHeldSeats = useCallback(async (options = {}) => {
+    if (releaseInFlightRef.current || bookingPreparedRef.current) {
+      return;
+    }
+
+    const targetShowtimeId = options.showtimeId || showtimeIdRef.current;
+    const targetSeatIds = options.seatIds || selectedSeatIdsRef.current;
+
+    if (!targetShowtimeId || !Array.isArray(targetSeatIds) || targetSeatIds.length === 0) {
+      return;
+    }
+
+    releaseInFlightRef.current = true;
+
+    try {
+      await releaseSeats({
+        showtimeId: targetShowtimeId,
+        seatIds: targetSeatIds,
+      });
+    } catch (releaseError) {
+      console.error("Best-effort release failed:", releaseError);
+    } finally {
+      releaseInFlightRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || !showtimeId || !socketRef?.current) {
+      return undefined;
+    }
+
     const socket = socketRef.current;
+    const handleSeatChange = (payload) => {
+      if (payload?.showtimeId === showtimeId) {
+        loadSeatMap({ silent: true });
+      }
+    };
 
     socket.emit("join_showtime", showtimeId);
-
-    socket.on("seat_held", (data) => {
-      if (data.userId !== user?._id) {
-        setRemoteHeldSeats((prev) => [...prev, { _id: data.seatId, ...data }]);
-      }
-    });
-
-    socket.on("seat_released", (data) => {
-      setRemoteHeldSeats((prev) => prev.filter((s) => s._id !== data.seatId));
-    });
-
-    socket.on("seat_booked", (data) => {
-      setRemoteHeldSeats((prev) => prev.filter((s) => s._id !== data.seatId));
-      setSelectedSeats((prev) => prev.filter((s) => s.id !== data.seatId));
-    });
+    socket.on("showtime_seats_changed", handleSeatChange);
 
     return () => {
       socket.emit("leave_showtime", showtimeId);
-      socket.off("seat_held");
-      socket.off("seat_released");
-      socket.off("seat_booked");
+      socket.off("showtime_seats_changed", handleSeatChange);
     };
-  }, [isOpen, selectedShowtime, user]);
+  }, [isOpen, showtimeId, socketRef, loadSeatMap]);
 
-  // Load seat map
   useEffect(() => {
-    if (!isOpen || !selectedShowtime) return;
-
-    setSeatModalLoading(true);
-    getStaffBookingSeatMap(selectedShowtime._id)
-      .then((seatmapData) => {
-        const seats = seatmapData?.seats || seatmapData || [];
-        const transformed = seats.map((seat) => ({
-          id: seat._id,
-          label: seat.type === "Couple"
-            ? `${seat.row}${seat.number}-${seat.number + 1}`
-            : `${seat.row}${seat.number}`,
-          row: seat.row,
-          seatNumber: seat.number,
-          type: seat.type,
-          status: seat.status,
-          isCouple: seat.type === "Couple",
-        }));
-        setAvailableSeats(transformed);
-      })
-      .catch((err) => console.error("Error loading seatmap:", err))
-      .finally(() => setSeatModalLoading(false));
-  }, [isOpen, selectedShowtime]);
-
-  // Toggle seat
-  const toggleSeat = (seat) => {
-    if (seat.status === "Booked") {
-      alert("Ghế này đã được đặt!");
-      return;
+    if (!isOpen || !showtimeId) {
+      return undefined;
     }
 
-    const isRemoteHeld = remoteHeldSeats.some((s) => s._id === seat.id);
-    if (isRemoteHeld) {
-      alert("Ghế này đang được người khác chọn!");
-      return;
+    const handlePageHide = () => {
+      void releaseHeldSeats();
+    };
+
+    window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("beforeunload", handlePageHide);
+
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("beforeunload", handlePageHide);
+    };
+  }, [isOpen, showtimeId, releaseHeldSeats]);
+
+  useEffect(() => {
+    if (!showtimeId) {
+      return undefined;
     }
 
-    setSelectedSeats((prev) => {
-      const isSelected = prev.some((s) => s.id === seat.id);
-
-      if (isSelected) {
-        // Deselect
-        releaseSeats({ seatIds: [seat.id] }).catch(console.error);
-        socketRef.current?.emit("release_seat", {
-          showtimeId: selectedShowtime._id,
-          seatId: seat.id,
-        });
-
-        setHoldingSeats((prevHolding) => {
-          const newHolding = { ...prevHolding };
-          delete newHolding[seat.id];
-          return newHolding;
-        });
-
-        return prev.filter((s) => s.id !== seat.id);
-      } else {
-        // Select
-        const expiryTime = Date.now() + HOLDING_TIME * 1000;
-        setHoldingSeats((prev) => ({ ...prev, [seat.id]: expiryTime }));
-
-        holdSeats({
-          showtimeId: selectedShowtime._id,
-          seatIds: [seat.id],
-          userId: user?._id
-        }).catch(console.error);
-
-        socketRef.current?.emit("hold_seat", {
-          showtimeId: selectedShowtime._id,
-          seatId: seat.id,
-          userId: user?._id,
-          heldUntil: expiryTime,
-        });
-
-        return [...prev, seat];
+    return () => {
+      if (!bookingPreparedRef.current) {
+        void releaseHeldSeats({ showtimeId });
       }
-    });
+    };
+  }, [showtimeId, releaseHeldSeats]);
+
+  useEffect(() => {
+    if (!isOpen || user?._id || user?.id) {
+      return;
+    }
+
+    void releaseHeldSeats();
+  }, [isOpen, user, releaseHeldSeats]);
+
+  const groupedSeats = useMemo(() => {
+    const seats = seatMapData?.seats || [];
+    return seats.reduce((groups, seat) => {
+      if (!groups[seat.row]) {
+        groups[seat.row] = [];
+      }
+
+      groups[seat.row].push(seat);
+      return groups;
+    }, {});
+  }, [seatMapData]);
+
+  const handleCustomerInfoChange = (event) => {
+    const { name, value } = event.target;
+
+    setCustomerInfo((current) => ({
+      ...current,
+      [name]:
+        name === "phone"
+          ? normalizePhone(value)
+          : value,
+    }));
   };
 
-  // Countdown timer
-  useEffect(() => {
-    if (selectedSeats.length === 0) {
-      setCountdown(0);
+  const toggleSeat = async (seat) => {
+    if (!showtimeId || seatActionLoading || preparingBooking) {
       return;
     }
 
-    const timer = setInterval(() => {
-      const now = Date.now();
-      const minExpiry = Math.min(...Object.values(holdingSeats));
+    try {
+      setSeatActionLoading(true);
+      setError("");
 
-      const remaining = Math.max(0, Math.floor((minExpiry - now) / 1000));
-      setCountdown(remaining);
-
-      if (remaining === 0) {
-        setSelectedSeats((prev) => prev.filter((s) => holdingSeats[s.id] > now));
-        setHoldingSeats((prev) => {
-          const newH = { ...prev };
-          Object.keys(newH).forEach((key) => {
-            if (newH[key] <= now) delete newH[key];
-          });
-          return newH;
+      if (seat.isHeldByMe) {
+        await releaseSeats({
+          showtimeId,
+          seatIds: [seat._id],
         });
+      } else if (seat.status === "Available") {
+        await holdSeats({
+          showtimeId,
+          seatIds: [seat._id],
+        });
+      } else if (seat.status === "Holding") {
+        setError("Ghế này đang được người khác giữ.");
+      } else {
+        setError("Ghế này không còn khả dụng.");
       }
-    }, 1000);
 
-    return () => clearInterval(timer);
-  }, [selectedSeats.length, holdingSeats]);
+      await loadSeatMap({ silent: true });
+    } catch (toggleError) {
+      console.error("Seat action failed:", toggleError);
+      setError(toggleError?.message || "Không thể cập nhật trạng thái ghế.");
+      await loadSeatMap({ silent: true });
+    } finally {
+      setSeatActionLoading(false);
+    }
+  };
 
-  const totalPrice = selectedSeats.length * (selectedShowtime?.price || 75000);
+  const handleClose = () => {
+    if (!preparingBooking) {
+      void releaseHeldSeats();
+    }
 
-  // ==================== XÁC NHẬN ĐẶT VÉ ====================
- // Trong SeatSelectionModal.jsx
+    onClose?.();
+  };
 
-const handleBookingConfirmation = async () => {
-  if (selectedSeats.length === 0) {
-    alert("Vui lòng chọn ít nhất một ghế!");
-    return;
-  }
-
-  try {
-    // LẤY CINEMAID ĐÚNG CÁCH TỪ ROOM
-    const room = selectedShowtime.roomId || selectedShowtime.room;
-    const cinemaId = room?.cinemaId?._id || room?.cinemaId;
-
-    if (!cinemaId) {
-      alert("Không tìm thấy thông tin rạp. Vui lòng thử lại!");
-      console.error("Missing cinemaId - room data:", room);
+  const handleBookingConfirmation = async () => {
+    if (!showtimeId || selectedSeats.length === 0) {
+      setError("Vui lòng chọn ít nhất một ghế.");
       return;
     }
 
-    const payload = {
-      showtimeId: selectedShowtime._id,
-      cinemaId: cinemaId,                    // ← Quan trọng
-      roomId: selectedShowtime.roomId?._id || selectedShowtime.roomId || room?._id,
-      seatIds: selectedSeats.map((s) => s.id),
-      totalPrice: selectedSeats.length * (selectedShowtime.price || 75000),
-      customerName: user?.fullName?.trim() || "Khách vãng lai",
-      customerPhone: user?.phone?.trim() || "",
-      customerEmail: user?.email?.trim() || "",
-      notes: "Đặt vé từ trang chi tiết phim",
-      paymentStatus: "Pending",
+    const normalizedCustomerInfo = {
+      fullName: customerInfo.fullName.trim(),
+      email: customerInfo.email.trim(),
+      phone: customerInfo.phone.trim(),
+      notes: customerInfo.notes.trim(),
     };
 
-    console.log("📤 Payload gửi lên backend:", payload);
+    if (!normalizedCustomerInfo.fullName) {
+      setError("Vui lòng nhập họ tên người đặt.");
+      return;
+    }
 
-    const bookingResult = await createBooking(payload);
+    if (!EMAIL_REGEX.test(normalizedCustomerInfo.email)) {
+      setError("Email không đúng định dạng.");
+      return;
+    }
 
-    // Tạo orderData để chuyển sang trang Order
-    const orderData = {
-      bookingCode: bookingResult?.booking?.bookingCode || `BK${Date.now().toString().slice(-8)}`,
-      movie: movie,
-      cinema: room?.cinemaId || { name: "N/A" },   // Có thể cải thiện sau
-      room: room || { name: "N/A" },
-      showtime: selectedShowtime,
-      seats: selectedSeats.map((s) => ({ _id: s.id, label: s.label })),
-      totalPrice: selectedSeats.length * (selectedShowtime.price || 75000),
-      tickets: bookingResult?.tickets || [],
-      purchaseDate: new Date().toISOString(),
-    };
+    if (normalizedCustomerInfo.phone.length < 9) {
+      setError("Số điện thoại không hợp lệ.");
+      return;
+    }
 
-    onBookingSuccess(orderData);
+    try {
+      setPreparingBooking(true);
+      setError("");
 
-  } catch (error) {
-    console.error("❌ Booking error:", error.response?.data || error.message);
-    const msg = error.response?.data?.message || "Không thể đặt vé. Vui lòng thử lại!";
-    alert(`Đặt vé thất bại: ${msg}`);
-  }
-};
+      const response = await prepareQrBooking({
+        showtimeId,
+        seatIds: selectedSeats.map((seat) => seat._id),
+        customerInfo: normalizedCustomerInfo,
+      });
 
-  const formatCountdown = (seconds) => {
-    const min = Math.floor(seconds / 60);
-    const sec = seconds % 60;
-    return `${min}:${sec.toString().padStart(2, "0")}`;
+      bookingPreparedRef.current = true;
+
+      if (response?.booking?._id) {
+        localStorage.setItem("lastOrderBookingId", response.booking._id);
+      }
+
+      onBookingSuccess?.(response?.booking || null);
+    } catch (prepareError) {
+      console.error("Prepare QR booking failed:", prepareError);
+      setError(prepareError?.message || "Không thể tạo QR thanh toán.");
+      bookingPreparedRef.current = false;
+      await loadSeatMap({ silent: true });
+    } finally {
+      setPreparingBooking(false);
+    }
   };
 
   const getSeatClass = (seat) => {
     const classes = ["seat-button"];
-    const isRemoteHeld = remoteHeldSeats.some((s) => s._id === seat.id);
 
-    if (isRemoteHeld) classes.push("holding");
-    else if (seat.status === "Booked") classes.push("booked");
-    else if (selectedSeats.some((s) => s.id === seat.id)) classes.push("selected", "holding");
-    else classes.push("available");
+    if (seat.type === "Couple") {
+      classes.push("couple");
+    }
 
-    if (seat.isCouple) classes.push("couple");
-    if (seat.type === "VIP") classes.push("vip");
+    if (seat.type === "VIP") {
+      classes.push("vip");
+    }
+
+    if (seat.isHeldByMe) {
+      classes.push("selected");
+    } else if (seat.status === "Holding") {
+      classes.push("holding");
+    } else if (seat.status === "Booked" || seat.status === "Blocked") {
+      classes.push("booked");
+    } else {
+      classes.push("available");
+    }
 
     return classes.join(" ");
   };
 
-  if (!isOpen || !selectedShowtime) return null;
+  if (!isOpen || !selectedShowtime) {
+    return null;
+  }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="seat-modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={handleClose}>
+      <div className="seat-modal-content" onClick={(event) => event.stopPropagation()}>
         <div className="seat-modal-header">
           <h3>Chọn ghế - {movie?.title}</h3>
-          <button className="modal-close" onClick={onClose}>&times;</button>
+          <button className="modal-close" onClick={handleClose}>
+            &times;
+          </button>
         </div>
 
         <div className="seat-modal-info">
-          <p><strong>Suất chiếu:</strong> {new Date(selectedShowtime.startTime).toLocaleString("vi-VN")}</p>
-          <p><strong>Rạp:</strong> {selectedShowtime.cinemasId?.name || selectedShowtime.cinema?.name || "N/A"}</p>
-          <p><strong>Phòng:</strong> {selectedShowtime.roomId?.name || selectedShowtime.room?.name || "N/A"}</p>
+          <p>
+            <strong>Suất chiếu:</strong>{" "}
+            {new Date(selectedShowtime.startTime).toLocaleString("vi-VN")}
+          </p>
+          <p>
+            <strong>Rạp:</strong>{" "}
+            {selectedShowtime.cinemasId?.name ||
+              selectedShowtime.cinema?.name ||
+              selectedShowtime.roomId?.cinemaId?.name ||
+              selectedShowtime.room?.cinemaId?.name ||
+              "N/A"}
+          </p>
+          <p>
+            <strong>Phòng:</strong>{" "}
+            {selectedShowtime.roomId?.name || selectedShowtime.room?.name || "N/A"}
+          </p>
         </div>
+
+        {error ? <div className="selection-error">{error}</div> : null}
 
         <div className="screen">MÀN HÌNH CHIẾU</div>
 
         <div className="seat-grid-modal">
           {seatModalLoading ? (
             <p>Đang tải sơ đồ ghế...</p>
-          ) : availableSeats.length === 0 ? (
+          ) : !seatMapData?.seats?.length ? (
             <p>Không có ghế khả dụng cho suất chiếu này.</p>
           ) : (
-            (() => {
-              const rowMap = {};
-              availableSeats.forEach((seat) => {
-                if (!rowMap[seat.row]) rowMap[seat.row] = [];
-                rowMap[seat.row].push(seat);
-              });
-
-              return Object.keys(rowMap)
-                .sort()
-                .map((row) => (
-                  <div key={row} className="seat-row">
-                    <span className="row-label">{row}</span>
-                    <div className="row-seats">
-                      {rowMap[row]
-                        .sort((a, b) => a.seatNumber - b.seatNumber)
-                        .map((seat) => (
-                          <button
-                            key={seat.id}
-                            className={getSeatClass(seat)}
-                            onClick={() => toggleSeat(seat)}
-                          >
-                            {seat.label}
-                          </button>
-                        ))}
-                    </div>
+            Object.keys(groupedSeats)
+              .sort()
+              .map((row) => (
+                <div key={row} className="seat-row">
+                  <span className="row-label">{row}</span>
+                  <div className="row-seats">
+                    {groupedSeats[row]
+                      .sort((left, right) => left.number - right.number)
+                      .map((seat) => (
+                        <button
+                          key={seat._id}
+                          className={getSeatClass(seat)}
+                          onClick={() => toggleSeat(seat)}
+                          disabled={
+                            seatActionLoading ||
+                            preparingBooking ||
+                            (!seat.isHeldByMe && seat.status !== "Available")
+                          }
+                          title={formatSeatLabel(seat)}
+                        >
+                          {formatSeatLabel(seat)}
+                        </button>
+                      ))}
                   </div>
-                ));
-            })()
+                </div>
+              ))
           )}
         </div>
 
         <div className="seat-legend">
-          <span><i className="available" /> Trống</span>
-          <span><i className="selected" /> Đang chọn</span>
-          <span><i className="booked" /> Đã đặt</span>
-          <span><i className="vip" /> VIP</span>
-          <span><i className="couple" /> Ghế đôi</span>
+          <span>
+            <i className="available" /> Trống
+          </span>
+          <span>
+            <i className="selected" /> Ghế của bạn
+          </span>
+          <span>
+            <i className="booked" /> Đã đặt
+          </span>
+          <span>
+            <i className="holding" /> Đang giữ
+          </span>
+          <span>
+            <i className="vip" /> VIP
+          </span>
+          <span>
+            <i className="couple" /> Ghế đôi
+          </span>
         </div>
 
         <div className="selection-summary">
           <div>
-            Ghế đã chọn: <strong>{selectedSeats.map((s) => s.label).join(", ") || "Chưa có"}</strong>
+            Ghế đã chọn:{" "}
+            <strong>
+              {selectedSeats.length > 0
+                ? selectedSeats.map((seat) => formatSeatLabel(seat)).join(", ")
+                : "Chưa có"}
+            </strong>
           </div>
           <div>
             Tổng tiền: <strong>{totalPrice.toLocaleString("vi-VN")}đ</strong>
           </div>
         </div>
 
+        <div className="seat-customer-form">
+          <div className="seat-customer-grid">
+            <label className="seat-customer-field">
+              <span>Họ tên</span>
+              <input
+                name="fullName"
+                type="text"
+                value={customerInfo.fullName}
+                onChange={handleCustomerInfoChange}
+                placeholder="Nhập họ tên"
+              />
+            </label>
+
+            <label className="seat-customer-field">
+              <span>Số điện thoại</span>
+              <input
+                name="phone"
+                type="tel"
+                value={customerInfo.phone}
+                onChange={handleCustomerInfoChange}
+                placeholder="090..."
+              />
+            </label>
+
+            <label className="seat-customer-field seat-customer-field-full">
+              <span>Email</span>
+              <input
+                name="email"
+                type="email"
+                value={customerInfo.email}
+                onChange={handleCustomerInfoChange}
+                placeholder="email@example.com"
+              />
+            </label>
+
+            <label className="seat-customer-field seat-customer-field-full">
+              <span>Ghi chú</span>
+              <textarea
+                name="notes"
+                rows="2"
+                value={customerInfo.notes}
+                onChange={handleCustomerInfoChange}
+                placeholder="Thông tin thêm nếu cần"
+              />
+            </label>
+          </div>
+        </div>
+
         <div className="seat-modal-footer">
-          {countdown > 0 && (
+          {countdownSeconds > 0 ? (
             <div className="countdown-info">
-              Thời gian giữ ghế còn lại: <span className="countdown-timer">{formatCountdown(countdown)}</span>
+              Thời gian giữ ghế còn lại:
+              <span className="countdown-timer">{formatCountdown(countdownSeconds)}</span>
             </div>
+          ) : (
+            <div className="countdown-info">Chọn ghế để tạo QR thanh toán.</div>
           )}
-          <button
-            className="btn btn-primary"
-            disabled={selectedSeats.length === 0}
-            onClick={handleBookingConfirmation}
-          >
-            Xác nhận đặt vé ({selectedSeats.length} ghế)
-          </button>
+
+          <div className="seat-modal-actions">
+            <button className="btn btn-back" onClick={handleClose} disabled={preparingBooking}>
+              Đóng
+            </button>
+            <button
+              className="btn btn-primary"
+              disabled={selectedSeats.length === 0 || preparingBooking || seatActionLoading}
+              onClick={handleBookingConfirmation}
+            >
+              {preparingBooking
+                ? "Đang tạo QR..."
+                : `Tạo QR thanh toán (${selectedSeats.length} ghế)`}
+            </button>
+          </div>
         </div>
       </div>
     </div>

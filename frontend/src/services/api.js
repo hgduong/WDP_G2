@@ -24,9 +24,7 @@ export * from "./staffApi";
 
 // Bookings API
 export * from "./bookingsApi";
-
-// Transactions API
-export * from "./transactionsApi";
+export * from "./paymentsApi";
 
 // Vouchers API
 export * from "./vouchersApi";

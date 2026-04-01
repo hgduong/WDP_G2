@@ -2,23 +2,54 @@
 const express = require("express");
 const router = express.Router();
 const seatmapController = require("../controllers/seatmap.controller");
+const { authenticateToken, authorizeRoles } = require("../config/auth.middleware");
 
 // Generate seat layout for a room based on capacity
-router.post("/generate", seatmapController.generateSeatLayout);
+router.post(
+  "/generate",
+  authenticateToken,
+  authorizeRoles(["Admin", "Staff"]),
+  seatmapController.generateSeatLayout,
+);
 
 // Get seatmap by showtime
-router.get("/:showtimeId", seatmapController.getSeatmapByShowtime);
+router.get(
+  "/:showtimeId",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  seatmapController.getSeatmapByShowtime,
+);
 
 // Get held seats for a showtime (for real-time sync)
-router.get("/held/:showtimeId", seatmapController.getHeldSeats);
+router.get(
+  "/held/:showtimeId",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  seatmapController.getHeldSeats,
+);
 
 // Hold seats (when user selects them)
-router.post("/hold", seatmapController.holdSeats);
+router.post(
+  "/hold",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  seatmapController.holdSeats,
+);
 
 // Release held seats
-router.post("/release", seatmapController.releaseSeats);
+router.post(
+  "/release",
+  authenticateToken,
+  authorizeRoles(["Admin", "Customer", "Staff"]),
+  seatmapController.releaseSeats,
+);
 
 // Book seats
-router.post("/book", seatmapController.bookSeats);
+router.post(
+  "/book",
+  authenticateToken,
+  authorizeRoles(["Admin", "Staff"]),
+  seatmapController.bookSeats,
+);
 
 module.exports = router;

@@ -1,173 +1,201 @@
-import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState, useContext } from "react";
-import { UserContext } from "../context/UserContext";
-import { createBooking, updateBookingPaymentStatus } from "../services/api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { cancelBooking, getBookingById, getPaymentStatus } from "../services/api";
 import {
-  getMovieInfo,
   getCinemaInfo,
+  getCustomerInfo,
+  getMovieInfo,
   getRoomInfo,
   getShowtimeInfo,
-  getCustomerInfo
 } from "../utils/orderUtils";
 
-/**
- * Custom hook for managing order state and logic
- * @returns {object} Order state and handlers
- */
+const STORAGE_KEY = "lastOrderBookingId";
+
 export const useOrder = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useContext(UserContext);
-  
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const [bookingId, setBookingId] = useState(null);
   const [orderData, setOrderData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [polling, setPolling] = useState(false);
   const [error, setError] = useState(null);
-  const [paymentStatus, setPaymentStatus] = useState("Pending");
-  const [bookingId, setBookingId] = useState(null);
+  const [actionError, setActionError] = useState("");
+  const [nowTick, setNowTick] = useState(Date.now());
 
   useEffect(() => {
-    const initializeOrder = async () => {
-      const data = location.state?.orderData;
-      
-      if (data) {
-        // If booking already exists in DB (has _id from MongoDB), use it directly
-        if (data._id) {
-          setOrderData(data);
-          setBookingId(data._id);
-          setPaymentStatus(data.paymentStatus || "Pending");
-          localStorage.setItem("lastOrder", JSON.stringify(data));
-        } else {
-          // Booking not yet saved to DB — create it now
-          try {
-            const bookingRequestData = {
-              userId: user?._id || user?.id || null,
-              showtimeId: data.showtimeId || data.showtime?._id,
-              // Get cinemaId from room.cinemaId
-              cinemaId: data.cinemaId || data.cinema?._id || data.showtime?.roomId?.cinemaId?._id || data.showtime?.roomId?.cinemaId,
-              roomId: data.roomId || data.room?._id || data.showtime?.roomId?._id,
-              seats: (data.seats || []).map(s => ({ _id: s._id || s.id, label: s.label, id: s.id || s._id })),
-              totalPrice: data.totalPrice,
-              customerInfo: data.customerInfo || {
-                fullName: user?.fullName || "",
-                email: user?.email || "",
-                phone: user?.phone || ""
-              },
-              paymentStatus: "Pending"
-            };
+    const stateBookingId = location.state?.orderData?._id;
+    const queryBookingId = searchParams.get("bookingId");
+    const storedBookingId = localStorage.getItem(STORAGE_KEY);
+    const nextBookingId = queryBookingId || stateBookingId || storedBookingId || null;
 
-            const response = await createBooking(bookingRequestData);
-            
-            if (response.booking || response.message === "Đặt vé thành công") {
-              const savedBooking = response.booking;
-              // Merge data, but preserve movie, cinema, room, showtime from response
-              const mergedData = { 
-                ...data, 
-                ...savedBooking, 
-                _id: savedBooking._id,
-                // Ensure these fields are preserved from server response
-                movie: savedBooking.movie || data.movie,
-                cinema: savedBooking.cinema || data.cinema,
-                room: savedBooking.room || data.room,
-                showtime: savedBooking.showtime || data.showtime
-              };
-              setOrderData(mergedData);
-              setBookingId(savedBooking._id);
-              setPaymentStatus(savedBooking.paymentStatus || "Unpaid");
-              localStorage.setItem("lastOrder", JSON.stringify(mergedData));
-            } else {
-              setOrderData(data);
-              setPaymentStatus(data.paymentStatus || "Pending");
-            }
-          } catch (err) {
-            console.error("Error creating booking:", err);
-            setOrderData(data);
-            setPaymentStatus(data.paymentStatus || "Pending");
-          }
+    if (stateBookingId && queryBookingId !== stateBookingId) {
+      setSearchParams({ bookingId: stateBookingId });
+    }
+
+    if (!nextBookingId) {
+      setError("Không tìm thấy thông tin đơn hàng.");
+      setLoading(false);
+      return;
+    }
+
+    localStorage.setItem(STORAGE_KEY, nextBookingId);
+    setBookingId(nextBookingId);
+    setError(null);
+  }, [location.state, searchParams, setSearchParams]);
+
+  const refreshOrder = useCallback(
+    async (withPaymentSync = true) => {
+      if (!bookingId) {
+        return null;
+      }
+
+      const booking = await getBookingById(bookingId);
+
+      if (
+        withPaymentSync &&
+        booking?.paymentId?._id &&
+        booking.paymentStatus === "Pending"
+      ) {
+        const paymentState = await getPaymentStatus(booking.paymentId._id);
+        return paymentState.booking || booking;
+      }
+
+      return booking;
+    },
+    [bookingId],
+  );
+
+  useEffect(() => {
+    if (!bookingId) {
+      return undefined;
+    }
+
+    let active = true;
+
+    const loadOrder = async () => {
+      try {
+        setLoading(true);
+        setActionError("");
+        const booking = await refreshOrder(true);
+
+        if (active) {
+          setOrderData(booking);
+          setError(null);
         }
-      } else {
-        const storedOrder = localStorage.getItem("lastOrder");
-        if (storedOrder) {
-          try {
-            const parsedOrder = JSON.parse(storedOrder);
-            setOrderData(parsedOrder);
-            setPaymentStatus(parsedOrder.paymentStatus || "Pending");
-            setBookingId(parsedOrder._id);
-          } catch (e) {
-            setError("Không tìm thấy thông tin đơn hàng");
-          }
-        } else {
-          setError("Không tìm thấy thông tin đơn hàng");
+      } catch (loadError) {
+        if (active) {
+          setError(loadError?.message || "Không thể tải thông tin đơn hàng.");
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
         }
       }
-      setLoading(false);
     };
 
-    initializeOrder();
-  }, [location.state, user]);
+    loadOrder();
+
+    return () => {
+      active = false;
+    };
+  }, [bookingId, refreshOrder]);
+
+  useEffect(() => {
+    if (!orderData?.paymentId?._id || orderData.paymentStatus !== "Pending") {
+      setPolling(false);
+      return undefined;
+    }
+
+    setPolling(true);
+
+    const intervalId = window.setInterval(async () => {
+      try {
+        const paymentState = await getPaymentStatus(orderData.paymentId._id);
+        setOrderData((current) => paymentState.booking || current);
+      } catch (pollError) {
+        console.error("Payment polling failed:", pollError);
+      }
+    }, 3000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      setPolling(false);
+    };
+  }, [orderData?.paymentId?._id, orderData?.paymentStatus]);
+
+  useEffect(() => {
+    if (orderData?.paymentStatus !== "Pending") {
+      setNowTick(Date.now());
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setNowTick(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [orderData?.paymentStatus]);
 
   const handleGoHome = () => {
-    localStorage.removeItem("lastOrder");
     navigate("/");
   };
 
-  const handleGoBack = () => {
-    localStorage.removeItem("lastOrder");
-    navigate(-1);
-  };
+  const handleCancelBooking = async () => {
+    if (!bookingId) {
+      return;
+    }
 
-  const handlePaymentComplete = async () => {
     try {
-      if (bookingId) {
-        await updateBookingPaymentStatus(bookingId, { paymentStatus: "Paid" });
-      }
-      setPaymentStatus("Paid");
-      if (orderData) {
-        const updatedOrder = { 
-          ...orderData, 
-          paymentStatus: "Paid",
-          status: "Confirmed"
-        };
-        setOrderData(updatedOrder);
-        localStorage.setItem("lastOrder", JSON.stringify(updatedOrder));
-      }
-    } catch (err) {
-      console.error("Error updating payment status:", err);
-      setPaymentStatus("Paid");
-      if (orderData) {
-        const updatedOrder = { 
-          ...orderData, 
-          paymentStatus: "Paid",
-          status: "Confirmed"
-        };
-        setOrderData(updatedOrder);
-        localStorage.setItem("lastOrder", JSON.stringify(updatedOrder));
-      }
+      setActionError("");
+      const response = await cancelBooking(bookingId);
+      setOrderData(response.booking || (await refreshOrder(false)));
+    } catch (cancelError) {
+      setActionError(cancelError?.message || "Không thể hủy booking.");
     }
   };
 
-  const isPaymentComplete = paymentStatus === "Paid";
+  const countdownMs = useMemo(() => {
+    const expiresAt = orderData?.paymentId?.expiresAt || orderData?.expiresAt;
 
-  // Extract order information
+    if (!expiresAt) {
+      return 0;
+    }
+
+    return Math.max(0, new Date(expiresAt).getTime() - nowTick);
+  }, [orderData?.paymentId?.expiresAt, orderData?.expiresAt, nowTick]);
+
+  const countdownText = useMemo(() => {
+    const totalSeconds = Math.floor(countdownMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  }, [countdownMs]);
+
   const movie = getMovieInfo(orderData);
   const cinema = getCinemaInfo(orderData);
   const room = getRoomInfo(orderData);
   const showtime = getShowtimeInfo(orderData);
-  const customerInfo = getCustomerInfo(orderData, user);
+  const customerInfo = getCustomerInfo(orderData);
 
   return {
+    bookingId,
     orderData,
     loading,
+    polling,
     error,
-    paymentStatus,
-    bookingId,
-    isPaymentComplete,
+    actionError,
+    countdownMs,
+    countdownText,
     movie,
     cinema,
     room,
     showtime,
     customerInfo,
     handleGoHome,
-    handleGoBack,
-    handlePaymentComplete
+    handleCancelBooking,
   };
 };

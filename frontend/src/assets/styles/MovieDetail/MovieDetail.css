@@ -636,6 +636,11 @@
   border: 1px solid #ccc;
 }
 
+.seat-legend .holding {
+  background: #f0ad4e;
+  border: 1px solid #f0ad4e;
+}
+
 .seat-legend .vip {
   background: #f0ad4e;
   border: 1px solid #f0ad4e;
@@ -841,6 +846,71 @@
   color: #1a1a2e;
 }
 
+.selection-error {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.seat-customer-form {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+}
+
+.seat-customer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.seat-customer-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.seat-customer-field span {
+  font-weight: 600;
+}
+
+.seat-customer-field input,
+.seat-customer-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  font: inherit;
+  color: #111827;
+  box-sizing: border-box;
+}
+
+.seat-customer-field input:focus,
+.seat-customer-field textarea:focus {
+  outline: none;
+  border-color: #c41e3a;
+  box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.12);
+}
+
+.seat-customer-field textarea {
+  resize: vertical;
+  min-height: 68px;
+}
+
+.seat-customer-field-full {
+  grid-column: 1 / -1;
+}
+
 /* ========================================
    MODAL FOOTER
    ======================================== */
@@ -856,6 +926,13 @@
   background: #f5f5f5;
   border: 1px solid #e0e0e0;
   flex-direction: column;
+}
+
+.seat-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  width: 100%;
 }
 
 .countdown-info {
@@ -1057,6 +1134,18 @@
     flex-direction: column;
     gap: 12px;
     text-align: center;
+  }
+
+  .seat-customer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .seat-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .seat-modal-actions .btn {
+    width: 100%;
   }
 
   .seat-modal-footer {

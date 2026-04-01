@@ -7,6 +7,8 @@ const http = require("http");
 const connectDB = require("./config/db");
 
 const socketIO = require("./socket");
+const { startHoldCleanupJob } = require("./controllers/seatmap.controller");
+const { startPendingPaymentCleanupJob } = require("./utils/qrBooking.service");
 require("./config/passport");
 
 const app = express();
@@ -27,6 +29,8 @@ app.use(
 app.use(passport.initialize());
 
 connectDB();
+startHoldCleanupJob();
+startPendingPaymentCleanupJob();
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PUBLIC ROUTES (No authentication required)
@@ -133,8 +137,8 @@ app.use("/api/users", userRoutes);
 const bookingRoutes = require("./routes/booking.route");
 app.use("/api/bookings", bookingRoutes);
 
-const transactionRoutes = require("./routes/transaction.routes");
-app.use("/api/transactions", transactionRoutes);
+const paymentsRoutes = require("./routes/payments.route");
+app.use("/api/payments", paymentsRoutes);
 
 const staffRoutes = require("./routes/staffs.route");
 app.use("/api/staff", staffRoutes);

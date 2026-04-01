@@ -5,7 +5,7 @@ const seatSchema = new mongoose.Schema({
   row: { type: String, required: true },      // Ví dụ: "A", "B", "C"
   number: { type: Number, required: true },   // Ví dụ: 1, 2, 3
   type: { type: String, enum: ['Standard', 'VIP', 'Couple'], default: 'Standard' },
-  status: { type: String, enum: ['Available', 'Booked', 'Blocked', 'Holding'], default: 'Available' },
+  status: { type: String, enum: ['Available', 'Booked', 'Blocked', 'Holding', 'Internal'], default: 'Available' },
   heldBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   heldUntil: { type: Date }
 }, { timestamps: true });
