@@ -254,13 +254,6 @@ const CinemaManagement = () => {
     return { valid: true, message: "" };
   };
 
-  const handleEditTimeSlots = (room) => {
-    setEditingTimeSlotsRoom(room);
-    const slots = room.timeSlots || [];
-    setTimeSlotsInput(slots.join(", "));
-    setShowTimeSlotsModal(true);
-  };
-
   const handleSaveTimeSlots = async () => {
     try {
       // Parse time slots from input (comma separated)
@@ -460,31 +453,6 @@ const CinemaManagement = () => {
     });
   };
 
-  const handleSeatSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingSeat) {
-        await updateSeat(editingSeat._id, seatFormData);
-        toast.success("Cập nhật ghế thành công!");
-      } else {
-        await addSeat(selectedRoom._id, seatFormData);
-        toast.success("Thêm ghế mới thành công!");
-      }
-      // Refresh seats
-      const data = await getSeatsByRoom(selectedRoom._id);
-      setRoomSeats(data.seats || []);
-      closeSeatModal();
-    } catch (err) {
-      const errorMsg = err?.message || "Có lỗi xảy ra khi lưu ghế";
-      toast.error(errorMsg);
-    }
-  };
-
-  const handleDeleteSeatClick = (seatId) => {
-    setDeletingSeatId(seatId);
-    setShowSeatDeleteConfirm(true);
-  };
-
   const confirmDeleteSeat = async () => {
     if (!deletingSeatId || isSeatDeleting) return;
 
@@ -548,14 +516,6 @@ const CinemaManagement = () => {
     setPermanentDeletingSeat(null);
   };
 
-  const openAddSeatModal = () => {
-    setEditingSeat(null);
-    setSeatFormData({
-      row: "",
-      number: "",
-      type: "Standard",
-    });
-  };
 
   const closeSeatModal = () => {
     setShowSeatModal(false);
@@ -735,28 +695,6 @@ const CinemaManagement = () => {
     } catch (err) {
       const errorMsg = err?.message || "Có lỗi xảy ra khi tải danh sách ghế";
       toast.error(errorMsg);
-    }
-  };
-
-  // Get seat by row and number
-  const getSeatByPosition = (row, number) => {
-    return seatGrid.seats.find((s) => s.row === row && s.number === number);
-  };
-
-  // Get row labels
-  const getRowLabels = () => {
-    const rowLabels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    return rowLabels.slice(0, seatGrid.rows).split("");
-  };
-
-  // Get column numbers
-  const getColumnNumbers = () => {
-    return Array.from({ length: seatGrid.columns }, (_, i) => i + 1);
-  };
-
-  const openEditCinemaModal = () => {
-    if (selectedCinema) {
-      handleEditCinema(selectedCinema);
     }
   };
 
