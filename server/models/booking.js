@@ -7,10 +7,13 @@ const bookingSchema = new mongoose.Schema({
   showtimeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Showtime', required: true },
   cinemaId: { type: mongoose.Schema.Types.ObjectId, ref: 'Cinema', required: true },
   roomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Room', required: true },
-  seats: [{ type: mongoose.Schema.Types.Mixed, required: true }],
+  seats: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Seat', required: true }],
   totalPrice: { type: Number, required: true },
+  originalPrice: { type: Number },
+  discountAmount: { type: Number, default: 0 },
+  voucherId: { type: mongoose.Schema.Types.ObjectId, ref: 'Voucher', default: null },
   bookingCode: { type: String, required: true, unique: true },
-  status: { type: String, enum: ['Pending', 'Confirmed', 'Done', 'Cancelled'], default: 'Pending' },
+  status: { type: String, enum: ['Pending', 'Confirmed', 'Done', 'Cancelled', 'Expired'], default: 'Pending' },
   bookingSource: {
     type: String,
     enum: ['Customer', 'Staff'],
@@ -18,8 +21,8 @@ const bookingSchema = new mongoose.Schema({
   },
   paymentStatus: {
     type: String,
-    enum: ['Unpaid','Pending', 'PayAtCounter', 'Paid'],
-    default: 'Unpaid',
+    enum: ['Pending', 'Paid', 'Cancelled', 'Expired', 'PayAtCounter'],
+    default: 'Pending',
   },
   customerInfo: {
     fullName: { type: String, trim: true },
@@ -29,6 +32,7 @@ const bookingSchema = new mongoose.Schema({
   },
   paymentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' },
   tickets: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Ticket' }],
+  expiresAt: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

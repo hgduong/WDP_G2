@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import { UserContext } from "../../context/UserContext";
 import { getStaffDashboardStats, getMySchedule } from "../../services/api";
 import "../../assets/styles/StaffDashboard.css";
@@ -48,7 +49,6 @@ function StaffDashboard() {
   const location = useLocation();
   const { user } = useContext(UserContext);
   const [stats, setStats] = useState(null);
-  const [loadingStats, setLoadingStats] = useState(true);
   const [todaySchedules, setTodaySchedules] = useState([]);
   const [loadingSchedule, setLoadingSchedule] = useState(true);
 
@@ -74,8 +74,6 @@ function StaffDashboard() {
           staffBookingsToday: 0,
           readyStatus: "Sẵn sàng phục vụ",
         });
-      } finally {
-        setLoadingStats(false);
       }
     };
 

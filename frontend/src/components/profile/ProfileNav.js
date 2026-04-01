@@ -3,12 +3,13 @@ export default function ProfileNav({ activeTab, setActiveTab, role }) {
   if (role === "Staff" || role === "Admin") {
     tabs = ["info"];
   }
-  
+
   const labels = {
     info: "Thông tin tài khoản",
-    history: "Lịch sử giao dịch",
+    history: "Lịch sử đặt vé",
     rewards: "Điểm thưởng / Ưu đãi",
   };
+
   return (
     <nav className="profile-nav">
       {tabs.map((tab) => (
@@ -23,4 +24,3 @@ export default function ProfileNav({ activeTab, setActiveTab, role }) {
     </nav>
   );
 }
-
