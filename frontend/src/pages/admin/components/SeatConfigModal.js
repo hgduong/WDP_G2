@@ -239,7 +239,21 @@ const SeatConfigModal = ({
                                   e.preventDefault();
                                   if (seat.status === "Deleted") {
                                     // Second right-click on deleted seat - show permanent delete confirmation
-                                    onPermanentDeleteSeatClick(seat);
+                                    // Check if this is a new seat (not saved to database yet)
+                                    if (seat.isNew || (seat.id && seat.id.startsWith('temp_'))) {
+                                      // New seat - just remove from local state without calling API
+                                      const updatedSeats = seatGrid.seats.filter(s => s.id !== seat.id);
+                                      onSeatGridChange({
+                                        ...seatGrid,
+                                        seats: updatedSeats,
+                                      });
+                                      toast.success(
+                                        `Đã xóa ghế ${seat.row}${seat.number}`,
+                                      );
+                                    } else {
+                                      // Existing seat - show permanent delete confirmation modal
+                                      onPermanentDeleteSeatClick(seat);
+                                    }
                                   } else {
                                     // First right-click - hide the seat
                                     onUpdateSeatInGrid(seat.id, {
