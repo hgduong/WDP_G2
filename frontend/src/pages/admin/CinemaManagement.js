@@ -619,6 +619,7 @@ const CinemaManagement = () => {
             number: c,
             type: existingSeat.type || "Standard",
             status: existingSeat.status || "Available",
+            couplePairId: existingSeat.couplePairId || null,
             isNew: false,
             isModified: false,
           });

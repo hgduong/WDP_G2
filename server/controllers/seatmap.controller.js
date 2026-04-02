@@ -398,7 +398,8 @@ exports.updateSeat = async (req, res) => {
     if (row) updateData.row = row;
     if (number) updateData.number = parseInt(number);
     if (status) updateData.status = status;
-    if (couplePairId !== undefined) updateData.couplePairId = couplePairId;
+    // Always set couplePairId, even if null
+    updateData.couplePairId = couplePairId === undefined ? null : couplePairId;
     
     console.log('updateData:', updateData);
     

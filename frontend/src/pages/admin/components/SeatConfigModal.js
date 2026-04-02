@@ -45,6 +45,22 @@ const SeatConfigModal = ({
     );
   };
 
+  // Kiểm tra ghế có phải là ghế đầu tiên trong cặp đôi không (số ghế nhỏ hơn)
+  const isFirstInCouplePair = (seat) => {
+    if (seat.type !== 'Couple' || !seat.couplePairId) return false;
+    const pairSeat = seatGrid.seats.find((s) => s.id === seat.couplePairId);
+    if (!pairSeat) return false;
+    return seat.number < pairSeat.number;
+  };
+
+  // Kiểm tra ghế có phải là ghế thứ hai trong cặp đôi không (số ghế lớn hơn)
+  const isSecondInCouplePair = (seat) => {
+    if (seat.type !== 'Couple' || !seat.couplePairId) return false;
+    const pairSeat = seatGrid.seats.find((s) => s.id === seat.couplePairId);
+    if (!pairSeat) return false;
+    return seat.number > pairSeat.number;
+  };
+
   // Kiểm tra ghế có phải là ghế đôi không
   const isCoupleSeat = (seat) => {
     return seat.type === 'Couple';
@@ -215,10 +231,19 @@ const SeatConfigModal = ({
                           );
 
                           if (seat) {
+                            // Kiểm tra nếu ghế này là ghế thứ hai trong cặp đôi thì bỏ qua (không render)
+                            if (isSecondInCouplePair(seat)) {
+                              return null;
+                            }
+
+                            // Kiểm tra nếu ghế này là ghế đầu tiên trong cặp đôi
+                            const isFirstInPair = isFirstInCouplePair(seat);
+                            const pairSeat = isFirstInPair ? getCouplePairSeat(seat) : null;
+
                             return (
                               <div
                                 key={seat.id}
-                                className={`seat-cell ${seat.type.toLowerCase()} ${seat.status === "Deleted" ? "deleted" : ""} ${selectedSeat?.id === seat.id ? "selected" : ""}`}
+                                className={`seat-cell ${seat.type.toLowerCase()} ${seat.status === "Deleted" ? "deleted" : ""} ${selectedSeat?.id === seat.id ? "selected" : ""} ${isFirstInPair ? 'couple-pair-first' : ''}`}
                                 onClick={(e) => {
                                   if (e.button === 0) {
                                     // Left click
@@ -362,14 +387,13 @@ const SeatConfigModal = ({
                                     );
                                   }
                                 }}
-                                title={`${seat.row}${seat.number} - ${seat.type} - ${seat.status === "Deleted" ? "Đã xóa (Click để khôi phục)" : seat.status === "Available" ? "Còn trống" : "Đã đặt"}\nClick trái: Chuyển Standard ↔ VIP ↔ Couple\nClick phải: Ẩn ghế\nClick phải 2 lần: Xóa vĩnh viễn`}
+                                title={`${seat.row}${seat.number}${isFirstInPair && pairSeat ? ` - ${pairSeat.row}${pairSeat.number}` : ''} - ${seat.type} - ${seat.status === "Deleted" ? "Đã xóa (Click để khôi phục)" : seat.status === "Available" ? "Còn trống" : "Đã đặt"}\nClick trái: Chuyển Standard ↔ VIP ↔ Couple\nClick phải: Ẩn ghế\nClick phải 2 lần: Xóa vĩnh viễn`}
                               >
                                 {seat.status === "Deleted" ? (
                                   <span className="seat-deleted-x">×</span>
                                 ) : (
                                   <span className="seat-number">
-                                    {seat.row}
-                                    {seat.number}
+                                    {seat.row}{seat.number}{isFirstInPair && pairSeat ? `-${pairSeat.row}${pairSeat.number}` : ''}
                                   </span>
                                 )}
                               </div>
