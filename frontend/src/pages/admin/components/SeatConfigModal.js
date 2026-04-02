@@ -237,20 +237,17 @@ const SeatConfigModal = ({
                                 }}
                                 onContextMenu={(e) => {
                                   e.preventDefault();
-                                  if (seat.status !== "Deleted") {
+                                  if (seat.status === "Deleted") {
+                                    // Second right-click on deleted seat - show permanent delete confirmation
+                                    onPermanentDeleteSeatClick(seat);
+                                  } else {
+                                    // First right-click - hide the seat
                                     onUpdateSeatInGrid(seat.id, {
                                       status: "Deleted",
                                     });
                                     toast.success(
                                       `Đã ẩn ghế ${seat.row}${seat.number}`,
                                     );
-                                  }
-                                }}
-                                onDoubleClick={(e) => {
-                                  if (e.button === 2) {
-                                    // Double right-click - permanently delete
-                                    e.preventDefault();
-                                    onPermanentDeleteSeatClick(seat);
                                   }
                                 }}
                                 title={`${seat.row}${seat.number} - ${seat.type} - ${seat.status === "Deleted" ? "Đã xóa (Click để khôi phục)" : seat.status === "Available" ? "Còn trống" : "Đã đặt"}\nClick trái: Chuyển Standard ↔ VIP ↔ Double\nClick phải: Ẩn ghế\nClick phải 2 lần: Xóa vĩnh viễn`}
