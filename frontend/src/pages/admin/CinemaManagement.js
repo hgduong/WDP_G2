@@ -704,6 +704,15 @@ const CinemaManagement = () => {
       const data = await getSeatsByRoom(selectedRoom._id);
       setRoomSeats(data.seats || []);
 
+      // Update cinemaRooms state to reflect new seat count without reload
+      setCinemaRooms((prevRooms) =>
+        prevRooms.map((room) =>
+          room._id === selectedRoom._id
+            ? { ...room, seats: data.seats || [] }
+            : room
+        )
+      );
+
       toast.success("Đã lưu cấu hình ghế thành công!");
       closeSeatModal();
     } catch (err) {
