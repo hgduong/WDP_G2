@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { toast } from "react-toastify";
 
 const SeatConfigModal = ({
@@ -6,15 +6,23 @@ const SeatConfigModal = ({
   selectedRoom,
   seatGrid,
   selectedSeat,
-  seatMapGenerated,
   onClose,
   onSeatGridChange,
-  onSeatMapGeneratedChange,
   onSeatSelect,
   onUpdateSeatInGrid,
   onPermanentDeleteSeatClick,
   onSaveAllSeats,
+  onAddRow,
+  onAddColumn,
+  onDeleteRow,
+  onDeleteColumn,
 }) => {
+  const [showAddSeatModal, setShowAddSeatModal] = useState(false);
+  const [showDeleteRowModal, setShowDeleteRowModal] = useState(false);
+  const [showDeleteColumnModal, setShowDeleteColumnModal] = useState(false);
+  const [selectedRowForAdd, setSelectedRowForAdd] = useState("");
+  const [seatCountToAdd, setSeatCountToAdd] = useState(1);
+
   if (!show || !selectedRoom) return null;
 
   const getRowLabels = () => {
@@ -28,6 +36,81 @@ const SeatConfigModal = ({
 
   const getSeatByPosition = (row, number) => {
     return seatGrid.seats.find((s) => s.row === row && s.number === number);
+  };
+
+  const handleAddRowClick = () => {
+    onAddRow();
+    toast.success(`Đã thêm hàng ${String.fromCharCode(65 + seatGrid.rows)} thành công!`);
+  };
+
+  const handleAddColumnClick = () => {
+    onAddColumn();
+    toast.success(`Đã thêm cột ${seatGrid.columns + 1} thành công!`);
+  };
+
+  const handleConfirmAddSeats = () => {
+    if (!selectedRowForAdd || seatCountToAdd < 1) {
+      toast.error("Vui lòng chọn hàng và số ghế hợp lệ!");
+      return;
+    }
+
+    const rowIndex = selectedRowForAdd.charCodeAt(0) - 65;
+    const currentColumns = seatGrid.columns;
+    const newColumns = currentColumns + seatCountToAdd;
+
+    // Add new seats to the selected row
+    const newSeats = [];
+    for (let i = 1; i <= seatCountToAdd; i++) {
+      newSeats.push({
+        id: `temp_${selectedRowForAdd}${currentColumns + i}`,
+        row: selectedRowForAdd,
+        number: currentColumns + i,
+        type: "Standard",
+        status: "Available",
+        isNew: true,
+        isModified: false,
+      });
+    }
+
+    onSeatGridChange({
+      ...seatGrid,
+      columns: newColumns,
+      seats: [...seatGrid.seats, ...newSeats],
+    });
+
+    toast.success(`Đã thêm ${seatCountToAdd} ghế vào hàng ${selectedRowForAdd} thành công!`);
+    setShowAddSeatModal(false);
+    setSelectedRowForAdd("");
+    setSeatCountToAdd(1);
+  };
+
+  const handleDeleteRowClick = () => {
+    if (seatGrid.rows <= 1) {
+      toast.error("Không thể xóa hàng cuối cùng!");
+      return;
+    }
+    setShowDeleteRowModal(true);
+  };
+
+  const handleConfirmDeleteRow = () => {
+    const lastRow = String.fromCharCode(65 + seatGrid.rows - 1);
+    onDeleteRow(lastRow);
+    toast.success(`Đã xóa hàng ${lastRow} thành công!`);
+    setShowDeleteRowModal(false);
+  };
+
+  const handleDeleteColumnClick = () => {
+    if (seatGrid.columns <= 1) {
+      toast.error("Không thể xóa cột cuối cùng!");
+      return;
+    }
+    setShowDeleteColumnModal(true);
+  };
+
+  const handleConfirmDeleteColumn = () => {
+    onDeleteColumn(seatGrid.columns);
+    toast.success(`Đã xóa cột ${seatGrid.columns} thành công!`);
+    setShowDeleteColumnModal(false);
   };
 
   return (
@@ -44,92 +127,61 @@ const SeatConfigModal = ({
         </div>
         <div className="modal-body">
           <div className="seat-config-container">
-            {/* Row/Column Configuration - Show only when seat map is not generated */}
-            {!seatMapGenerated && (
-              <div className="seat-config-toolbar">
-                <div className="seat-config-inputs">
-                  <div className="seat-config-input-group">
-                    <label>Số hàng:</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="26"
-                      value={seatGrid.rows}
-                      onChange={(e) => {
-                        const newRows = parseInt(e.target.value) || 1;
-                        if (newRows >= 1 && newRows <= 26) {
-                          onSeatGridChange({
-                            ...seatGrid,
-                            rows: newRows,
-                          });
-                        }
-                      }}
-                      className="seat-config-input"
-                    />
-                  </div>
-                  <div className="seat-config-input-group">
-                    <label>Số ghế mỗi hàng:</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="50"
-                      value={seatGrid.columns}
-                      onChange={(e) => {
-                        const newCols = parseInt(e.target.value) || 1;
-                        if (newCols >= 1 && newCols <= 50) {
-                          onSeatGridChange({
-                            ...seatGrid,
-                            columns: newCols,
-                          });
-                        }
-                      }}
-                      className="seat-config-input"
-                    />
-                  </div>
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => {
-                      const newSeats = [];
-                      const rowLabels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-                      for (let r = 0; r < seatGrid.rows; r++) {
-                        const rowLabel = rowLabels[r];
-                        for (let c = 1; c <= seatGrid.columns; c++) {
-                          const existingSeat = seatGrid.seats.find(
-                            (s) => s.row === rowLabel && s.number === c,
-                          );
-                          if (existingSeat) {
-                            newSeats.push(existingSeat);
-                          } else {
-                            newSeats.push({
-                              id: `temp_${rowLabel}${c}`,
-                              row: rowLabel,
-                              number: c,
-                              type: "Standard",
-                              status: "Available",
-                              isNew: true,
-                              isModified: false,
-                            });
-                          }
-                        }
-                      }
-                      onSeatGridChange({ ...seatGrid, seats: newSeats });
-                      onSeatMapGeneratedChange(true);
-                      toast.success("Đã tạo sơ đồ ghế mới!");
-                    }}
-                  >
-                    Tạo sơ đồ
-                  </button>
-                </div>
+            {/* Toolbar with 5 control buttons */}
+            <div className="seat-config-toolbar">
+              <div className="toolbar-section">
+                <span className="toolbar-section-title">THÊM MỚI</span>
+                <button
+                  type="button"
+                  className="seat-control-btn add"
+                  onClick={handleAddRowClick}
+                  title="Thêm hàng mới vào cuối"
+                >
+                  + Hàng
+                </button>
+                <button
+                  type="button"
+                  className="seat-control-btn add"
+                  onClick={handleAddColumnClick}
+                  title="Thêm cột mới vào cuối"
+                >
+                  + Cột
+                </button>
+                <button
+                  type="button"
+                  className="seat-control-btn add"
+                  onClick={() => setShowAddSeatModal(true)}
+                  title="Thêm ghế vào hàng đã chọn"
+                >
+                  + Ghế
+                </button>
               </div>
-            )}
+              <div className="toolbar-section">
+                <span className="toolbar-section-title">XÓA</span>
+                <button
+                  type="button"
+                  className="seat-control-btn delete"
+                  onClick={handleDeleteRowClick}
+                  title="Xóa hàng cuối cùng"
+                >
+                  - Hàng
+                </button>
+                <button
+                  type="button"
+                  className="seat-control-btn delete"
+                  onClick={handleDeleteColumnClick}
+                  title="Xóa cột cuối cùng"
+                >
+                  - Cột
+                </button>
+              </div>
+            </div>
 
-            {/* Screen Display - Show only when seat map is generated */}
-            {seatMapGenerated && (
-              <div className="screen-display">
-                <div className="screen-label">MÀN HÌNH CHIẾU</div>
-                <div className="screen-line"></div>
-              </div>
-            )}
+            {/* Screen indicator */}
+            <div className="screen-indicator">
+              <div className="screen-label">MÀN HÌNH CHIẾU</div>
+              <div className="screen-line"></div>
+            </div>
 
             {/* Seat Grid */}
             <div className="seat-grid-container">
@@ -270,10 +322,6 @@ const SeatConfigModal = ({
                 <div className="legend-color deleted"></div>
                 <span>Đã ẩn</span>
               </div>
-              {/* <div className="legend-item">
-                <div className="legend-color empty"></div>
-                <span>Trống (Click để thêm)</span>
-              </div> */}
             </div>
 
             {/* Instructions */}
@@ -332,6 +380,149 @@ const SeatConfigModal = ({
             </div>
           </div>
         </div>
+
+        {/* Add Seat Modal */}
+        {showAddSeatModal && (
+          <div className="modal-overlay" onClick={() => setShowAddSeatModal(false)}>
+            <div className="modal-content add-seat-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Thêm ghế mới</h3>
+                <button className="modal-close" onClick={() => setShowAddSeatModal(false)}>
+                  &times;
+                </button>
+              </div>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Hàng:</label>
+                  <select
+                    className="form-control"
+                    value={selectedRowForAdd}
+                    onChange={(e) => setSelectedRowForAdd(e.target.value)}
+                  >
+                    <option value="">Chọn hàng</option>
+                    {getRowLabels().map((row) => (
+                      <option key={row} value={row}>
+                        Hàng {row}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Số ghế muốn thêm:</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    min="1"
+                    max="10"
+                    value={seatCountToAdd}
+                    onChange={(e) => setSeatCountToAdd(parseInt(e.target.value) || 1)}
+                  />
+                  <small className="form-text text-muted">
+                    Ghế sẽ được thêm vào cuối hàng đã chọn.
+                  </small>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowAddSeatModal(false)}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleConfirmAddSeats}
+                  disabled={!selectedRowForAdd || seatCountToAdd < 1}
+                >
+                  Thêm ghế
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Row Modal */}
+        {showDeleteRowModal && (
+          <div className="modal-overlay" onClick={() => setShowDeleteRowModal(false)}>
+            <div className="modal-content delete-row-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Xác nhận xóa hàng</h3>
+                <button className="modal-close" onClick={() => setShowDeleteRowModal(false)}>
+                  &times;
+                </button>
+              </div>
+              <div className="modal-body">
+                <p>Bạn có chắc muốn xóa hàng <strong className="row-info">{String.fromCharCode(65 + seatGrid.rows - 1)}</strong>?</p>
+                <p className="seat-count">
+                  Hàng này nằm ở ngoài cùng và sẽ bị xóa vĩnh viễn.
+                </p>
+                <p className="seat-count">
+                  Tất cả ghế trong hàng này sẽ bị xóa.
+                </p>
+                <p className="warning-text">
+                  Hành động này không thể hoàn tác.
+                </p>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowDeleteRowModal(false)}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={handleConfirmDeleteRow}
+                >
+                  Xóa hàng
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Column Modal */}
+        {showDeleteColumnModal && (
+          <div className="modal-overlay" onClick={() => setShowDeleteColumnModal(false)}>
+            <div className="modal-content delete-column-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Xác nhận xóa cột</h3>
+                <button className="modal-close" onClick={() => setShowDeleteColumnModal(false)}>
+                  &times;
+                </button>
+              </div>
+              <div className="modal-body">
+                <p>Bạn có chắc muốn xóa cột <strong className="column-info">{seatGrid.columns}</strong>?</p>
+                <p className="seat-count">
+                  Tất cả ghế trong cột này sẽ bị xóa.
+                </p>
+                <p className="warning-text">
+                  Hành động này không thể hoàn tác.
+                </p>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowDeleteColumnModal(false)}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={handleConfirmDeleteColumn}
+                >
+                  Xóa cột
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

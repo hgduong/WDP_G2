@@ -275,6 +275,15 @@
   color: #333;
 }
 
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #e0e0e0;
+}
+
 .form-group {
   margin-bottom: 15px;
 }
@@ -1726,12 +1735,85 @@
 
 .seat-config-toolbar {
   display: flex;
+  justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
   padding: 12px 16px;
   background: #fff;
   border-radius: 8px;
   border: 1px solid #e0e0e0;
+}
+
+.toolbar-section {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.toolbar-section-title {
+  font-weight: 600;
+  color: #495057;
+  margin-right: 10px;
+  font-size: 13px;
+}
+
+.seat-control-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.seat-control-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.seat-control-btn.add {
+  background: #28a745;
+  color: white;
+}
+
+.seat-control-btn.add:hover {
+  background: #218838;
+}
+
+.seat-control-btn.delete {
+  background: #dc3545;
+  color: white;
+}
+
+.seat-control-btn.delete:hover {
+  background: #c82333;
+}
+
+.screen-indicator {
+  text-align: center;
+  padding: 20px;
+  background: linear-gradient(180deg, #e0e0e0 0%, #f5f5f5 100%);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.screen-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+
+.screen-line {
+  height: 4px;
+  background: linear-gradient(90deg, transparent 0%, #999 50%, transparent 100%);
+  border-radius: 2px;
 }
 
 .seat-config-toolbar .btn {
@@ -1847,6 +1929,96 @@
   color: #333;
   font-size: 14px;
   font-weight: 600;
+}
+
+/* Add Seat Modal */
+.add-seat-modal {
+  max-width: 400px;
+}
+
+.add-seat-modal .modal-body {
+  padding: 20px;
+}
+
+.add-seat-modal .form-group {
+  margin-bottom: 15px;
+}
+
+.add-seat-modal .form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.add-seat-modal .form-control {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+}
+
+/* Delete Row Modal */
+.delete-row-modal {
+  max-width: 450px;
+}
+
+.delete-row-modal .modal-body {
+  text-align: center;
+  padding: 20px;
+}
+
+.delete-row-modal .row-info {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #dc3545;
+  margin: 10px 0;
+}
+
+.delete-row-modal .seat-count {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.delete-row-modal .warning-text {
+  color: #856404;
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+  padding: 10px;
+  margin-top: 15px;
+  font-size: 0.9rem;
+}
+
+/* Delete Column Modal */
+.delete-column-modal {
+  max-width: 450px;
+}
+
+.delete-column-modal .modal-body {
+  text-align: center;
+  padding: 20px;
+}
+
+.delete-column-modal .column-info {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #dc3545;
+  margin: 10px 0;
+}
+
+.delete-column-modal .seat-count {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.delete-column-modal .warning-text {
+  color: #856404;
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+  padding: 10px;
+  margin-top: 15px;
+  font-size: 0.9rem;
 }
 
 .seat-instructions ul {

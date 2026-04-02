@@ -5,7 +5,6 @@ import {
   getRoomsByCinema,
   getShowtimesByCinema,
   getAllMovies,
-  createShowtime,
   createRoom,
   updateRoom,
   deleteRoom,
@@ -50,7 +49,6 @@ const CinemaManagement = () => {
   const [editingRoom, setEditingRoom] = useState(null);
   const [selectedCinema, setSelectedCinema] = useState(null);
   const [cinemaRooms, setCinemaRooms] = useState([]);
-  const [cinemaShowtimes, setCinemaShowtimes] = useState([]);
   const [movies, setMovies] = useState([]);
 
   const [cinemaFormData, setCinemaFormData] = useState({
@@ -86,12 +84,6 @@ const CinemaManagement = () => {
   const [showSeatModal, setShowSeatModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [roomSeats, setRoomSeats] = useState([]);
-  const [editingSeat, setEditingSeat] = useState(null);
-  const [seatFormData, setSeatFormData] = useState({
-    row: "",
-    number: "",
-    type: "Standard",
-  });
   const [showSeatDeleteConfirm, setShowSeatDeleteConfirm] = useState(false);
   const [deletingSeatId, setDeletingSeatId] = useState(null);
   const [isSeatDeleting, setIsSeatDeleting] = useState(false);
@@ -109,7 +101,6 @@ const CinemaManagement = () => {
   });
   const [selectedSeat, setSelectedSeat] = useState(null);
   const [originalSeats, setOriginalSeats] = useState([]);
-  const [seatMapGenerated, setSeatMapGenerated] = useState(false);
 
   useEffect(() => {
     fetchTimeCinemas();
@@ -152,7 +143,6 @@ const CinemaManagement = () => {
         getShowtimesByCinema(cinemaId),
       ]);
       setCinemaRooms(roomsData);
-      setCinemaShowtimes(showtimesData);
     } catch (err) {
       console.error(err);
     }
@@ -439,20 +429,6 @@ const CinemaManagement = () => {
     }
   };
 
-  const handleSeatInputChange = (e) => {
-    const { name, value } = e.target;
-    setSeatFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleEditSeat = (seat) => {
-    setEditingSeat(seat);
-    setSeatFormData({
-      row: seat.row || "",
-      number: seat.number || "",
-      type: seat.type || "Standard",
-    });
-  };
-
   const confirmDeleteSeat = async () => {
     if (!deletingSeatId || isSeatDeleting) return;
 
@@ -521,9 +497,81 @@ const CinemaManagement = () => {
     setShowSeatModal(false);
     setSelectedRoom(null);
     setRoomSeats([]);
-    setEditingSeat(null);
     setSelectedSeat(null);
     setSeatGrid({ rows: 5, columns: 10, seats: [] });
+  };
+
+  // Add new row to seat grid
+  const handleAddRow = () => {
+    setSeatGrid((prev) => {
+      const newRowLabel = String.fromCharCode(65 + prev.rows);
+      const newSeats = [];
+      
+      // Create seats for the new row
+      for (let c = 1; c <= prev.columns; c++) {
+        newSeats.push({
+          id: `temp_${newRowLabel}${c}`,
+          row: newRowLabel,
+          number: c,
+          type: "Standard",
+          status: "Available",
+          isNew: true,
+          isModified: false,
+        });
+      }
+      
+      return {
+        ...prev,
+        rows: prev.rows + 1,
+        seats: [...prev.seats, ...newSeats],
+      };
+    });
+  };
+
+  // Add new column to seat grid
+  const handleAddColumn = () => {
+    setSeatGrid((prev) => {
+      const newSeats = [];
+      const rowLabels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      
+      // Create seats for the new column in each row
+      for (let r = 0; r < prev.rows; r++) {
+        const rowLabel = rowLabels[r];
+        newSeats.push({
+          id: `temp_${rowLabel}${prev.columns + 1}`,
+          row: rowLabel,
+          number: prev.columns + 1,
+          type: "Standard",
+          status: "Available",
+          isNew: true,
+          isModified: false,
+        });
+      }
+      
+      return {
+        ...prev,
+        columns: prev.columns + 1,
+        seats: [...prev.seats, ...newSeats],
+      };
+    });
+  };
+
+  // Delete last row from seat grid
+  const handleDeleteRow = (rowLabel) => {
+    setSeatGrid((prev) => ({
+      ...prev,
+      rows: prev.rows - 1,
+      seats: prev.seats.filter((seat) => seat.row !== rowLabel),
+    }));
+  };
+
+  // Delete last column from seat grid
+  const handleDeleteColumn = (columnNumber) => {
+    setSeatGrid((prev) => ({
+      ...prev,
+      columns: prev.columns - 1,
+      seats: prev.seats.filter((seat) => seat.number !== columnNumber),
+    }));
   };
 
   // Initialize seat grid from existing seats
@@ -688,8 +736,6 @@ const CinemaManagement = () => {
         seats: grid,
       });
 
-      // Always show input form first when opening modal
-      setSeatMapGenerated(false);
 
       setShowSeatModal(true);
     } catch (err) {
@@ -814,14 +860,16 @@ const CinemaManagement = () => {
         selectedRoom={selectedRoom}
         seatGrid={seatGrid}
         selectedSeat={selectedSeat}
-        seatMapGenerated={seatMapGenerated}
         onClose={closeSeatModal}
         onSeatGridChange={setSeatGrid}
-        onSeatMapGeneratedChange={setSeatMapGenerated}
         onSeatSelect={handleSelectSeat}
         onUpdateSeatInGrid={handleUpdateSeatInGrid}
         onPermanentDeleteSeatClick={handlePermanentDeleteSeatClick}
         onSaveAllSeats={handleSaveAllSeats}
+        onAddRow={handleAddRow}
+        onAddColumn={handleAddColumn}
+        onDeleteRow={handleDeleteRow}
+        onDeleteColumn={handleDeleteColumn}
       />
 
       {/* Seat Delete Confirmation Modal */}
