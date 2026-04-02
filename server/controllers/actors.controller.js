@@ -38,8 +38,11 @@ const syncActorMovies = async (actorId, selectedMovieIds) => {
 
 exports.getAllActors = async (req, res) => {
   try {
-    const actors = await Actor.find().sort({ nameLower: 1 });
+    const actors = await Actor.find();
     res.json(actors);
+    if (!actors){
+      return res.status(404).json({message: "Không có diễn viên nào"})
+    }
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
