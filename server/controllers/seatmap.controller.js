@@ -156,7 +156,8 @@ exports.getSeatmapByShowtime = async (req, res) => {
         price: status?.price || 0,
         heldBy: status?.heldBy,
         heldUntil: status?.heldUntil,
-        bookedBy: status?.bookedBy
+        bookedBy: status?.bookedBy,
+        couplePairId: seat.couplePairId || null
       };
     });
     
@@ -197,10 +198,23 @@ exports.holdSeats = async (req, res) => {
     const { showtimeId, seatIds, userId } = req.body;
     const holdUntil = new Date(Date.now() + 10 * 1000); // 10 seconds hold time
 
+    // Get all seats to check for couple pairs
+    const seats = await Seat.find({ _id: { $in: seatIds } });
+    const allSeatIds = [...seatIds];
+    
+    // For couple seats, also add their pair seats
+    for (const seat of seats) {
+      if (seat.type === 'Couple' && seat.couplePairId) {
+        if (!allSeatIds.includes(seat.couplePairId.toString())) {
+          allSeatIds.push(seat.couplePairId);
+        }
+      }
+    }
+
     // Update SeatStatus to "Holding" status
     await SeatStatus.updateMany(
       { 
-        seatId: { $in: seatIds }, 
+        seatId: { $in: allSeatIds }, 
         showtimeId: showtimeId,
         status: { $in: ["Available", "Holding"] } 
       },
@@ -224,10 +238,23 @@ exports.releaseSeats = async (req, res) => {
   try {
     const { showtimeId, seatIds } = req.body;
 
+    // Get all seats to check for couple pairs
+    const seats = await Seat.find({ _id: { $in: seatIds } });
+    const allSeatIds = [...seatIds];
+    
+    // For couple seats, also add their pair seats
+    for (const seat of seats) {
+      if (seat.type === 'Couple' && seat.couplePairId) {
+        if (!allSeatIds.includes(seat.couplePairId.toString())) {
+          allSeatIds.push(seat.couplePairId);
+        }
+      }
+    }
+
     // Release seats on SeatStatus (set back to Available if not booked)
     await SeatStatus.updateMany(
       { 
-        seatId: { $in: seatIds }, 
+        seatId: { $in: allSeatIds }, 
         showtimeId: showtimeId,
         status: "Holding" 
       },
@@ -289,10 +316,23 @@ exports.bookSeats = async (req, res) => {
   try {
     const { showtimeId, seatIds, bookingId, userId } = req.body;
 
+    // Get all seats to check for couple pairs
+    const seats = await Seat.find({ _id: { $in: seatIds } });
+    const allSeatIds = [...seatIds];
+    
+    // For couple seats, also add their pair seats
+    for (const seat of seats) {
+      if (seat.type === 'Couple' && seat.couplePairId) {
+        if (!allSeatIds.includes(seat.couplePairId.toString())) {
+          allSeatIds.push(seat.couplePairId);
+        }
+      }
+    }
+
     // Cập nhật trạng thái ghế trên SeatStatus
     await SeatStatus.updateMany(
       { 
-        seatId: { $in: seatIds }, 
+        seatId: { $in: allSeatIds }, 
         showtimeId: showtimeId,
         status: { $in: ["Available", "Holding"] } 
       },
@@ -329,9 +369,15 @@ exports.getSeatsByRoom = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy bố cục ghế cho phòng này" });
     }
     
+    // Include couplePairId in response
+    const seatsWithCoupleInfo = room.seats.map(seat => ({
+      ...seat.toObject(),
+      couplePairId: seat.couplePairId || null
+    }));
+    
     res.json({
       roomId: room._id,
-      seats: room.seats,
+      seats: seatsWithCoupleInfo,
       capacity: room.capacity
     });
   } catch (error) {
@@ -339,17 +385,22 @@ exports.getSeatsByRoom = async (req, res) => {
   }
 };
 
-// Update seat (type, row, number, status)
+// Update seat (type, row, number, status, couplePairId)
 exports.updateSeat = async (req, res) => {
   try {
     const { seatId } = req.params;
-    const { type, row, number, status } = req.body;
+    const { type, row, number, status, couplePairId } = req.body;
+    
+    console.log('updateSeat called with:', { seatId, type, row, number, status, couplePairId });
     
     const updateData = {};
     if (type) updateData.type = type;
     if (row) updateData.row = row;
     if (number) updateData.number = parseInt(number);
     if (status) updateData.status = status;
+    if (couplePairId !== undefined) updateData.couplePairId = couplePairId;
+    
+    console.log('updateData:', updateData);
     
     // Check if another seat with same row/number already exists in the same room
     if (row || number) {
@@ -403,6 +454,14 @@ exports.deleteSeat = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy ghế" });
     }
     
+    // If this is a couple seat, update the pair seat
+    if (seat.type === 'Couple' && seat.couplePairId) {
+      await Seat.findByIdAndUpdate(seat.couplePairId, {
+        type: 'Standard',
+        couplePairId: null
+      });
+    }
+    
     // Remove seat from all rooms
     await Room.updateMany(
       { seats: seatId },
@@ -425,7 +484,7 @@ exports.deleteSeat = async (req, res) => {
 exports.addSeat = async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { row, number, type, status } = req.body;
+    const { row, number, type, status, couplePairId } = req.body;
     
     if (!row || !number) {
       return res.status(400).json({ message: "Vui lòng nhập hàng và số ghế" });
@@ -454,7 +513,8 @@ exports.addSeat = async (req, res) => {
       row,
       number: parseInt(number),
       type: type || "Standard",
-      status: status || "Available"
+      status: status || "Available",
+      couplePairId: couplePairId || null
     });
     
     // Add seat to room

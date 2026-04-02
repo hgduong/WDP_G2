@@ -674,6 +674,7 @@ const CinemaManagement = () => {
             number: seat.number,
             type: seat.type,
             status: seat.status,
+            couplePairId: seat.couplePairId || null,
           }),
         );
       }
@@ -686,6 +687,7 @@ const CinemaManagement = () => {
             number: seat.number,
             type: seat.type,
             status: seat.status,
+            couplePairId: seat.couplePairId || null,
           }),
         );
       }

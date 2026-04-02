@@ -38,6 +38,24 @@ const SeatConfigModal = ({
     return seatGrid.seats.find((s) => s.row === row && s.number === number);
   };
 
+  // Tìm ghế liền kề (ghế bên phải) cho ghế đôi
+  const getAdjacentSeat = (seat) => {
+    return seatGrid.seats.find(
+      (s) => s.row === seat.row && s.number === seat.number + 1 && s.status !== 'Deleted'
+    );
+  };
+
+  // Kiểm tra ghế có phải là ghế đôi không
+  const isCoupleSeat = (seat) => {
+    return seat.type === 'Couple';
+  };
+
+  // Tìm ghế pair của ghế đôi
+  const getCouplePairSeat = (seat) => {
+    if (!seat.couplePairId) return null;
+    return seatGrid.seats.find((s) => s.id === seat.couplePairId);
+  };
+
   const handleAddRowClick = () => {
     onAddRow();
     toast.success(`Đã thêm hàng ${String.fromCharCode(65 + seatGrid.rows)} thành công!`);
@@ -213,11 +231,11 @@ const SeatConfigModal = ({
                                         `Đã khôi phục ghế ${seat.row}${seat.number}`,
                                       );
                                     } else {
-                                      // Toggle between Standard, VIP, and Double
+                                      // Toggle between Standard, VIP, and Couple
                                       const types = [
                                         "Standard",
                                         "VIP",
-                                        "Double",
+                                        "Couple",
                                       ];
                                       const currentIndex = types.indexOf(
                                         seat.type,
@@ -226,12 +244,77 @@ const SeatConfigModal = ({
                                         types[
                                           (currentIndex + 1) % types.length
                                         ];
-                                      onUpdateSeatInGrid(seat.id, {
-                                        type: newType,
-                                      });
-                                      toast.success(
-                                        `Đã chuyển ghế ${seat.row}${seat.number} sang ${newType}`,
-                                      );
+
+                                      // Xử lý logic ghế đôi
+                                      if (newType === 'Couple') {
+                                        // Kiểm tra ghế liền kề
+                                        const adjacentSeat = getAdjacentSeat(seat);
+                                        if (!adjacentSeat) {
+                                          toast.error(
+                                            `Không thể chuyển ghế ${seat.row}${seat.number} sang Couple: Không có ghế liền kề bên phải!`
+                                          );
+                                          // Không return, cho phép chuyển sang type khác
+                                          // Quay lại Standard thay vì Couple
+                                          onUpdateSeatInGrid(seat.id, {
+                                            type: 'Standard',
+                                          });
+                                          toast.info(
+                                            `Đã chuyển ghế ${seat.row}${seat.number} sang Standard thay thế`
+                                          );
+                                          return;
+                                        }
+                                        if (adjacentSeat.type === 'Couple') {
+                                          toast.error(
+                                            `Không thể chuyển ghế ${seat.row}${seat.number} sang Couple: Ghế ${adjacentSeat.row}${adjacentSeat.number} đã là ghế đôi!`
+                                          );
+                                          // Không return, cho phép chuyển sang type khác
+                                          // Quay lại Standard thay vì Couple
+                                          onUpdateSeatInGrid(seat.id, {
+                                            type: 'Standard',
+                                          });
+                                          toast.info(
+                                            `Đã chuyển ghế ${seat.row}${seat.number} sang Standard thay thế`
+                                          );
+                                          return;
+                                        }
+
+                                        // Cập nhật cả 2 ghế thành Couple và link với nhau
+                                        onUpdateSeatInGrid(seat.id, {
+                                          type: 'Couple',
+                                          couplePairId: adjacentSeat.id,
+                                        });
+                                        onUpdateSeatInGrid(adjacentSeat.id, {
+                                          type: 'Couple',
+                                          couplePairId: seat.id,
+                                        });
+                                        toast.success(
+                                          `Đã chuyển ghế ${seat.row}${seat.number} và ${adjacentSeat.row}${adjacentSeat.number} sang Couple!`
+                                        );
+                                      } else if (seat.type === 'Couple' && newType !== 'Couple') {
+                                        // Chuyển từ Couple sang Standard/VIP: Hủy liên kết ghế đôi
+                                        const pairSeat = getCouplePairSeat(seat);
+                                        if (pairSeat) {
+                                          onUpdateSeatInGrid(pairSeat.id, {
+                                            type: 'Standard',
+                                            couplePairId: null,
+                                          });
+                                        }
+                                        onUpdateSeatInGrid(seat.id, {
+                                          type: newType,
+                                          couplePairId: null,
+                                        });
+                                        toast.success(
+                                          `Đã chuyển ghế ${seat.row}${seat.number} sang ${newType} và hủy liên kết ghế đôi!`
+                                        );
+                                      } else {
+                                        // Chuyển đổi bình thường (Standard <-> VIP)
+                                        onUpdateSeatInGrid(seat.id, {
+                                          type: newType,
+                                        });
+                                        toast.success(
+                                          `Đã chuyển ghế ${seat.row}${seat.number} sang ${newType}`,
+                                        );
+                                      }
                                     }
                                   }
                                 }}
@@ -256,15 +339,30 @@ const SeatConfigModal = ({
                                     }
                                   } else {
                                     // First right-click - hide the seat
+                                    // Nếu là ghế đôi, cần cập nhật cả ghế pair
+                                    if (seat.type === 'Couple' && seat.couplePairId) {
+                                      const pairSeat = getCouplePairSeat(seat);
+                                      if (pairSeat) {
+                                        // Chuyển ghế pair về Standard và xóa liên kết
+                                        onUpdateSeatInGrid(pairSeat.id, {
+                                          type: 'Standard',
+                                          couplePairId: null,
+                                        });
+                                        toast.info(
+                                          `Đã hủy liên kết ghế đôi với ${pairSeat.row}${pairSeat.number}`
+                                        );
+                                      }
+                                    }
                                     onUpdateSeatInGrid(seat.id, {
                                       status: "Deleted",
+                                      couplePairId: null,
                                     });
                                     toast.success(
                                       `Đã ẩn ghế ${seat.row}${seat.number}`,
                                     );
                                   }
                                 }}
-                                title={`${seat.row}${seat.number} - ${seat.type} - ${seat.status === "Deleted" ? "Đã xóa (Click để khôi phục)" : seat.status === "Available" ? "Còn trống" : "Đã đặt"}\nClick trái: Chuyển Standard ↔ VIP ↔ Double\nClick phải: Ẩn ghế\nClick phải 2 lần: Xóa vĩnh viễn`}
+                                title={`${seat.row}${seat.number} - ${seat.type} - ${seat.status === "Deleted" ? "Đã xóa (Click để khôi phục)" : seat.status === "Available" ? "Còn trống" : "Đã đặt"}\nClick trái: Chuyển Standard ↔ VIP ↔ Couple\nClick phải: Ẩn ghế\nClick phải 2 lần: Xóa vĩnh viễn`}
                               >
                                 {seat.status === "Deleted" ? (
                                   <span className="seat-deleted-x">×</span>
@@ -326,8 +424,8 @@ const SeatConfigModal = ({
                 <span>VIP</span>
               </div>
               <div className="legend-item">
-                <div className="legend-color double"></div>
-                <span>Double</span>
+                <div className="legend-color couple"></div>
+                <span>Couple</span>
               </div>
               <div className="legend-item">
                 <div className="legend-color deleted"></div>
@@ -344,7 +442,7 @@ const SeatConfigModal = ({
                 </li>
                 <li>
                   <strong>Click ghế</strong> → Chuyển Standard ↔ VIP ↔
-                  Double
+                  Couple
                 </li>
                 <li>
                   <strong>Click phải</strong> → Ẩn ghế

@@ -2147,14 +2147,6 @@
 }
 
 .seat-cell.couple {
-  background: #e1f5fe;
-  color: #0277bd;
-  width: 84px;
-  min-width: 60px;
-  flex-shrink: 1;
-}
-
-.seat-cell.double {
   background: #f3e5f5;
   color: #7b1fa2;
 }
@@ -2248,9 +2240,7 @@
   background: #e1f5fe;
 }
 
-.legend-color.double {
-  background: #f3e5f5;
-}
+
 
 .legend-color.booked {
   background: #f5f5f5;

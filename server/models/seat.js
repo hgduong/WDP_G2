@@ -7,6 +7,7 @@ const seatSchema = new mongoose.Schema({
   number: { type: Number, required: true },   // Ví dụ: 1, 2, 3
   type: { type: String, enum: ['Standard', 'VIP', 'Couple'], default: 'Standard' },
   status: { type: String, enum: ['Available', 'Deleted'], default: 'Available' },  // Trạng thái ghế (Available: Còn sử dụng, Deleted: Đã ẩn)
+  couplePairId: { type: mongoose.Schema.Types.ObjectId, ref: 'Seat', default: null },  // Liên kết đến ghế đôi (chỉ có ở ghế Couple)
   // Status is now tracked per-showtime in SeatStatus model
   // This model only stores the static seat information
 }, { timestamps: true });
