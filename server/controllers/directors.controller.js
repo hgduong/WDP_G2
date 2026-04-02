@@ -26,7 +26,11 @@ const syncDirectorMovies = async (directorId, selectedMovieIds) => {
 
 exports.getAllDirectors = async (req, res) => {
   try {
-    const directors = await Director.find().sort({ nameLower: 1 });
+    const directors = await Director.find();
+
+    if (!directors){
+      return res.status(404).json({message: "Không có đạo diễn nào"})
+    }
     res.json(directors);
   } catch (error) {
     res.status(500).json({ message: error.message });
