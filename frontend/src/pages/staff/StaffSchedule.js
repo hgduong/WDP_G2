@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { getMySchedule, staffCheckIn, staffCheckOut } from "../../services/api";
+import { getMySchedule } from "../../services/api";
 import "../../assets/styles/StaffSchedule.css";
+
+const SHIFTS = [
+  { id: "Sáng", time: "06:30 - 12:00" },
+  { id: "Chiều", time: "12:30 - 17:00" },
+  { id: "Tối", time: "17:30 - 22:00" },
+];
 
 const StaffSchedule = () => {
   const [schedules, setSchedules] = useState([]);
@@ -193,32 +199,6 @@ const StaffSchedule = () => {
     return `${checkOutStart.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} - ${checkOutEnd.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`;
   };
 
-  // Handle check-in
-  const handleCheckIn = async (scheduleId) => {
-    try {
-      await staffCheckIn(scheduleId);
-      setSuccess("Check-in thành công!");
-      fetchSchedules();
-      setTimeout(() => setSuccess(""), 3000);
-    } catch (err) {
-      setError(err?.message || "Check-in thất bại");
-      setTimeout(() => setError(""), 3000);
-    }
-  };
-
-  // Handle check-out
-  const handleCheckOut = async (scheduleId) => {
-    try {
-      await staffCheckOut(scheduleId);
-      setSuccess("Check-out thành công!");
-      fetchSchedules();
-      setTimeout(() => setSuccess(""), 3000);
-    } catch (err) {
-      setError(err?.message || "Check-out thất bại");
-      setTimeout(() => setError(""), 3000);
-    }
-  };
-
   // Get attendance status badge
   const getAttendanceBadge = (status) => {
     switch (status) {
@@ -350,8 +330,6 @@ const StaffSchedule = () => {
                   const schedule = getScheduleForSlot(day, shift);
                   const isPastDay = isPast(day);
                   const isTodayDay = isToday(day);
-                  const canCheckIn = isCheckInAvailable(schedule);
-                  const canCheckOut = isCheckOutAvailable(schedule);
 
                   return (
                     <td
@@ -366,7 +344,7 @@ const StaffSchedule = () => {
                             {getAttendanceBadge(schedule.attendanceStatus)}
                           </div>
                           
-                          {/* Check-in Section */}
+                          {/* Check-in Info */}
                           <div className="check-section check-in-section">
                             <div className="check-header">
                               <span className="check-icon">🟢</span>
@@ -386,17 +364,13 @@ const StaffSchedule = () => {
                                 </span>
                               </div>
                             ) : (
-                              <button
-                                className={`action-btn check-in-btn ${!canCheckIn ? "disabled" : ""}`}
-                                onClick={() => handleCheckIn(schedule._id)}
-                                disabled={!canCheckIn}
-                              >
-                                {canCheckIn ? "Check-in" : "Chưa đến giờ"}
-                              </button>
+                              <div className="check-time">
+                                <span className="time-label">Chưa check-in</span>
+                              </div>
                             )}
                           </div>
 
-                          {/* Check-out Section */}
+                          {/* Check-out Info */}
                           <div className="check-section check-out-section">
                             <div className="check-header">
                               <span className="check-icon">🔴</span>
@@ -416,13 +390,9 @@ const StaffSchedule = () => {
                                 </span>
                               </div>
                             ) : (
-                              <button
-                                className={`action-btn check-out-btn ${!canCheckOut ? "disabled" : ""}`}
-                                onClick={() => handleCheckOut(schedule._id)}
-                                disabled={!canCheckOut}
-                              >
-                                {canCheckOut ? "Check-out" : "Chưa đến giờ"}
-                              </button>
+                              <div className="check-time">
+                                <span className="time-label">Chưa check-out</span>
+                              </div>
                             )}
                           </div>
                         </div>

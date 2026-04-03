@@ -1512,3 +1512,130 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Attendance Popup Styles */
+.attendance-cell.clickable {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.attendance-cell.clickable:hover {
+  background-color: #f0f7ff;
+}
+
+.attendance-popup-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.attendance-popup-table th,
+.attendance-popup-table td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: center;
+}
+
+.attendance-popup-table th {
+  background-color: #1a1a2e;
+  color: white;
+  font-weight: 500;
+}
+
+.attendance-popup-table td:first-child {
+  text-align: left;
+  font-weight: 500;
+}
+
+.attendance-popup-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  color: #666;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.time-input {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 100px;
+}
+
+.btn-checkin {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.btn-checkin:hover {
+  background-color: #218838;
+}
+
+.btn-checkout {
+  background-color: #17a2b8;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.btn-checkout:hover {
+  background-color: #138496;
+}
+
+.btn-save {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  margin-right: 5px;
+}
+
+.btn-save:hover {
+  background-color: #218838;
+}
+
+.btn-cancel {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.btn-cancel:hover {
+  background-color: #545b62;
+}
