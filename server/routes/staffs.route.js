@@ -22,6 +22,7 @@ const {
   getSeatMapForStaffBooking,
   createStaffBooking,
 } = require("../controllers/staffBooking.controller");
+const scheduleController = require("../controllers/schedule.controller");
 const {
   authenticateToken,
   authorizeRoles,
@@ -53,6 +54,11 @@ staffWorkRouter.post("/seats/override", overrideSeatStatus);
 staffWorkRouter.post("/seats/unlock-internal", unlockInternalSeats);
 staffWorkRouter.patch("/bookings/:id/payment", updateBookingPayment);
 staffWorkRouter.get("/audit-logs", getAuditLogs);
+
+// Staff schedule routes
+staffWorkRouter.get("/schedule/my", scheduleController.getMySchedule);
+staffWorkRouter.post("/schedule/:scheduleId/check-in", scheduleController.checkIn);
+staffWorkRouter.post("/schedule/:scheduleId/check-out", scheduleController.checkOut);
 
 router.use(staffWorkRouter);
 
