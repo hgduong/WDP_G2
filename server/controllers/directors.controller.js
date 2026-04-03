@@ -1,35 +1,27 @@
-// controllers/directors.controller.js
-const mongoose = require("mongoose");
+﻿// controllers/directors.controller.js
 const Director = require("../models/director");
 const Movie = require("../models/movie");
 
 const normalizeName = (value) => value.trim().replace(/\s+/g, " ");
 
-const normalizeMovies = (movies) => {
-  if (!Array.isArray(movies)) return [];
-  return movies.filter((id) => mongoose.isValidObjectId(id));
-};
-
-const syncDirectorMovies = async (directorId, selectedMovieIds) => {
-  const selectedIds = selectedMovieIds.map(String);
-
-  await Movie.updateMany(
-    { _id: { $in: selectedIds } },
-    { $addToSet: { directors: directorId } }
-  );
-
-  await Movie.updateMany(
-    { _id: { $nin: selectedIds }, directors: directorId },
-    { $pull: { directors: directorId } }
-  );
-};
-
 exports.getAllDirectors = async (req, res) => {
   try {
-    const directors = await Director.find();
+    const directors = await Director.aggregate([
+      {
+        $lookup: {
+          from: "movies",
+          let: { directorId: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $in: ["$$directorId", "$directors"] } } },
+            { $project: { _id: 1, title: 1 } }
+          ],
+          as: "movies"
+        }
+      }
+    ]);
 
     if (!directors){
-      return res.status(404).json({message: "Không có đạo diễn nào"})
+      return res.status(404).json({message: "Khong co dao dien nao"})
     }
     res.json(directors);
   } catch (error) {
@@ -41,7 +33,7 @@ exports.getDirectorById = async (req, res) => {
   try {
     const director = await Director.findById(req.params.id);
     if (!director) {
-      return res.status(404).json({ message: "Đạo diễn không tồn tại" });
+      return res.status(404).json({ message: "Äáº¡o diá»…n khÃ´ng tá»“n táº¡i" });
     }
     res.json(director);
   } catch (error) {
@@ -53,16 +45,14 @@ exports.createDirector = async (req, res) => {
   try {
     const name = normalizeName(req.body.name || "");
     if (!name) {
-      return res.status(400).json({ message: "Tên đạo diễn là bắt buộc" });
+      return res.status(400).json({ message: "TÃªn Ä‘áº¡o diá»…n lÃ  báº¯t buá»™c" });
     }
 
     const nameLower = name.toLowerCase();
     const existing = await Director.findOne({ nameLower });
     if (existing) {
-      return res.status(400).json({ message: "Đạo diễn đã tồn tại" });
+      return res.status(400).json({ message: "Äáº¡o diá»…n Ä‘Ã£ tá»“n táº¡i" });
     }
-
-    const movies = normalizeMovies(req.body.movies);
 
     const director = await Director.create({
       name,
@@ -71,10 +61,8 @@ exports.createDirector = async (req, res) => {
       gender: req.body.gender || null,
       nationality: req.body.nationality || "",
       description: req.body.description || "",
-      movies
+      movies: []
     });
-
-    await syncDirectorMovies(director._id, movies);
 
     res.status(201).json(director);
   } catch (error) {
@@ -88,14 +76,14 @@ exports.updateDirector = async (req, res) => {
     if (payload.name !== undefined) {
       const name = normalizeName(payload.name || "");
       if (!name) {
-        return res.status(400).json({ message: "Tên đạo diễn là bắt buộc" });
+        return res.status(400).json({ message: "TÃªn Ä‘áº¡o diá»…n lÃ  báº¯t buá»™c" });
       }
       payload.name = name;
       payload.nameLower = name.toLowerCase();
     }
 
     if (payload.movies !== undefined) {
-      payload.movies = normalizeMovies(payload.movies);
+      delete payload.movies;
     }
 
     if (payload.gender !== undefined) {
@@ -107,11 +95,7 @@ exports.updateDirector = async (req, res) => {
     });
 
     if (!director) {
-      return res.status(404).json({ message: "Đạo diễn không tồn tại" });
-    }
-
-    if (payload.movies) {
-      await syncDirectorMovies(director._id, payload.movies);
+      return res.status(404).json({ message: "Äáº¡o diá»…n khÃ´ng tá»“n táº¡i" });
     }
 
     res.json(director);
@@ -124,7 +108,7 @@ exports.deleteDirector = async (req, res) => {
   try {
     const director = await Director.findByIdAndDelete(req.params.id);
     if (!director) {
-      return res.status(404).json({ message: "Đạo diễn không tồn tại" });
+      return res.status(404).json({ message: "Äáº¡o diá»…n khÃ´ng tá»“n táº¡i" });
     }
 
     await Movie.updateMany(
@@ -132,7 +116,7 @@ exports.deleteDirector = async (req, res) => {
       { $pull: { directors: director._id } }
     );
 
-    res.json({ message: "Đã xóa đạo diễn" });
+    res.json({ message: "ÄÃ£ xÃ³a Ä‘áº¡o diá»…n" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

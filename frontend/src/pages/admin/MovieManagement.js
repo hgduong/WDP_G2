@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   getAllMovies,
   getMovieById,
@@ -6,6 +6,8 @@ import {
   updateMovie,
   deleteMovie,
 } from "../../services/moviesApi";
+import { getAllActors, createActor } from "../../services/actorsApi";
+import { getAllDirectors, createDirector } from "../../services/directorsApi";
 import { getImageUrl } from "../../utils/imageUtils";
 import { toast } from "react-toastify";
 import "./AdminManagement.css";
@@ -34,8 +36,12 @@ const MovieManagement = () => {
   const [deletingMovieId, setDeletingMovieId] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [editingMovie, setEditingMovie] = useState(null);
-  const [displayDirectorName, setDisplayDirectorName] = useState("");
-  const [displayCastNames, setDisplayCastNames] = useState("");
+  const [actors, setActors] = useState([]);
+  const [directors, setDirectors] = useState([]);
+  const [newActorName, setNewActorName] = useState("");
+  const [newDirectorName, setNewDirectorName] = useState("");
+  const [showDirectorDropdown, setShowDirectorDropdown] = useState(false);
+  const [showCastDropdown, setShowCastDropdown] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -44,6 +50,7 @@ const MovieManagement = () => {
     releaseDate: "",
     endDate: "",
     language: "",
+    directors: [],
     cast: [],
     rating: "",
     posterUrl: "",
@@ -53,6 +60,8 @@ const MovieManagement = () => {
 
   useEffect(() => {
     fetchMovies();
+    fetchActors();
+    fetchDirectors();
   }, []);
 
   const fetchMovies = async () => {
@@ -66,6 +75,24 @@ const MovieManagement = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchActors = async () => {
+    try {
+      const data = await getAllActors();
+      setActors(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchDirectors = async () => {
+    try {
+      const data = await getAllDirectors();
+      setDirectors(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -126,6 +153,106 @@ const MovieManagement = () => {
     });
   };
 
+  const normalizeName = (value) => value.trim().replace(/\s+/g, " ");
+
+  const handleDirectorToggle = (directorId) => {
+    setFormData((prev) => {
+      const current = prev.directors || [];
+      if (current.includes(directorId)) {
+        return { ...prev, directors: current.filter((id) => id !== directorId) };
+      }
+      return { ...prev, directors: [...current, directorId] };
+    });
+  };
+
+  const handleCastToggle = (actorId) => {
+    setFormData((prev) => {
+      const current = prev.cast || [];
+      if (current.includes(actorId)) {
+        return { ...prev, cast: current.filter((id) => id !== actorId) };
+      }
+      return { ...prev, cast: [...current, actorId] };
+    });
+  };
+
+  const getSelectedNames = (items, selectedIds) => {
+    const map = new Map(items.map((item) => [item._id, item.name]));
+    return (selectedIds || [])
+      .map((id) => map.get(id))
+      .filter(Boolean)
+      .join(", ");
+  };
+
+  const handleAddDirector = async () => {
+    const name = normalizeName(newDirectorName || "");
+    if (!name) return;
+
+    const existing = directors.find(
+      (item) => (item.nameLower || item.name?.toLowerCase()) === name.toLowerCase()
+    );
+    if (existing) {
+      toast.warning("Đạo diễn đã tồn tại trong hệ thống.");
+      setFormData((prev) => ({
+        ...prev,
+        directors: Array.from(new Set([...(prev.directors || []), existing._id])),
+      }));
+      setNewDirectorName("");
+      return;
+    }
+
+    try {
+      const created = await createDirector({ name });
+      setDirectors((prev) => [...prev, created]);
+      setFormData((prev) => ({
+        ...prev,
+        directors: Array.from(new Set([...(prev.directors || []), created._id])),
+      }));
+      setNewDirectorName("");
+      toast.success("Thêm đạo diễn mới thành công!");
+    } catch (err) {
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Có lỗi xảy ra khi thêm đạo diễn";
+      toast.error(errorMsg);
+    }
+  };
+
+  const handleAddActor = async () => {
+    const name = normalizeName(newActorName || "");
+    if (!name) return;
+
+    const existing = actors.find(
+      (item) => (item.nameLower || item.name?.toLowerCase()) === name.toLowerCase()
+    );
+    if (existing) {
+      toast.warning("Diễn viên đã tồn tại trong hệ thống.");
+      setFormData((prev) => ({
+        ...prev,
+        cast: Array.from(new Set([...(prev.cast || []), existing._id])),
+      }));
+      setNewActorName("");
+      return;
+    }
+
+    try {
+      const created = await createActor({ name });
+      setActors((prev) => [...prev, created]);
+      setFormData((prev) => ({
+        ...prev,
+        cast: Array.from(new Set([...(prev.cast || []), created._id])),
+      }));
+      setNewActorName("");
+      toast.success("Thêm diễn viên mới thành công!");
+    } catch (err) {
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Có lỗi xảy ra khi thêm diễn viên";
+      toast.error(errorMsg);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -176,24 +303,7 @@ const MovieManagement = () => {
       console.error(err);
     }
 
-    const directorName = Array.isArray(latestMovie.directors)
-      ? latestMovie.directors
-          .map((d) => (typeof d === "string" ? d : d?.name))
-          .filter(Boolean)
-          .join(", ")
-      : typeof latestMovie.director === "string"
-      ? latestMovie.director
-      : latestMovie.director?.name || "";
-    const castNames = Array.isArray(latestMovie.cast)
-      ? latestMovie.cast
-          .map((member) => (typeof member === "string" ? member : member?.name))
-          .filter(Boolean)
-          .join(", ")
-      : "";
-
     setEditingMovie(latestMovie);
-    setDisplayDirectorName(directorName);
-    setDisplayCastNames(castNames);
     setFormData({
       title: latestMovie.title || "",
       description: latestMovie.description || "",
@@ -202,6 +312,9 @@ const MovieManagement = () => {
       releaseDate: latestMovie.releaseDate ? latestMovie.releaseDate.split("T")[0] : "",
       endDate: latestMovie.endDate ? latestMovie.endDate.split("T")[0] : "",
       language: latestMovie.language || "",
+      directors: Array.isArray(latestMovie.directors)
+        ? latestMovie.directors.map((item) => (typeof item === "string" ? item : item?._id)).filter(Boolean)
+        : [],
       cast: Array.isArray(latestMovie.cast)
         ? latestMovie.cast.map((member) => (typeof member === "string" ? member : member?._id)).filter(Boolean)
         : [],
@@ -210,6 +323,8 @@ const MovieManagement = () => {
       trailerUrl: latestMovie.trailerUrl || "",
       status: latestMovie.status || "ComingSoon",
     });
+    setShowDirectorDropdown(false);
+    setShowCastDropdown(false);
     setShowModal(true);
   };
 
@@ -252,20 +367,27 @@ const MovieManagement = () => {
       releaseDate: "",
       endDate: "",
       language: "",
+      directors: [],
       cast: [],
       rating: "",
       posterUrl: "",
       trailerUrl: "",
       status: "ComingSoon",
     });
+    setNewActorName("");
+    setNewDirectorName("");
+    setShowDirectorDropdown(false);
+    setShowCastDropdown(false);
     setShowModal(true);
   };
 
   const closeModal = () => {
     setShowModal(false);
     setEditingMovie(null);
-    setDisplayDirectorName("");
-    setDisplayCastNames("");
+    setNewActorName("");
+    setNewDirectorName("");
+    setShowDirectorDropdown(false);
+    setShowCastDropdown(false);
   };
 
   const getStatusBadge = (status) => {
@@ -437,13 +559,103 @@ const MovieManagement = () => {
               </div>
 
               <div className="form-group">
-                <label>Đạo diễn (Tự động hiển thị) </label>
-                <input type="text" value={displayDirectorName} disabled />
+                <label>Đạo diễn (chọn nhiều)</label>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowDirectorDropdown((prev) => !prev)}
+                  style={{ width: "100%", textAlign: "left", whiteSpace: "normal" }}
+                >
+                  {formData.directors.length > 0
+                    ? `${getSelectedNames(directors, formData.directors)}`
+                    : "Chọn đạo diễn"}
+                </button>
+                {showDirectorDropdown && (
+                  <div
+                    className="multi-select-dropdown"
+                  >
+                    {directors.length === 0 && (
+                      <div className="text-muted">Chưa có đạo diễn</div>
+                    )}
+                    <div className="multi-select-grid">
+                      {directors.map((director) => (
+                        <label
+                          key={director._id}
+                          className="multi-select-item"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={formData.directors.includes(director._id)}
+                            onChange={() => handleDirectorToggle(director._id)}
+                            className="multi-select-checkbox"
+                          />
+                          <span className="multi-select-label">{director.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                  <input
+                    type="text"
+                    value={newDirectorName}
+                    onChange={(e) => setNewDirectorName(e.target.value)}
+                    placeholder="Thêm đạo diễn mới"
+                  />
+                  <button type="button" className="btn btn-sm btn-secondary" onClick={handleAddDirector}>
+                    Thêm
+                  </button>
+                </div>
               </div>
 
               <div className="form-group">
-                <label>Diễn viên(Tự động hiển thị)</label>
-                <textarea value={displayCastNames} rows="2" disabled />
+                <label>Diễn viên (chọn nhiều)</label>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowCastDropdown((prev) => !prev)}
+                  style={{ width: "100%", textAlign: "left", whiteSpace: "normal" }}
+                >
+                  {formData.cast.length > 0
+                    ? `${getSelectedNames(actors, formData.cast)}`
+                    : "Chọn diễn viên"}
+                </button>
+                {showCastDropdown && (
+                  <div
+                    className="multi-select-dropdown"
+                  >
+                    {actors.length === 0 && (
+                      <div className="text-muted">Chưa có diễn viên</div>
+                    )}
+                    <div className="multi-select-grid">
+                      {actors.map((actor) => (
+                        <label
+                          key={actor._id}
+                          className="multi-select-item"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={formData.cast.includes(actor._id)}
+                            onChange={() => handleCastToggle(actor._id)}
+                            className="multi-select-checkbox"
+                          />
+                          <span className="multi-select-label">{actor.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                  <input
+                    type="text"
+                    value={newActorName}
+                    onChange={(e) => setNewActorName(e.target.value)}
+                    placeholder="Thêm diễn viên mới"
+                  />
+                  <button type="button" className="btn btn-sm btn-secondary" onClick={handleAddActor}>
+                    Thêm
+                  </button>
+                </div>
               </div>
 
               <div className="form-group">
@@ -526,5 +738,3 @@ const MovieManagement = () => {
 };
 
 export default MovieManagement;
-
-

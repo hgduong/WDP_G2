@@ -359,7 +359,7 @@ const UserManagement = () => {
                         </div>
                         <div className="booking-info">
                           <strong>Tổng tiền:</strong>{" "}
-                          {booking.totalPrice?.toLocaleString("vi-VN")} VNÄ
+                          {booking.totalPrice?.toLocaleString("vi-VN")} VNĐ
                         </div>
                         <div className="booking-info">
                           <strong>Trạng thái thanh toán:</strong>{" "}
@@ -383,6 +383,5 @@ const UserManagement = () => {
 };
 
 export default UserManagement;
-
 
 

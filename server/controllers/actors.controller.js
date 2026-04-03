@@ -1,47 +1,27 @@
-// controllers/actors.controller.js
-const mongoose = require("mongoose");
+﻿// controllers/actors.controller.js
 const Actor = require("../models/actor");
 const Movie = require("../models/movie");
 
 const normalizeName = (value) => value.trim().replace(/\s+/g, " ");
 
-const normalizeMovies = (movies) => {
-  if (!Array.isArray(movies)) return [];
-  return movies.filter((id) => mongoose.isValidObjectId(id));
-};
-
-const syncActorMovies = async (actorId, selectedMovieIds) => {
-  const selectedIds = selectedMovieIds.map(String);
-
-  await Movie.updateMany(
-    {
-      _id: { $in: selectedIds },
-      $or: [
-        { cast: { $type: "string" } },
-        { cast: { $exists: false } },
-        { cast: null }
-      ]
-    },
-    { $set: { cast: [] } }
-  );
-
-  await Movie.updateMany(
-    { _id: { $in: selectedIds } },
-    { $addToSet: { cast: actorId } }
-  );
-
-  await Movie.updateMany(
-    { _id: { $nin: selectedIds }, cast: actorId },
-    { $pull: { cast: actorId } }
-  );
-};
-
 exports.getAllActors = async (req, res) => {
   try {
-    const actors = await Actor.find();
+    const actors = await Actor.aggregate([
+      {
+        $lookup: {
+          from: "movies",
+          let: { actorId: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $in: ["$$actorId", "$cast"] } } },
+            { $project: { _id: 1, title: 1 } }
+          ],
+          as: "movies"
+        }
+      }
+    ]);
     res.json(actors);
     if (!actors){
-      return res.status(404).json({message: "Không có diễn viên nào"})
+      return res.status(404).json({message: "KhÃ´ng cÃ³ diá»…n viÃªn nÃ o"})
     }
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -52,7 +32,7 @@ exports.getActorById = async (req, res) => {
   try {
     const actor = await Actor.findById(req.params.id);
     if (!actor) {
-      return res.status(404).json({ message: "Diễn viên không tồn tại" });
+      return res.status(404).json({ message: "Diá»…n viÃªn khÃ´ng tá»“n táº¡i" });
     }
     res.json(actor);
   } catch (error) {
@@ -64,16 +44,14 @@ exports.createActor = async (req, res) => {
   try {
     const name = normalizeName(req.body.name || "");
     if (!name) {
-      return res.status(400).json({ message: "Tên diễn viên là bắt buộc" });
+      return res.status(400).json({ message: "TÃªn diá»…n viÃªn lÃ  báº¯t buá»™c" });
     }
 
     const nameLower = name.toLowerCase();
     const existing = await Actor.findOne({ nameLower });
     if (existing) {
-      return res.status(400).json({ message: "Diễn viên đã tồn tại" });
+      return res.status(400).json({ message: "Diá»…n viÃªn Ä‘Ã£ tá»“n táº¡i" });
     }
-
-    const movies = normalizeMovies(req.body.movies);
 
     const actor = await Actor.create({
       name,
@@ -82,10 +60,8 @@ exports.createActor = async (req, res) => {
       gender: req.body.gender || null,
       nationality: req.body.nationality || "",
       description: req.body.description || "",
-      movies
+      movies: []
     });
-
-    await syncActorMovies(actor._id, movies);
 
     res.status(201).json(actor);
   } catch (error) {
@@ -99,14 +75,14 @@ exports.updateActor = async (req, res) => {
     if (payload.name !== undefined) {
       const name = normalizeName(payload.name || "");
       if (!name) {
-        return res.status(400).json({ message: "Tên diễn viên là bắt buộc" });
+        return res.status(400).json({ message: "TÃªn diá»…n viÃªn lÃ  báº¯t buá»™c" });
       }
       payload.name = name;
       payload.nameLower = name.toLowerCase();
     }
 
     if (payload.movies !== undefined) {
-      payload.movies = normalizeMovies(payload.movies);
+      delete payload.movies;
     }
 
     if (payload.gender !== undefined) {
@@ -118,11 +94,7 @@ exports.updateActor = async (req, res) => {
     });
 
     if (!actor) {
-      return res.status(404).json({ message: "Diễn viên không tồn tại" });
-    }
-
-    if (payload.movies) {
-      await syncActorMovies(actor._id, payload.movies);
+      return res.status(404).json({ message: "Diá»…n viÃªn khÃ´ng tá»“n táº¡i" });
     }
 
     res.json(actor);
@@ -135,7 +107,7 @@ exports.deleteActor = async (req, res) => {
   try {
     const actor = await Actor.findByIdAndDelete(req.params.id);
     if (!actor) {
-      return res.status(404).json({ message: "Diễn viên không tồn tại" });
+      return res.status(404).json({ message: "Diá»…n viÃªn khÃ´ng tá»“n táº¡i" });
     }
 
     await Movie.updateMany(
@@ -143,7 +115,7 @@ exports.deleteActor = async (req, res) => {
       { $pull: { cast: actor._id } }
     );
 
-    res.json({ message: "Đã xóa diễn viên" });
+    res.json({ message: "ÄÃ£ xÃ³a diá»…n viÃªn" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

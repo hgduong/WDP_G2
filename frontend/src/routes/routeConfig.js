@@ -21,6 +21,7 @@ import MoviesAll from "../pages/MoviesAll";
 import CinemasOverview from "../pages/CinemasOverview";
 import TicketPrices from "../pages/TicketPrices";
 import NewsOffers from "../pages/NewsOffers";
+import ComboOrder from "../pages/ComboOrder";
 
 //Staff pages
 
@@ -123,6 +124,11 @@ export const routesConfig = [
   {
     path: "/news",
     element: <NewsOffers />,
+    allowedRoles: ["Customer", "Admin", "Staff", "Guest"],
+  },
+  {
+    path: "/combo",
+    element: <ComboOrder />,
     allowedRoles: ["Customer", "Admin", "Staff", "Guest"],
   },
   
