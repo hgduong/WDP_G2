@@ -62,3 +62,39 @@ export const bookSeats = async (seatData) => {
     throw error.response?.data || error;
   }
 };
+
+export const getSeatsByRoom = async (roomId) => {
+  try {
+    const response = await API.get(`/api/seats/room/${roomId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const updateSeat = async (seatId, seatData) => {
+  try {
+    const response = await API.put(`/api/seats/${seatId}`, seatData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const deleteSeat = async (seatId) => {
+  try {
+    const response = await API.delete(`/api/seats/${seatId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const addSeat = async (roomId, seatData) => {
+  try {
+    const response = await API.post(`/api/seats/room/${roomId}`, seatData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
