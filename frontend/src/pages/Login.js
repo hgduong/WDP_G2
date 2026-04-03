@@ -1,6 +1,6 @@
 import React, { useState, useContext } from "react";
 import { loginUser } from "../services/api.js";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { UserContext } from "../context/UserContext.js";
 import { toast } from "react-toastify";
 import "../assets/styles/Login.css";
@@ -9,8 +9,10 @@ function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const location = useLocation();
   const navigate = useNavigate();
   const { login } = useContext(UserContext);
+  const redirectTo = location.state?.redirectTo || "/";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,7 +41,7 @@ function Login() {
           } else if (userData.role === "Staff") {
             navigate("/staff/dashboard");
           } else {
-            navigate("/");
+            navigate(redirectTo);
           }
         }, 100);
       }

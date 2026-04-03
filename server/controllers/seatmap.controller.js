@@ -7,8 +7,6 @@ exports.buildSeatLayout = (totalSeats) => {
   const effectiveCapacity = Math.max(Number(totalSeats) || 0, 50); // Default 50 if 0
   const seatsPerRow = 10;
   const seats = [];
-
-  // Generate all seats
   const totalRows = Math.ceil(effectiveCapacity / seatsPerRow);
   
   for (let rowIndex = 0; rowIndex < totalRows; rowIndex++) {
@@ -34,7 +32,7 @@ exports.buildSeatLayout = (totalSeats) => {
 exports.generateSeatLayout = async (req, res) => {
   try {
     const { roomId, capacity } = req.body;
-    
+
     if (!roomId || !capacity) {
       return res.status(400).json({ message: "roomId and capacity are required" });
     }
@@ -88,7 +86,7 @@ exports.generateSeatLayout = async (req, res) => {
     // Populate seats for response
     const populatedRoom = await Room.findById(roomId).populate("seats");
 
-    res.json({
+    return res.json({
       message: "Seat layout created successfully",
       room: populatedRoom,
       seats: populatedRoom.seats
@@ -308,11 +306,18 @@ exports.getHeldSeats = async (req, res) => {
 
     res.json(heldSeatStatuses);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    await session.abortTransaction();
+    return res
+      .status(error.statusCode || 500)
+      .json({ message: error.message || "Failed to release seats" });
+  } finally {
+    session.endSession();
   }
 };
 
 exports.bookSeats = async (req, res) => {
+  const session = await mongoose.startSession();
+
   try {
     const { showtimeId, seatIds, bookingId, userId } = req.body;
 

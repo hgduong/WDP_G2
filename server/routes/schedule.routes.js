@@ -19,8 +19,20 @@ router.get("/staffs", scheduleController.getStaffList);
 // Get shift details for a specific date
 router.get("/shifts/:date", scheduleController.getShiftDetails);
 
+// Get schedules by date (for attendance popup)
+router.get("/date", scheduleController.getSchedulesByDate);
+
 // Get schedule by ID
 router.get("/:id", scheduleController.getScheduleById);
+
+// Admin check-in
+router.post("/:scheduleId/checkin", scheduleController.adminCheckIn);
+
+// Admin check-out
+router.post("/:scheduleId/checkout", scheduleController.adminCheckOut);
+
+// Admin update attendance (edit)
+router.patch("/:scheduleId/attendance", scheduleController.adminUpdateAttendance);
 
 // Update schedule
 router.put("/:id", scheduleController.updateSchedule);

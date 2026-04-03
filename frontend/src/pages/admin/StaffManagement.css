@@ -10,7 +10,22 @@
 .btn-change-password {
   background-color: #17a2b8;
   color: white;
-  margin-left: 5px;
+}
+
+.staff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.btn-ban {
+  background-color: #6f42c1;
+  color: white;
+}
+
+.btn-ban:hover {
+  background-color: #5a32a3;
 }
 
 /* Password modal */

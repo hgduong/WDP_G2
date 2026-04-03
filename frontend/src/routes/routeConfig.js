@@ -1,7 +1,5 @@
 import Home from "../pages/Home";
 import MovieDetail from "../pages/MovieDetail";
-import Booking from "../pages/Booking";
-import Checkout from "../pages/Checkout";
 import Profile from "../pages/Profile";
 import Login from "../pages/Login";
 import StaffDashboard from "../pages/staff/StaffDashboard";
@@ -23,11 +21,7 @@ import MoviesAll from "../pages/MoviesAll";
 import CinemasOverview from "../pages/CinemasOverview";
 import TicketPrices from "../pages/TicketPrices";
 import NewsOffers from "../pages/NewsOffers";
-import TopUp from "../pages/TopUp";
-import TopUpPayment from "../pages/TopUpPayment";
-import TopUpSuccess from "../pages/TopUpSuccess";
-import TopUpFailure from "../pages/TopUpFailure";
-import TransactionDetail from "../pages/TransactionDetail";
+import ComboOrder from "../pages/ComboOrder";
 
 //Staff pages
 
@@ -42,6 +36,8 @@ import UserManagement from "../pages/admin/UserManagement";
 import VoucherManagement from "../pages/admin/VoucherManagement";
 import ScheduleManagement from "../pages/admin/ScheduleManagement";
 import AttendanceTracking from "../pages/admin/AttendanceTracking";
+import ActorsManagement from "../pages/admin/ActorsManagement";
+import DirectorsManagement from "../pages/admin/DirectorsManagement";
 
 export const routesConfig = [
   {
@@ -54,37 +50,10 @@ export const routesConfig = [
     element: <MovieDetail />,
     allowedRoles: ["Customer", "Admin", "Staff", "Guest"],
   },
-  { path: "/booking/:id", element: <Booking />, allowedRoles: ["Customer", "Guest"] },
-  { path: "/checkout", element: <Checkout />, allowedRoles: ["Customer"] },
   { path: "/order", element: <Order />, allowedRoles: ["Customer", "Staff", "Admin"] },
   {
     path: "/profile",
     element: <Profile />,
-    allowedRoles: ["Customer", "Admin", "Staff"],
-  },
-  {
-    path: "/topup",
-    element: <TopUp />,
-    allowedRoles: ["Customer", "Admin", "Staff"],
-  },
-  {
-    path: "/topup/payment",
-    element: <TopUpPayment />,
-    allowedRoles: ["Customer", "Admin", "Staff"],
-  },
-  {
-    path: "/topup-success",
-    element: <TopUpSuccess />,
-    allowedRoles: ["Customer", "Admin", "Staff"],
-  },
-  {
-    path: "/topup-failure",
-    element: <TopUpFailure />,
-    allowedRoles: ["Customer", "Admin", "Staff"],
-  },
-  {
-    path: "/transaction/:id",
-    element: <TransactionDetail />,
     allowedRoles: ["Customer", "Admin", "Staff"],
   },
   { path: "/login", element: <Login />, allowedRoles: ["Guest"] },
@@ -157,6 +126,11 @@ export const routesConfig = [
     element: <NewsOffers />,
     allowedRoles: ["Customer", "Admin", "Staff", "Guest"],
   },
+  {
+    path: "/combo",
+    element: <ComboOrder />,
+    allowedRoles: ["Customer", "Admin", "Staff", "Guest"],
+  },
   
   // Admin routes
   {
@@ -172,6 +146,16 @@ export const routesConfig = [
   {
     path: "/admin/movies",
     element: <MovieManagement />,
+    allowedRoles: ["Admin"],
+  },
+  {
+    path: "/admin/actors",
+    element: <ActorsManagement />,
+    allowedRoles: ["Admin"],
+  },
+  {
+    path: "/admin/directors",
+    element: <DirectorsManagement />,
     allowedRoles: ["Admin"],
   },
   {

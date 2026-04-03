@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import {
   getAllUsers,
   updateUserStatus,
@@ -24,6 +25,20 @@ const UserManagement = () => {
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      setError("");
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (success) {
+      toast.success(success);
+      setSuccess("");
+    }
+  }, [success]);
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -42,10 +57,8 @@ const UserManagement = () => {
       await updateUserStatus(userId, newStatus);
       setSuccess("Cập nhật trạng thái thành công");
       fetchUsers();
-      setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       setError(err?.message || "Không thể cập nhật trạng thái");
-      setTimeout(() => setError(""), 3000);
     }
   };
 
@@ -54,10 +67,8 @@ const UserManagement = () => {
       await updateUserRole(userId, newRole);
       setSuccess("Cập nhật vai trò thành công");
       fetchUsers();
-      setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       setError(err?.message || "Không thể cập nhật vai trò");
-      setTimeout(() => setError(""), 3000);
     }
   };
 
@@ -140,10 +151,6 @@ const UserManagement = () => {
         <h1>Quản lý Người Dùng</h1>
         <p className="subtitle">Quản lý thông tin và tài khoản người dùng</p>
       </div>
-
-      {error && <div className="alert alert-error">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
-
       <div className="filters-section">
         <div className="search-container">
           <input
@@ -194,10 +201,10 @@ const UserManagement = () => {
       </div>
 
       <div className="table-container">
-        <table className="data-table">
+        <table className="data-table user-table">
           <thead>
             <tr>
-              <th>STT</th>
+              <th style={{width: '30px'}}>STT</th>
               <th>Họ tên</th>
               <th>Email</th>
               <th>Số điện thoại</th>
@@ -376,3 +383,5 @@ const UserManagement = () => {
 };
 
 export default UserManagement;
+
+

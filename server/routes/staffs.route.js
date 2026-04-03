@@ -8,9 +8,6 @@ const {
   deleteStaff,
   updateStaffStatus,
   changeStaffPassword,
-  getStaffBookingShowtimes,
-  getSeatMapForStaffBooking,
-  createStaffBooking,
   getStaffDashboardStats,
   getStaffBookings,
   getAllBookings,
@@ -20,6 +17,12 @@ const {
   updateBookingPayment,
   getAuditLogs,
 } = require("../controllers/staff.controller");
+const {
+  getStaffBookingShowtimes,
+  getSeatMapForStaffBooking,
+  createStaffBooking,
+} = require("../controllers/staffBooking.controller");
+const scheduleController = require("../controllers/schedule.controller");
 const {
   authenticateToken,
   authorizeRoles,
@@ -33,10 +36,16 @@ const staffWorkRouter = express.Router();
 router.post("/register", registerStaff);
 
 // ─── Staff dashboard (requires JWT) ────────────────────────────────────────
-router.get("/dashboard/stats", authenticateToken, getStaffDashboardStats);
+router.get(
+  "/dashboard/stats",
+  authenticateToken,
+  authorizeRoles(["Staff", "Admin"]),
+  getStaffDashboardStats,
+);
 
 // ─── Staff work routes (requires JWT) ──────────────────────────────────────
 staffWorkRouter.use(authenticateToken);
+staffWorkRouter.use(authorizeRoles(["Staff", "Admin"]));
 
 staffWorkRouter.get("/bookings", getStaffBookings);
 staffWorkRouter.get("/bookings/all", getAllBookings);
@@ -46,18 +55,43 @@ staffWorkRouter.post("/seats/unlock-internal", unlockInternalSeats);
 staffWorkRouter.patch("/bookings/:id/payment", updateBookingPayment);
 staffWorkRouter.get("/audit-logs", getAuditLogs);
 
+// Staff schedule routes
+staffWorkRouter.get("/schedule/my", scheduleController.getMySchedule);
+staffWorkRouter.post("/schedule/:scheduleId/check-in", scheduleController.checkIn);
+staffWorkRouter.post("/schedule/:scheduleId/check-out", scheduleController.checkOut);
+
 router.use(staffWorkRouter);
 
 // ─── Public staff-booking routes (no auth — internal counter tool) ─────────
 // These endpoints are used by the Staff Booking page at /staff/bookings.
 // They are intentionally public so staff can use the counter tool without
 // going through a separate JWT check on each request.
-router.get("/bookings/showtimes", getStaffBookingShowtimes);
-router.get("/bookings/seatmap/:showtimeId", getSeatMapForStaffBooking);
-router.post("/bookings", createStaffBooking);
+router.get(
+  "/bookings/showtimes",
+  authenticateToken,
+  authorizeRoles(["Staff", "Admin"]),
+  getStaffBookingShowtimes,
+);
+router.get(
+  "/bookings/seatmap/:showtimeId",
+  authenticateToken,
+  authorizeRoles(["Staff", "Admin"]),
+  getSeatMapForStaffBooking,
+);
+router.post(
+  "/bookings",
+  authenticateToken,
+  authorizeRoles(["Staff", "Admin"]),
+  createStaffBooking,
+);
 
 // Public seatmap alias (legacy)
-router.get("/public/seatmap/:showtimeId", getSeatMapForStaffBooking);
+router.get(
+  "/public/seatmap/:showtimeId",
+  authenticateToken,
+  authorizeRoles(["Staff", "Admin"]),
+  getSeatMapForStaffBooking,
+);
 
 // ─── Admin-only staff management (requires Admin JWT) ─────────────────────
 adminStaffRouter.use(authenticateToken);

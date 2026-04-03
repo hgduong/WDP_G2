@@ -176,6 +176,12 @@
   border-bottom: 2px solid #f1f5f9;
 }
 
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .count-badge {
   background: #f1f5f9;
   color: #64748b;
@@ -366,6 +372,27 @@
   font-size: 11px;
   font-weight: 600;
   color: #059669;
+}
+
+.refresh-btn {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #d4dae3;
+  background: #ffffff;
+  color: #1f2937;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  border-color: #d97706;
+  background: #fffbeb;
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .time-slot-btn.full .slot-seats {
@@ -583,12 +610,37 @@
   color: #ffffff;
 }
 
+.seat-button.holding {
+  background: #fde68a;
+  border-color: #f59e0b;
+  color: #92400e;
+  cursor: not-allowed;
+}
+
 .seat-button.booked,
 .seat-button:disabled {
   background: #f1b1b1;
   border-color: #d28a8a;
   color: #7f1d1d;
   cursor: not-allowed;
+}
+
+.seat-button.holding:disabled {
+  background: #fde68a;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.seat-button.vip.holding:disabled {
+  background: #fde68a;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.seat-button.couple.holding:disabled {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+  border-color: #d97706 !important;
+  color: #78350f !important;
 }
 
 .selection-summary,

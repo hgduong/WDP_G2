@@ -51,7 +51,8 @@ export const formatPrice = (price) => {
  * @returns {string} QR code URL
  */
 export const generateQRCodeUrl = (data) => {
-  const qrData = encodeURIComponent(JSON.stringify(data));
+  const payload = typeof data === "string" ? data : JSON.stringify(data);
+  const qrData = encodeURIComponent(payload);
   return `https://chart.googleapis.com/chart?cht=qr&chl=${qrData}&chs=200x200&chco=4CAF50`;
 };
 

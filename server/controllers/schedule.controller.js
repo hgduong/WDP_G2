@@ -69,6 +69,7 @@ const createSchedule = async (req, res) => {
       isDeleted: false
     });
 
+    //set max staff/shift
     if (shiftCount >= 5) {
       return res.status(400).json({
         message: "Ca làm việc đã đủ 5 staff"
@@ -227,6 +228,42 @@ const updateSchedule = async (req, res) => {
       if (shiftCount >= 5) {
         return res.status(400).json({
           message: "Ca làm việc đã đủ 5 staff"
+        });
+      }
+
+      // Check if current staff already has 2 shifts on new date
+      const currentStaffId = staffId || schedule.staffId.toString();
+      const staffShiftCount = await Schedule.countDocuments({
+        staffId: currentStaffId,
+        date: {
+          $gte: new Date(newDate).setHours(0, 0, 0, 0),
+          $lte: new Date(newDate).setHours(23, 59, 59, 999)
+        },
+        isDeleted: false,
+        _id: { $ne: schedule._id }
+      });
+
+      if (staffShiftCount >= 2) {
+        return res.status(400).json({
+          message: "Staff không được làm việc quá 2 ca liên tiếp/ngày"
+        });
+      }
+
+      // Check if current staff already has this shift on new date
+      const staffHasThisShift = await Schedule.findOne({
+        staffId: currentStaffId,
+        date: {
+          $gte: new Date(newDate).setHours(0, 0, 0, 0),
+          $lte: new Date(newDate).setHours(23, 59, 59, 999)
+        },
+        shift: newShift,
+        isDeleted: false,
+        _id: { $ne: schedule._id }
+      });
+
+      if (staffHasThisShift) {
+        return res.status(400).json({
+          message: "Staff đã được assigned ca này trong ngày"
         });
       }
 
@@ -530,8 +567,12 @@ const getMySchedule = async (req, res) => {
       return res.status(400).json({ message: "startDate and endDate are required" });
     }
 
+    // Convert string to ObjectId
+    const mongoose = require("mongoose");
+    const staffObjectId = new mongoose.Types.ObjectId(staffId);
+
     const schedules = await Schedule.find({
-      staffId,
+      staffId: staffObjectId,
       date: {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
@@ -563,6 +604,260 @@ const getMySchedule = async (req, res) => {
   }
 };
 
+// Admin check-in for a schedule
+const adminCheckIn = async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+
+    const schedule = await Schedule.findById(scheduleId);
+
+    if (!schedule) {
+      return res.status(404).json({ message: "Schedule not found" });
+    }
+
+    const now = new Date();
+    const scheduleDate = new Date(schedule.date);
+    scheduleDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Check if date is in the past (not today)
+    if (scheduleDate < today) {
+      return res.status(400).json({ message: "Không thể điểm danh cho ngày trong quá khứ" });
+    }
+
+    // Get shift times
+    const { startTime, endTime } = getShiftTimes(schedule.date, schedule.shift);
+
+    // Check-in window: 10 minutes before shift start to 10 minutes after shift start
+    const checkInStart = new Date(startTime);
+    checkInStart.setMinutes(checkInStart.getMinutes() - 10);
+    const checkInEnd = new Date(startTime);
+    checkInEnd.setMinutes(checkInEnd.getMinutes() + 10);
+
+    // For future dates
+    if (scheduleDate > today) {
+      return res.status(400).json({ message: "Chưa đến ngày làm việc" });
+    }
+
+    // Check if already checked in
+    if (schedule.checkInTime) {
+      return res.status(400).json({ message: "Đã check-in rồi" });
+    }
+
+    // Check if before check-in window
+    if (now < checkInStart) {
+      return res.status(400).json({ message: "Chưa đến thời gian check-in (có thể check-in từ 10p trước ca làm)" });
+    }
+
+    // Check window: can only check-in within 10 min before/after shift start
+    if (now > checkInEnd) {
+      schedule.attendanceStatus = "absent";
+      await schedule.save();
+      return res.status(400).json({ message: "Đã quá thời gian check-in, bị đánh dấu vắng mặt" });
+    }
+
+    // Check-in successful
+    schedule.checkInTime = now;
+    schedule.attendanceStatus = "attended";
+    await schedule.save();
+
+    res.json({ message: "Check-in thành công", schedule });
+  } catch (error) {
+    console.error("Admin check-in error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Admin check-out for a schedule
+const adminCheckOut = async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+
+    const schedule = await Schedule.findById(scheduleId);
+
+    if (!schedule) {
+      return res.status(404).json({ message: "Schedule not found" });
+    }
+
+    const now = new Date();
+    const scheduleDate = new Date(schedule.date);
+    scheduleDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Check if date is in the past (not today)
+    if (scheduleDate < today) {
+      return res.status(400).json({ message: "Không thể điểm danh cho ngày trong quá khứ" });
+    }
+
+    // Get shift times
+    const { startTime, endTime } = getShiftTimes(schedule.date, schedule.shift);
+
+    // Check-out window: from shift end to 10 minutes after shift end
+    const checkOutStart = new Date(endTime);
+    const checkOutEnd = new Date(endTime);
+    checkOutEnd.setMinutes(checkOutEnd.getMinutes() + 10);
+
+    // For future dates
+    if (scheduleDate > today) {
+      return res.status(400).json({ message: "Chưa đến ngày làm việc" });
+    }
+
+    // Check if already checked out
+    if (schedule.checkOutTime) {
+      return res.status(400).json({ message: "Đã check-out rồi" });
+    }
+
+    // Check if checked in first
+    if (!schedule.checkInTime) {
+      return res.status(400).json({ message: "Cần check-in trước khi check-out" });
+    }
+
+    // Check if before check-out window
+    if (now < checkOutStart) {
+      return res.status(400).json({ message: "Chưa đến thời gian check-out (có thể check-out từ khi ca kết thúc)" });
+    }
+
+    // Check window
+    if (now > checkOutEnd) {
+      return res.status(400).json({ message: "Đã quá thời gian check-out" });
+    }
+
+    // Check-out successful
+    schedule.checkOutTime = now;
+    await schedule.save();
+
+    res.json({ message: "Check-out thành công", schedule });
+  } catch (error) {
+    console.error("Admin check-out error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Admin update attendance (edit check-in time)
+const adminUpdateAttendance = async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+    const { checkInTime, checkOutTime, attendanceStatus } = req.body;
+
+    const schedule = await Schedule.findById(scheduleId);
+
+    if (!schedule) {
+      return res.status(404).json({ message: "Schedule not found" });
+    }
+
+    const now = new Date();
+    const scheduleDate = new Date(schedule.date);
+    scheduleDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Check if date is in the past (not today)
+    if (scheduleDate < today) {
+      return res.status(400).json({ message: "Không thể chỉnh sửa điểm danh cho ngày trong quá khứ" });
+    }
+
+    // Get shift times
+    const { startTime, endTime } = getShiftTimes(schedule.date, schedule.shift);
+
+    // Edit window: can only edit within 10 minutes after shift start
+    const editEnd = new Date(startTime);
+    editEnd.setMinutes(editEnd.getMinutes() + 10);
+
+    // For future dates
+    if (scheduleDate > today) {
+      return res.status(400).json({ message: "Chưa đến ngày làm việc" });
+    }
+
+    // Check if can edit (within 10 min after shift start)
+    if (now > editEnd) {
+      return res.status(400).json({ message: "Đã quá thời gian chỉnh sửa (chỉ được edit trong vòng 10p sau khi bắt đầu ca)" });
+    }
+
+    // Update attendance
+    if (checkInTime) {
+      schedule.checkInTime = new Date(checkInTime);
+    }
+    if (checkOutTime) {
+      schedule.checkOutTime = new Date(checkOutTime);
+    }
+    if (attendanceStatus) {
+      schedule.attendanceStatus = attendanceStatus;
+    } else if (schedule.checkInTime && schedule.attendanceStatus === "not-yet") {
+      schedule.attendanceStatus = "attended";
+    }
+
+    await schedule.save();
+
+    res.json({ message: "Cập nhật điểm danh thành công", schedule });
+  } catch (error) {
+    console.error("Admin update attendance error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get schedules by date for attendance popup
+const getSchedulesByDate = async (req, res) => {
+  try {
+    const { date, shift } = req.query;
+
+    if (!date) {
+      return res.status(400).json({ message: "Date is required" });
+    }
+
+    const dayStart = new Date(date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(date);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    let query = {
+      date: {
+        $gte: dayStart,
+        $lte: dayEnd
+      },
+      isDeleted: false
+    };
+
+    if (shift) {
+      query.shift = shift;
+    }
+
+    const schedules = await Schedule.find(query)
+      .populate("staffId", "fullName email")
+      .sort({ shift: 1, fullName: 1 });
+
+    // Auto-update status for past schedules
+    const now = new Date();
+    for (const schedule of schedules) {
+      if (schedule.attendanceStatus === "not-yet") {
+        const { startTime } = getShiftTimes(schedule.date, schedule.shift);
+        const scheduleDate = new Date(schedule.date);
+        scheduleDate.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (scheduleDate < today) {
+          schedule.attendanceStatus = "absent";
+          await schedule.save();
+        } else if (scheduleDate.getTime() === today.getTime()) {
+          const checkInEnd = new Date(startTime);
+          checkInEnd.setMinutes(checkInEnd.getMinutes() + 10);
+          if (now > checkInEnd) {
+            schedule.attendanceStatus = "absent";
+            await schedule.save();
+          }
+        }
+      }
+    }
+
+    res.json(schedules);
+  } catch (error) {
+    console.error("Get schedules by date error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createSchedule,
   getAllSchedules,
@@ -574,5 +869,9 @@ module.exports = {
   checkIn,
   checkOut,
   getAttendanceByWeek,
-  getMySchedule
+  getMySchedule,
+  adminCheckIn,
+  adminCheckOut,
+  adminUpdateAttendance,
+  getSchedulesByDate
 };

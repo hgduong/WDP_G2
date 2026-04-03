@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+﻿import React, { useContext, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   requestStaffLoginOtp,
@@ -62,7 +62,16 @@ function StaffLogin() {
 
     try {
       const result = await verifyStaffLoginOtp({ email, otp });
-      const userRole = result?.data?.user?.role;
+      const userFromResponse =
+        result?.data?.user ||
+        result?.data?.data?.user ||
+        result?.data?.payload?.user ||
+        null;
+      const userRole =
+        userFromResponse?.role ||
+        result?.data?.role ||
+        result?.data?.userRole ||
+        null;
 
       if (!STAFF_ROLES.includes(userRole)) {
         setError("Tài khoản không thuộc nhóm staff.");
@@ -79,8 +88,7 @@ function StaffLogin() {
 
       if (
         errorMessage.toLowerCase().includes("hết hạn") ||
-        errorMessage.toLowerCase().includes("het han") ||
-        errorMessage.toLowerCase().includes("háº¿t háº¡n")
+        errorMessage.toLowerCase().includes("het han")
       ) {
         setMessage("Mã OTP đã hết hạn. Vui lòng bấm gửi lại OTP để nhận mã mới.");
       }
@@ -194,3 +202,6 @@ function StaffLogin() {
 }
 
 export default StaffLogin;
+
+
+
