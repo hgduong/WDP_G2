@@ -1,0 +1,103 @@
+import React from "react";
+
+const RoomTable = ({
+  rooms,
+  movies,
+  getMovieForRoom,
+  onEditRoom,
+  onDeleteClick,
+  onOpenSeatConfig,
+}) => {
+  const getRoomTypeBadge = (type) => {
+    const typeClasses = {
+      Standard: "badge-info",
+      VIP: "badge-warning",
+      IMAX: "badge-primary",
+    };
+    return (
+      <span className={`badge ${typeClasses[type] || "badge-info"}`}>
+        {type}
+      </span>
+    );
+  };
+
+  const getStatusBadge = (status) => (
+    <span
+      className={`badge ${status === "Active" ? "badge-success" : "badge-secondary"}`}
+    >
+      {status === "Active" ? "Hoạt động" : "Ngừng hoạt động"}
+    </span>
+  );
+
+  return (
+    <div className="table-container">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>STT</th>
+            <th>Tên phòng</th>
+            <th>Loại phòng</th>
+            <th>Số ghế</th>
+            <th>Phim đang chiếu</th>
+            <th>Trạng thái</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rooms.map((room, index) => {
+            const movie = getMovieForRoom(room);
+            return (
+              <tr key={room._id}>
+                <td>{index + 1}</td>
+                <td>{room.name}</td>
+                <td>{getRoomTypeBadge(room.type)}</td>
+                <td>{room.seats?.length || 0}</td>
+                <td>
+                  {movie ? (
+                    <span className="movie-playing">
+                      {typeof movie === "object" && movie.title
+                        ? movie.title
+                        : "Phim đã xóa"}
+                    </span>
+                  ) : (
+                    <span className="no-movie">Chưa có phim</span>
+                  )}
+                </td>
+                <td>{getStatusBadge(room.status)}</td>
+                <td>
+                  <button
+                    className="btn btn-sm btn-info"
+                    onClick={() => onOpenSeatConfig(room)}
+                  >
+                    Cấu hình ghế
+                  </button>
+                  <button
+                    className="btn btn-sm btn-edit"
+                    onClick={() => onEditRoom(room)}
+                  >
+                    Sửa
+                  </button>
+                  <button
+                    className="btn btn-sm btn-delete"
+                    onClick={() => onDeleteClick(room._id)}
+                  >
+                    Xóa
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+          {rooms.length === 0 && (
+            <tr>
+              <td colSpan="7" className="no-data">
+                Không có phòng nào
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+export default RoomTable;

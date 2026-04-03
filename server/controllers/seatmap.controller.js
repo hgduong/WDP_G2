@@ -1,45 +1,29 @@
-const mongoose = require("mongoose");
-const Seatmap = require("../models/seatmap");
 const Seat = require("../models/seat");
+const SeatStatus = require("../models/seatStatus");
 const Room = require("../models/room");
-const Showtime = require("../models/showtime");
+const mongoose = require("mongoose");
 
-const HOLD_DURATION_MS = 5 * 60 * 1000;
+let holdCleanupTimer;
 
-const toIdString = (value) => value?.toString();
-
-const buildSeatLayout = (totalSeats) => {
-  const effectiveCapacity = Math.max(Number(totalSeats) || 0, 50);
+// Helper function to build seat layout (can be used by other controllers)
+exports.buildSeatLayout = (totalSeats) => {
+  const effectiveCapacity = Math.max(Number(totalSeats) || 0, 50); // Default 50 if 0
   const seatsPerRow = 10;
   const seats = [];
   const totalRows = Math.ceil(effectiveCapacity / seatsPerRow);
-
-  for (let rowIndex = 0; rowIndex < totalRows; rowIndex += 1) {
-    const rowLetter = String.fromCharCode(65 + rowIndex);
-    const seatsInThisRow = Math.min(
-      seatsPerRow,
-      effectiveCapacity - rowIndex * seatsPerRow,
-    );
-    const isLastRow = rowIndex === totalRows - 1;
-
-    if (isLastRow) {
-      for (let i = 0; i < 5; i += 1) {
-        seats.push({
-          row: rowLetter,
-          number: i * 2 + 1,
-          type: "Couple",
-          status: "Available",
-        });
-      }
-      continue;
-    }
-
-    for (let seatNum = 1; seatNum <= seatsInThisRow; seatNum += 1) {
+  
+  for (let rowIndex = 0; rowIndex < totalRows; rowIndex++) {
+    const rowLetter = String.fromCharCode(65 + rowIndex); // A, B, C, D, E...
+    const seatsInThisRow = Math.min(seatsPerRow, effectiveCapacity - rowIndex * seatsPerRow);
+    
+    // All rows: standard seats (10 per row)
+    // A1-A10, B1-B10, C1-C10, D1-D10...
+    for (let seatNum = 1; seatNum <= seatsInThisRow; seatNum++) {
       seats.push({
         row: rowLetter,
         number: seatNum,
-        type: rowIndex >= 3 ? "VIP" : "Standard",
-        status: "Available",
+        type: "Standard"
+        // status removed - tracked in SeatStatus per showtime
       });
     }
   }
@@ -47,493 +31,7 @@ const buildSeatLayout = (totalSeats) => {
   return seats;
 };
 
-const formatSeatLabel = (seat) => {
-  if (!seat) {
-    return "";
-  }
-
-  return seat.type === "Couple"
-    ? `${seat.row}${seat.number}-${seat.number + 1}`
-    : `${seat.row}${seat.number}`;
-};
-
-const mapSeatForClient = (seat, currentUserId = null) => {
-  const now = Date.now();
-  const heldByMe =
-    currentUserId &&
-    seat.status === "Holding" &&
-    seat.heldBy &&
-    toIdString(seat.heldBy) === toIdString(currentUserId) &&
-    seat.heldUntil &&
-    new Date(seat.heldUntil).getTime() > now;
-
-  return {
-    _id: seat._id,
-    label: formatSeatLabel(seat),
-    row: seat.row,
-    number: seat.number,
-    type: seat.type,
-    status: seat.status === "Internal" ? "Blocked" : seat.status,
-    heldUntil: seat.heldUntil,
-    isHeldByMe: Boolean(heldByMe),
-  };
-};
-
-const buildSeatSummary = (seats = []) =>
-  seats.reduce(
-    (summary, seat) => {
-      if (seat.status === "Available") summary.availableSeats += 1;
-      else if (seat.status === "Holding") summary.holdingSeats += 1;
-      else if (seat.status === "Booked") summary.bookedSeats += 1;
-      else summary.blockedSeats += 1;
-
-      summary.totalSeats += 1;
-      return summary;
-    },
-    {
-      availableSeats: 0,
-      holdingSeats: 0,
-      bookedSeats: 0,
-      blockedSeats: 0,
-      totalSeats: 0,
-    },
-  );
-
-const createHttpError = (statusCode, message) => {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-};
-
-const emitShowtimeSeatsChanged = (showtimeId, meta = {}) => {
-  try {
-    const { emitShowtimeSeatsChanged: emit } = require("../socket");
-    emit(showtimeId, meta);
-  } catch (error) {
-    console.error("Seat realtime emit failed:", error.message);
-  }
-};
-
-const fetchShowtimeDocument = async (showtimeInput, session = null) => {
-  if (
-    showtimeInput &&
-    typeof showtimeInput === "object" &&
-    showtimeInput._id &&
-    showtimeInput.roomId
-  ) {
-    return showtimeInput;
-  }
-
-  const query = Showtime.findById(showtimeInput);
-  if (session) query.session(session);
-  const showtime = await query;
-  if (!showtime) {
-    throw createHttpError(404, "Showtime not found");
-  }
-
-  return showtime;
-};
-
-const buildBlueprintFromTemplate = (templateSeats = []) =>
-  templateSeats.map((seat) => ({
-    row: seat.row,
-    number: seat.number,
-    type: seat.type || "Standard",
-    status: "Available",
-  }));
-
-const populateSeatmap = async (seatmapId, session = null) => {
-  const query = Seatmap.findById(seatmapId).populate("seats");
-  if (session) query.session(session);
-  return query;
-};
-
-const buildOrRestoreSeatmap = async (seatmap, showtime, room, session) => {
-  const templateSeatmap =
-    room.seatmapId &&
-    (await Seatmap.findById(room.seatmapId).populate("seats").session(session));
-
-  const blueprint =
-    templateSeatmap?.seats?.length > 0
-      ? buildBlueprintFromTemplate(templateSeatmap.seats)
-      : buildSeatLayout(room.capacity || 60);
-
-  const createdSeats = await Seat.insertMany(blueprint, { session });
-
-  if (seatmap) {
-    await Seatmap.findByIdAndUpdate(
-      seatmap._id,
-      {
-        $set: {
-          roomId: room._id,
-          showtimes: showtime._id,
-          seats: createdSeats.map((seat) => seat._id),
-          isTemplate: false,
-          capacity: blueprint.length,
-        },
-      },
-      { session },
-    );
-
-    if (!showtime.seatMap || toIdString(showtime.seatMap) !== toIdString(seatmap._id)) {
-      await Showtime.findByIdAndUpdate(
-        showtime._id,
-        { $set: { seatMap: seatmap._id } },
-        { session },
-      );
-    }
-
-    return populateSeatmap(seatmap._id, session);
-  }
-
-  const [createdSeatmap] = await Seatmap.create(
-    [
-      {
-        roomId: room._id,
-        showtimes: showtime._id,
-        seats: createdSeats.map((seat) => seat._id),
-        isTemplate: false,
-        capacity: blueprint.length,
-      },
-    ],
-    { session },
-  );
-
-  await Showtime.findByIdAndUpdate(
-    showtime._id,
-    { $set: { seatMap: createdSeatmap._id } },
-    { session },
-  );
-
-  return populateSeatmap(createdSeatmap._id, session);
-};
-
-const ensureShowtimeSeatmap = async (showtimeInput, options = {}) => {
-  const { session = null } = options;
-  const showtime = await fetchShowtimeDocument(showtimeInput, session);
-  const roomQuery = Room.findById(showtime.roomId);
-  if (session) roomQuery.session(session);
-  const room = await roomQuery;
-
-  if (!room) {
-    throw createHttpError(404, "Room not found");
-  }
-
-  let seatmap = null;
-
-  if (showtime.seatMap) {
-    seatmap = await populateSeatmap(showtime.seatMap, session);
-  }
-
-  if (!seatmap) {
-    const fallbackQuery = Seatmap.findOne({ showtimes: showtime._id }).populate("seats");
-    if (session) fallbackQuery.session(session);
-    seatmap = await fallbackQuery;
-  }
-
-  if (seatmap?.seats?.length) {
-    if (!showtime.seatMap || toIdString(showtime.seatMap) !== toIdString(seatmap._id)) {
-      await Showtime.findByIdAndUpdate(
-        showtime._id,
-        { $set: { seatMap: seatmap._id } },
-        { session },
-      );
-    }
-    return seatmap;
-  }
-
-  return buildOrRestoreSeatmap(seatmap, showtime, room, session);
-};
-
-const validateSeatIds = (seatmap, rawSeatIds = []) => {
-  const uniqueSeatIds = [...new Set((rawSeatIds || []).map(toIdString).filter(Boolean))];
-  if (uniqueSeatIds.length === 0) {
-    throw createHttpError(400, "Please select at least one seat");
-  }
-
-  const seatIdsInShowtime = new Set((seatmap.seats || []).map((seat) => toIdString(seat._id || seat)));
-  const invalidSeatId = uniqueSeatIds.find((seatId) => !seatIdsInShowtime.has(seatId));
-  if (invalidSeatId) {
-    throw createHttpError(400, "One or more seats do not belong to this showtime");
-  }
-
-  return uniqueSeatIds;
-};
-
-const fetchSeatsByIds = async (seatIds, session = null) => {
-  const query = Seat.find({ _id: { $in: seatIds } });
-  if (session) query.session(session);
-  const seats = await query;
-  const seatMap = new Map(seats.map((seat) => [toIdString(seat._id), seat]));
-  return seatIds.map((seatId) => seatMap.get(seatId)).filter(Boolean);
-};
-
-const cleanupExpiredHoldsForShowtime = async (showtimeId, options = {}) => {
-  const { session = null, seatmap = null } = options;
-  const activeSeatmap = seatmap || (await ensureShowtimeSeatmap(showtimeId, { session }));
-  const seatIds = (activeSeatmap.seats || []).map((seat) => toIdString(seat._id || seat));
-
-  if (seatIds.length === 0) {
-    return { releasedSeatIds: [] };
-  }
-
-  const now = new Date();
-  const query = {
-    _id: { $in: seatIds },
-    status: "Holding",
-    $or: [{ heldUntil: { $lte: now } }, { heldUntil: null }],
-  };
-
-  const expiredSeatsQuery = Seat.find(query);
-  if (session) expiredSeatsQuery.session(session);
-  const expiredSeats = await expiredSeatsQuery;
-
-  if (expiredSeats.length === 0) {
-    return { releasedSeatIds: [] };
-  }
-
-  const releasedSeatIds = expiredSeats.map((seat) => toIdString(seat._id));
-  const updateQuery = Seat.updateMany(
-    { _id: { $in: releasedSeatIds } },
-    {
-      $set: {
-        status: "Available",
-        heldBy: null,
-        heldUntil: null,
-        updatedAt: now,
-      },
-    },
-  );
-  if (session) updateQuery.session(session);
-  await updateQuery;
-
-  return { releasedSeatIds };
-};
-
-const holdSeatsForUser = async ({ showtimeId, seatIds, userId, session }) => {
-  const seatmap = await ensureShowtimeSeatmap(showtimeId, { session });
-  await cleanupExpiredHoldsForShowtime(showtimeId, { session, seatmap });
-
-  const normalizedSeatIds = validateSeatIds(seatmap, seatIds);
-  const selectedSeats = await fetchSeatsByIds(normalizedSeatIds, session);
-
-  if (selectedSeats.length !== normalizedSeatIds.length) {
-    throw createHttpError(400, "One or more seats are invalid");
-  }
-
-  const conflictingSeat = selectedSeats.find((seat) => {
-    const heldByAnotherUser =
-      seat.status === "Holding" &&
-      seat.heldBy &&
-      toIdString(seat.heldBy) !== toIdString(userId);
-
-    return (
-      seat.status === "Booked" ||
-      seat.status === "Blocked" ||
-      seat.status === "Internal" ||
-      heldByAnotherUser
-    );
-  });
-
-  if (conflictingSeat) {
-    throw createHttpError(
-      409,
-      `Seat ${formatSeatLabel(conflictingSeat)} is no longer available`,
-    );
-  }
-
-  const holdUntil = new Date(Date.now() + HOLD_DURATION_MS);
-  const updateQuery = Seat.updateMany(
-    { _id: { $in: normalizedSeatIds } },
-    {
-      $set: {
-        status: "Holding",
-        heldBy: userId,
-        heldUntil: holdUntil,
-        updatedAt: new Date(),
-      },
-    },
-  );
-  if (session) updateQuery.session(session);
-  await updateQuery;
-
-  return { holdUntil, seatIds: normalizedSeatIds };
-};
-
-const releaseSeatsForUser = async ({ showtimeId, seatIds, userId, session }) => {
-  const seatmap = await ensureShowtimeSeatmap(showtimeId, { session });
-  const normalizedSeatIds = seatIds?.length
-    ? validateSeatIds(seatmap, seatIds)
-    : (seatmap.seats || []).map((seat) => toIdString(seat._id || seat));
-
-  const updateQuery = Seat.updateMany(
-    {
-      _id: { $in: normalizedSeatIds },
-      status: "Holding",
-      heldBy: userId,
-    },
-    {
-      $set: {
-        status: "Available",
-        heldBy: null,
-        heldUntil: null,
-        updatedAt: new Date(),
-      },
-    },
-  );
-  if (session) updateQuery.session(session);
-  const result = await updateQuery;
-
-  return {
-    releasedSeatIds: normalizedSeatIds,
-    modifiedCount: result.modifiedCount || result.nModified || 0,
-  };
-};
-
-const claimSeatsForBooking = async ({
-  showtimeId,
-  seatIds,
-  actorUserId = null,
-  requireHeldByActor = true,
-  allowAvailable = false,
-  session,
-}) => {
-  const seatmap = await ensureShowtimeSeatmap(showtimeId, { session });
-  await cleanupExpiredHoldsForShowtime(showtimeId, { session, seatmap });
-
-  const normalizedSeatIds = validateSeatIds(seatmap, seatIds);
-  const selectedSeats = await fetchSeatsByIds(normalizedSeatIds, session);
-
-  if (selectedSeats.length !== normalizedSeatIds.length) {
-    throw createHttpError(400, "One or more seats are invalid");
-  }
-
-  const invalidSeat = selectedSeats.find((seat) => {
-    if (seat.status === "Booked" || seat.status === "Blocked" || seat.status === "Internal") {
-      return true;
-    }
-
-    if (seat.status === "Holding") {
-      if (!actorUserId) {
-        return true;
-      }
-      return toIdString(seat.heldBy) !== toIdString(actorUserId);
-    }
-
-    if (seat.status === "Available") {
-      return !allowAvailable && requireHeldByActor;
-    }
-
-    return true;
-  });
-
-  if (invalidSeat) {
-    throw createHttpError(
-      409,
-      `Seat ${formatSeatLabel(invalidSeat)} cannot be booked`,
-    );
-  }
-
-  const updateQuery = Seat.updateMany(
-    { _id: { $in: normalizedSeatIds } },
-    {
-      $set: {
-        status: "Booked",
-        heldBy: null,
-        heldUntil: null,
-        updatedAt: new Date(),
-      },
-    },
-  );
-  if (session) updateQuery.session(session);
-  await updateQuery;
-
-  return selectedSeats;
-};
-
-const serializeSeatmapForResponse = (seatmap, currentUserId = null) => {
-  const seats = [...(seatmap.seats || [])].sort((left, right) => {
-    if (left.row === right.row) {
-      return left.number - right.number;
-    }
-    return left.row.localeCompare(right.row);
-  });
-
-  return {
-    _id: seatmap._id,
-    roomId: seatmap.roomId,
-    showtimeId: seatmap.showtimes,
-    seats: seats.map((seat) => mapSeatForClient(seat, currentUserId)),
-    summary: buildSeatSummary(seats),
-  };
-};
-
-const cleanupExpiredHoldsGlobally = async () => {
-  const now = new Date();
-  const expiredSeats = await Seat.find({
-    status: "Holding",
-    $or: [{ heldUntil: { $lte: now } }, { heldUntil: null }],
-  }).select("_id");
-
-  if (expiredSeats.length === 0) {
-    return [];
-  }
-
-  const expiredSeatIds = expiredSeats.map((seat) => seat._id);
-  await Seat.updateMany(
-    { _id: { $in: expiredSeatIds } },
-    {
-      $set: {
-        status: "Available",
-        heldBy: null,
-        heldUntil: null,
-        updatedAt: now,
-      },
-    },
-  );
-
-  const seatmaps = await Seatmap.find({
-    showtimes: { $ne: null },
-    seats: { $in: expiredSeatIds },
-  }).select("showtimes");
-
-  return [...new Set(seatmaps.map((seatmap) => toIdString(seatmap.showtimes)).filter(Boolean))];
-};
-
-let holdCleanupTimer = null;
-
-const startHoldCleanupJob = () => {
-  if (holdCleanupTimer) {
-    return holdCleanupTimer;
-  }
-
-  holdCleanupTimer = setInterval(async () => {
-    try {
-      const changedShowtimeIds = await cleanupExpiredHoldsGlobally();
-      changedShowtimeIds.forEach((showtimeId) =>
-        emitShowtimeSeatsChanged(showtimeId, { reason: "hold_expired" }),
-      );
-    } catch (error) {
-      console.error("Seat hold cleanup failed:", error);
-    }
-  }, 5000);
-
-  return holdCleanupTimer;
-};
-
-exports.buildSeatLayout = buildSeatLayout;
-exports.formatSeatLabel = formatSeatLabel;
-exports.mapSeatForClient = mapSeatForClient;
-exports.buildSeatSummary = buildSeatSummary;
-exports.ensureShowtimeSeatmap = ensureShowtimeSeatmap;
-exports.cleanupExpiredHoldsForShowtime = cleanupExpiredHoldsForShowtime;
-exports.holdSeatsForUser = holdSeatsForUser;
-exports.releaseSeatsForUser = releaseSeatsForUser;
-exports.claimSeatsForBooking = claimSeatsForBooking;
-exports.startHoldCleanupJob = startHoldCleanupJob;
-exports.HOLD_DURATION_MS = HOLD_DURATION_MS;
-exports.emitShowtimeSeatsChanged = emitShowtimeSeatsChanged;
-
+// Generate seat layout based on room capacity
 exports.generateSeatLayout = async (req, res) => {
   try {
     const { roomId, capacity } = req.body;
@@ -542,137 +40,314 @@ exports.generateSeatLayout = async (req, res) => {
       return res.status(400).json({ message: "roomId and capacity are required" });
     }
 
-    const createdSeats = await Seat.insertMany(buildSeatLayout(capacity));
-    const seatmap = await Seatmap.create({
-      roomId,
-      showtimes: null,
-      seats: createdSeats.map((seat) => seat._id),
-      isTemplate: true,
-      capacity: createdSeats.length,
+    // Check if room already has seats
+    const existingRoom = await Room.findById(roomId);
+    if (existingRoom && existingRoom.seats && existingRoom.seats.length > 0) {
+      return res.status(400).json({ 
+        message: "Phòng này đã có bố cục ghế. Vui lòng xóa bố cục cũ trước khi tạo mới.",
+        roomId: existingRoom._id
+      });
+    }
+
+    const totalSeats = parseInt(capacity);
+    const seatsPerRow = 10;
+    const seatIds = [];
+
+    // Generate all seats
+    const totalRows = Math.ceil(totalSeats / seatsPerRow);
+    
+    for (let rowIndex = 0; rowIndex < totalRows; rowIndex++) {
+      const rowLetter = String.fromCharCode(65 + rowIndex); // A, B, C, D, E...
+      const seatsInThisRow = Math.min(seatsPerRow, totalSeats - rowIndex * seatsPerRow);
+      
+      // All rows: standard seats (10 per row)
+      // A1-A10, B1-B10, C1-C10, D1-D10...
+      for (let seatNum = 1; seatNum <= seatsInThisRow; seatNum++) {
+        // Check if seat with same row/number already exists in this room (reuse it)
+        let seat = await Seat.findOne({ roomId: roomId, row: rowLetter, number: seatNum });
+        
+        if (!seat) {
+          // Create new seat only if it doesn't exist in this room
+          seat = await Seat.create({
+            roomId: roomId,
+            row: rowLetter,
+            number: seatNum,
+            type: "Standard"
+          });
+        }
+        
+        seatIds.push(seat._id);
+      }
+    }
+
+    // Update room with seats
+    await Room.findByIdAndUpdate(roomId, { 
+      seats: seatIds,
+      capacity: seatIds.length
     });
 
-    await Room.findByIdAndUpdate(roomId, { seatmapId: seatmap._id });
+    // Populate seats for response
+    const populatedRoom = await Room.findById(roomId).populate("seats");
 
     return res.json({
       message: "Seat layout created successfully",
-      seatmap,
-      seats: createdSeats,
+      room: populatedRoom,
+      seats: populatedRoom.seats
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        message: `Ghế ${req.body.row}${req.body.number} đã tồn tại trong hệ thống` 
+      });
+    }
+    res.status(500).json({ message: error.message });
   }
+};
+
+const startHoldCleanupJob = () => {
+  if (holdCleanupTimer) {
+    return holdCleanupTimer;
+  }
+
+  const SeatStatus = require("../models/seatStatus");
+  const Booking = require("../models/booking");
+
+  holdCleanupTimer = setInterval(async () => {
+    try {
+      const now = new Date();
+      const expiredHolds = await SeatStatus.find({
+        status: "Hold",
+        expiresAt: { $lte: now },
+      });
+
+      for (const seatStatus of expiredHolds) {
+        const activeBookings = await Booking.findOne({
+          seatIds: seatStatus.seat,
+          showtime: seatStatus.showtime,
+          status: { $in: ["Pending", "Confirmed"] },
+        });
+
+        if (!activeBookings) {
+          seatStatus.status = "Available";
+          seatStatus.booking = null;
+          seatStatus.expiresAt = null;
+          await seatStatus.save();
+        }
+      }
+    } catch (error) {
+      console.error("Hold cleanup job failed:", error);
+    }
+  }, 5000);
+
+  return holdCleanupTimer;
 };
 
 exports.getSeatmapByShowtime = async (req, res) => {
   try {
-    const { showtimeId } = req.params;
-    await cleanupExpiredHoldsForShowtime(showtimeId);
-    const seatmap = await ensureShowtimeSeatmap(showtimeId);
-
-    return res.json(serializeSeatmapForResponse(seatmap, req.user?.id || null));
-  } catch (error) {
-    return res
-      .status(error.statusCode || 500)
-      .json({ message: error.message || "Failed to load seats" });
-  }
-};
-
-exports.getHeldSeats = async (req, res) => {
-  try {
-    const { showtimeId } = req.params;
-    await cleanupExpiredHoldsForShowtime(showtimeId);
-    const seatmap = await ensureShowtimeSeatmap(showtimeId);
-    const now = new Date();
-    const heldSeats = (seatmap.seats || []).filter(
-      (seat) => seat.status === "Holding" && seat.heldUntil && seat.heldUntil > now,
-    );
-
-    return res.json(heldSeats.map((seat) => mapSeatForClient(seat, req.user?.id || null)));
-  } catch (error) {
-    return res
-      .status(error.statusCode || 500)
-      .json({ message: error.message || "Failed to load held seats" });
-  }
-};
-
-exports.holdSeats = async (req, res) => {
-  const session = await mongoose.startSession();
-
-  try {
-    if (!req.user?.id) {
-      return res.status(401).json({ message: "Authentication required" });
+    const showtimeId = req.params.showtimeId;
+    const Showtime = require("../models/showtime");
+    const Room = require("../models/room");
+    
+    // 1. Find the showtime
+    const showtime = await Showtime.findById(showtimeId).populate("roomId");
+    if (!showtime) {
+      return res.status(404).json({ message: "Showtime not found" });
     }
 
-    const { showtimeId, seatIds } = req.body;
-    await session.startTransaction();
-
-    const result = await holdSeatsForUser({
-      showtimeId,
-      seatIds,
-      userId: req.user.id,
-      session,
-    });
-
-    await session.commitTransaction();
-    emitShowtimeSeatsChanged(showtimeId, {
-      reason: "hold",
-      seatIds: result.seatIds,
-    });
-
-    return res.json({
-      message: "Seats held successfully",
-      holdUntil: result.holdUntil,
-      seatIds: result.seatIds,
-      showtimeId,
-    });
-  } catch (error) {
-    await session.abortTransaction();
-    return res
-      .status(error.statusCode || 500)
-      .json({ message: error.message || "Failed to hold seats" });
-  } finally {
-    session.endSession();
-  }
-};
-
-exports.releaseSeats = async (req, res) => {
-  const session = await mongoose.startSession();
-
-  try {
-    if (!req.user?.id) {
-      return res.status(401).json({ message: "Authentication required" });
+    const room = showtime.roomId;
+    
+    // 2. Get seats from Room
+    const roomWithSeats = await Room.findById(room._id).populate("seats");
+    
+    if (!roomWithSeats || !roomWithSeats.seats || roomWithSeats.seats.length === 0) {
+      return res.status(404).json({ message: "Không tìm thấy bố cục ghế cho phòng này. Vui lòng tạo bố cục ghế trước." });
     }
-
-    const { showtimeId, seatIds } = req.body;
-    await session.startTransaction();
-
-    const result = await releaseSeatsForUser({
-      showtimeId,
-      seatIds,
-      userId: req.user.id,
-      session,
-    });
-
-    await session.commitTransaction();
-    if (result.modifiedCount > 0) {
-      emitShowtimeSeatsChanged(showtimeId, {
-        reason: "release",
-        seatIds: result.releasedSeatIds,
+    
+    // 3. Get existing seatStatuses for this showtime
+    let seatStatuses = await SeatStatus.find({ showtimeId: showtimeId });
+    
+    // 4. If no seatStatuses exist, create them for each seat
+    if (!seatStatuses || seatStatuses.length === 0) {
+      const seatStatusesData = roomWithSeats.seats.map(seat => ({
+        seatId: seat._id,
+        showtimeId: showtimeId,
+        status: 'Available',
+        price: calculateSeatPrice(seat.type, showtime.startTime)
+      }));
+      
+      seatStatuses = await SeatStatus.insertMany(seatStatusesData);
+      
+      // Update showtime with seatStatuses references
+      await Showtime.findByIdAndUpdate(showtimeId, { 
+        seatStatuses: seatStatuses.map(s => s._id) 
       });
     }
-
-    return res.json({
-      message: "Seats released successfully",
-      seatIds: result.releasedSeatIds,
-      showtimeId,
+    
+    // 5. Merge seats with their statuses
+    const seatsWithStatus = roomWithSeats.seats.map(seat => {
+      const status = seatStatuses.find(
+        s => s.seatId.toString() === seat._id.toString()
+      );
+      return {
+        ...seat.toObject(),
+        status: status?.status || 'Available',
+        price: status?.price || 0,
+        heldBy: status?.heldBy,
+        heldUntil: status?.heldUntil,
+        bookedBy: status?.bookedBy,
+        couplePairId: seat.couplePairId || null
+      };
+    });
+    
+    res.json({
+      roomId: room._id,
+      showtimeId: showtimeId,
+      seats: seatsWithStatus,
+      capacity: roomWithSeats.seats.length
     });
   } catch (error) {
-    await session.abortTransaction();
-    return res
-      .status(error.statusCode || 500)
-      .json({ message: error.message || "Failed to release seats" });
-  } finally {
-    session.endSession();
+    console.error("Error getting seatmap for showtime:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Helper function to calculate seat price based on type and showtime
+const calculateSeatPrice = (seatType, showtimeStart) => {
+  let basePrice = 50000; // Base price for Standard seat
+  
+  // Adjust price by seat type
+  if (seatType === 'VIP') basePrice = 80000;
+  if (seatType === 'Couple') basePrice = 120000;
+  
+  // Adjust price by time of day (evening shows cost more)
+  if (showtimeStart) {
+    const hour = new Date(showtimeStart).getHours();
+    if (hour >= 18 || hour < 6) {
+      basePrice *= 1.2; // 20% increase for evening/night shows
+    }
+  }
+  
+  return Math.round(basePrice);
+};
+
+// Hold seats (when user selects them)
+exports.holdSeats = async (req, res) => {
+  try {
+    const { showtimeId, seatIds, userId } = req.body;
+    const holdUntil = new Date(Date.now() + 10 * 1000); // 10 seconds hold time
+
+    // Get all seats to check for couple pairs
+    const seats = await Seat.find({ _id: { $in: seatIds } });
+    const allSeatIds = [...seatIds];
+    
+    // For couple seats, also add their pair seats
+    for (const seat of seats) {
+      if (seat.type === 'Couple' && seat.couplePairId) {
+        if (!allSeatIds.includes(seat.couplePairId.toString())) {
+          allSeatIds.push(seat.couplePairId);
+        }
+      }
+    }
+
+    // Update SeatStatus to "Holding" status
+    await SeatStatus.updateMany(
+      { 
+        seatId: { $in: allSeatIds }, 
+        showtimeId: showtimeId,
+        status: { $in: ["Available", "Holding"] } 
+      },
+      { 
+        $set: { 
+          status: "Holding", 
+          heldBy: userId, 
+          heldUntil: holdUntil 
+        } 
+      }
+    );
+
+    res.json({ message: "Giữ ghế thành công", holdUntil });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Release held seats
+exports.releaseSeats = async (req, res) => {
+  try {
+    const { showtimeId, seatIds } = req.body;
+
+    // Get all seats to check for couple pairs
+    const seats = await Seat.find({ _id: { $in: seatIds } });
+    const allSeatIds = [...seatIds];
+    
+    // For couple seats, also add their pair seats
+    for (const seat of seats) {
+      if (seat.type === 'Couple' && seat.couplePairId) {
+        if (!allSeatIds.includes(seat.couplePairId.toString())) {
+          allSeatIds.push(seat.couplePairId);
+        }
+      }
+    }
+
+    // Release seats on SeatStatus (set back to Available if not booked)
+    await SeatStatus.updateMany(
+      { 
+        seatId: { $in: allSeatIds }, 
+        showtimeId: showtimeId,
+        status: "Holding" 
+      },
+      { 
+        $set: { 
+          status: "Available", 
+          heldBy: null, 
+          heldUntil: null 
+        } 
+      }
+    );
+
+    res.json({ message: "Giải phóng ghế thành công" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get all held seats for a showtime (for real-time sync)
+exports.getHeldSeats = async (req, res) => {
+  try {
+    const showtimeId = req.params.showtimeId;
+    const now = new Date();
+    
+    // Auto-release expired holds on SeatStatus before returning the list
+    // Also release seats with null heldUntil if they are stuck in Holding status
+    await SeatStatus.updateMany(
+      { 
+        showtimeId: showtimeId,
+        status: "Holding", 
+        $or: [
+          { heldUntil: { $lte: now } },
+          { heldUntil: null }
+        ]
+      },
+      { 
+        $set: { 
+          status: "Available", 
+          heldBy: null, 
+          heldUntil: null 
+        } 
+      }
+    );
+
+    // Now find the seats that are STILL being held and haven't expired
+    const heldSeatStatuses = await SeatStatus.find({
+      showtimeId: showtimeId,
+      status: "Holding",
+      heldUntil: { $gt: now }
+    }).populate('seatId');
+
+    res.json(heldSeatStatuses);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -680,39 +355,241 @@ exports.bookSeats = async (req, res) => {
   const session = await mongoose.startSession();
 
   try {
-    if (!req.user?.id) {
-      return res.status(401).json({ message: "Authentication required" });
+    const { showtimeId, seatIds, bookingId, userId } = req.body;
+
+    // Get all seats to check for couple pairs
+    const seats = await Seat.find({ _id: { $in: seatIds } });
+    const allSeatIds = [...seatIds];
+    
+    // For couple seats, also add their pair seats
+    for (const seat of seats) {
+      if (seat.type === 'Couple' && seat.couplePairId) {
+        if (!allSeatIds.includes(seat.couplePairId.toString())) {
+          allSeatIds.push(seat.couplePairId);
+        }
+      }
     }
 
-    const { showtimeId, seatIds } = req.body;
-    await session.startTransaction();
+    // Cập nhật trạng thái ghế trên SeatStatus
+    await SeatStatus.updateMany(
+      { 
+        seatId: { $in: allSeatIds }, 
+        showtimeId: showtimeId,
+        status: { $in: ["Available", "Holding"] } 
+      },
+      { 
+        $set: { 
+          status: "Booked", 
+          bookedBy: userId,
+          bookingId: bookingId,
+          heldBy: null, 
+          heldUntil: null 
+        } 
+      }
+    );
 
-    const bookedSeats = await claimSeatsForBooking({
-      showtimeId,
-      seatIds,
-      actorUserId: req.user.id,
-      requireHeldByActor: true,
-      allowAvailable: false,
-      session,
-    });
+    res.json({ message: "Đặt vé thành công!" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
-    await session.commitTransaction();
-    emitShowtimeSeatsChanged(showtimeId, {
-      reason: "book",
-      seatIds: bookedSeats.map((seat) => toIdString(seat._id)),
-    });
-
-    return res.json({
-      message: "Seats booked successfully",
-      seatIds: bookedSeats.map((seat) => seat._id),
-      showtimeId,
+// Get seats by room (from Room directly)
+exports.getSeatsByRoom = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    
+    // Find the room and populate seats
+    const room = await Room.findById(roomId).populate("seats");
+    
+    if (!room) {
+      return res.status(404).json({ message: "Không tìm thấy phòng" });
+    }
+    
+    if (!room.seats || room.seats.length === 0) {
+      return res.status(404).json({ message: "Không tìm thấy bố cục ghế cho phòng này" });
+    }
+    
+    // Include couplePairId in response
+    const seatsWithCoupleInfo = room.seats.map(seat => ({
+      ...seat.toObject(),
+      couplePairId: seat.couplePairId || null
+    }));
+    
+    res.json({
+      roomId: room._id,
+      seats: seatsWithCoupleInfo,
+      capacity: room.capacity
     });
   } catch (error) {
-    await session.abortTransaction();
-    return res
-      .status(error.statusCode || 500)
-      .json({ message: error.message || "Failed to book seats" });
-  } finally {
-    session.endSession();
+    res.status(500).json({ message: error.message });
   }
+};
+
+// Update seat (type, row, number, status, couplePairId)
+exports.updateSeat = async (req, res) => {
+  try {
+    const { seatId } = req.params;
+    const { type, row, number, status, couplePairId } = req.body;
+    
+    console.log('updateSeat called with:', { seatId, type, row, number, status, couplePairId });
+    
+    const updateData = {};
+    if (type) updateData.type = type;
+    if (row) updateData.row = row;
+    if (number) updateData.number = parseInt(number);
+    if (status) updateData.status = status;
+    // Always set couplePairId, even if null
+    updateData.couplePairId = couplePairId === undefined ? null : couplePairId;
+    
+    console.log('updateData:', updateData);
+    
+    // Check if another seat with same row/number already exists in the same room
+    if (row || number) {
+      const currentSeat = await Seat.findById(seatId);
+      if (!currentSeat) {
+        return res.status(404).json({ message: "Không tìm thấy ghế" });
+      }
+      
+      const checkRow = row || currentSeat.row;
+      const checkNumber = number ? parseInt(number) : currentSeat.number;
+      
+      const existingSeat = await Seat.findOne({ 
+        roomId: currentSeat.roomId,
+        row: checkRow, 
+        number: checkNumber,
+        _id: { $ne: seatId } // Exclude current seat
+      });
+      
+      if (existingSeat) {
+        return res.status(400).json({ 
+          message: `Ghế ${checkRow}${checkNumber} đã tồn tại trong phòng này` 
+        });
+      }
+    }
+    
+    const seat = await Seat.findByIdAndUpdate(seatId, updateData, { new: true });
+    
+    if (!seat) {
+      return res.status(404).json({ message: "Không tìm thấy ghế" });
+    }
+    
+    res.json(seat);
+  } catch (error) {
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        message: `Ghế ${req.body.row}${req.body.number} đã tồn tại trong hệ thống` 
+      });
+    }
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete seat
+exports.deleteSeat = async (req, res) => {
+  try {
+    const { seatId } = req.params;
+    
+    const seat = await Seat.findById(seatId);
+    if (!seat) {
+      return res.status(404).json({ message: "Không tìm thấy ghế" });
+    }
+    
+    // If this is a couple seat, update the pair seat
+    if (seat.type === 'Couple' && seat.couplePairId) {
+      await Seat.findByIdAndUpdate(seat.couplePairId, {
+        type: 'Standard',
+        couplePairId: null
+      });
+    }
+    
+    // Remove seat from all rooms
+    await Room.updateMany(
+      { seats: seatId },
+      { $pull: { seats: seatId } }
+    );
+    
+    // Delete all SeatStatus entries for this seat
+    await SeatStatus.deleteMany({ seatId: seatId });
+    
+    // Delete the seat
+    await Seat.findByIdAndDelete(seatId);
+    
+    res.json({ message: "Xóa ghế thành công" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Add new seat to room (reuses existing seat if row/number already exists)
+exports.addSeat = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { row, number, type, status, couplePairId } = req.body;
+    
+    if (!row || !number) {
+      return res.status(400).json({ message: "Vui lòng nhập hàng và số ghế" });
+    }
+    
+    // Find the room
+    const room = await Room.findById(roomId);
+    
+    if (!room) {
+      return res.status(404).json({ message: "Không tìm thấy phòng" });
+    }
+    
+    // Check if seat with same row/number already exists in this room
+    let seat = await Seat.findOne({ roomId: roomId, row, number: parseInt(number) });
+    
+    if (seat) {
+      // Seat already exists in this room
+      return res.status(400).json({ 
+        message: `Ghế ${row}${number} đã tồn tại trong phòng này` 
+      });
+    }
+    
+    // Create new seat for this room
+    seat = await Seat.create({
+      roomId: roomId,
+      row,
+      number: parseInt(number),
+      type: type || "Standard",
+      status: status || "Available",
+      couplePairId: couplePairId || null
+    });
+    
+    // Add seat to room
+    if (!room.seats) {
+      room.seats = [];
+    }
+    room.seats.push(seat._id);
+    room.capacity = room.seats.length;
+    await room.save();
+    
+    res.status(201).json(seat);
+  } catch (error) {
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        message: `Ghế ${req.body.row}${req.body.number} đã tồn tại trong hệ thống` 
+      });
+    }
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = {
+  buildSeatLayout: exports.buildSeatLayout,
+  generateSeatLayout: exports.generateSeatLayout,
+  getSeatmapByShowtime: exports.getSeatmapByShowtime,
+  holdSeats: exports.holdSeats,
+  releaseSeats: exports.releaseSeats,
+  getHeldSeats: exports.getHeldSeats,
+  bookSeats: exports.bookSeats,
+  getSeatsByRoom: exports.getSeatsByRoom,
+  updateSeat: exports.updateSeat,
+  deleteSeat: exports.deleteSeat,
+  addSeat: exports.addSeat,
+  startHoldCleanupJob,
 };

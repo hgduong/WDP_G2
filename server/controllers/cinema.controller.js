@@ -1,7 +1,6 @@
 // controllers/cinema.controller.js
 const Cinema = require("../models/cinema");
 const Room = require("../models/room");
-const Seatmap = require("../models/seatmap");
 const Seat = require("../models/seat");
 
 // Helper function to build seat layout
@@ -13,29 +12,16 @@ const buildSeatLayout = (totalSeats) => {
 
   for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
     const rowLetter = String.fromCharCode(65 + rowIndex);
-    const isLastRow = rowIndex === rowCount - 1;
     const seatsInThisRow = Math.min(seatsPerRow, effectiveCapacity - rowIndex * seatsPerRow);
 
-    if (isLastRow && seatsInThisRow > 0) {
-      // Last row: couple seats
-      for (let i = 0; i < seatsInThisRow; i += 2) {
-        seats.push({
-          row: rowLetter,
-          number: i + 1,
-          type: "Couple",
-          status: "Available"
-        });
-      }
-    } else {
-      // Other rows: standard/VIP seats
-      for (let seatNum = 1; seatNum <= seatsInThisRow; seatNum++) {
-        seats.push({
-          row: rowLetter,
-          number: seatNum,
-          type: rowIndex >= 3 ? "VIP" : "Standard",
-          status: "Available"
-        });
-      }
+    // All rows: standard seats
+    for (let seatNum = 1; seatNum <= seatsInThisRow; seatNum++) {
+      seats.push({
+        row: rowLetter,
+        number: seatNum,
+        type: "Standard"
+        // status removed - tracked in SeatStatus per showtime
+      });
     }
   }
 
@@ -132,29 +118,37 @@ exports.getRoomById = async (req, res) => {
 // Thêm phòng mới
 exports.addRoom = async (req, res) => {
   try {
-    const { capacity } = req.body;
+    // Remove capacity from request body - it will be calculated from seats
+    const { capacity, ...roomData } = req.body;
     
-    // Create room first
-    const room = new Room(req.body);
+    // Create room first (capacity will be calculated from seats)
+    const room = new Room(roomData);
     await room.save();
     
-    // Auto-generate seat layout if capacity is provided
-    if (capacity && capacity > 0) {
-      const seats = buildSeatLayout(capacity);
-      const createdSeats = await Seat.insertMany(seats);
+    // Auto-generate seat layout with default capacity of 50
+    const seats = buildSeatLayout(50);
+    const seatIds = [];
+    
+    // Create seats for this room
+    for (const seatData of seats) {
+      // Check if seat with same row/number already exists in this room
+      let seat = await Seat.findOne({ roomId: room._id, row: seatData.row, number: seatData.number });
       
-      const seatmap = await Seatmap.create({
-        roomId: room._id,
-        showtimes: null,
-        seats: createdSeats.map(s => s._id),
-        isTemplate: true,
-        capacity: capacity
-      });
+      if (!seat) {
+        // Create new seat for this room
+        seat = await Seat.create({
+          roomId: room._id,
+          ...seatData
+        });
+      }
       
-      // Update room with seatmap reference
-      room.seatmapId = seatmap._id;
-      await room.save();
+      seatIds.push(seat._id);
     }
+    
+    // Update room with seats and auto-calculate capacity from seats array
+    room.seats = seatIds;
+    room.capacity = seatIds.length;
+    await room.save();
     
     // Cập nhật mảng rooms trong Cinema
     await Cinema.findByIdAndUpdate(req.body.cinemaId, {
@@ -170,41 +164,47 @@ exports.addRoom = async (req, res) => {
 // Cập nhật phòng
 exports.updateRoom = async (req, res) => {
   try {
-    const { capacity } = req.body;
     const existingRoom = await Room.findById(req.params.id);
     
-    // Update room
-    const room = await Room.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    // Remove capacity from request body - it will be calculated from seats
+    const { capacity, ...roomData } = req.body;
+    
+    // Update room (capacity will be calculated from seats)
+    const room = await Room.findByIdAndUpdate(req.params.id, roomData, { new: true });
     if (!room) {
       return res.status(404).json({ message: "Phòng không tồn tại" });
     }
     
-    // If capacity changed, regenerate seat layout
-    if (capacity && capacity !== existingRoom?.capacity) {
-      // Delete old seats and seatmap if exists
-      if (existingRoom?.seatmapId) {
-        const oldSeatmap = await Seatmap.findById(existingRoom.seatmapId);
-        if (oldSeatmap && oldSeatmap.seats) {
-          await Seat.deleteMany({ _id: { $in: oldSeatmap.seats } });
-        }
-        await Seatmap.findByIdAndDelete(existingRoom.seatmapId);
+    // Always regenerate seat layout with default capacity of 50
+    // Delete old seats if exists
+    if (existingRoom?.seats && existingRoom.seats.length > 0) {
+      await Seat.deleteMany({ _id: { $in: existingRoom.seats } });
+    }
+    
+    // Create new seat layout
+    const seats = buildSeatLayout(50);
+    const seatIds = [];
+    
+    // Create seats for this room
+    for (const seatData of seats) {
+      // Check if seat with same row/number already exists in this room
+      let seat = await Seat.findOne({ roomId: room._id, row: seatData.row, number: seatData.number });
+      
+      if (!seat) {
+        // Create new seat for this room
+        seat = await Seat.create({
+          roomId: room._id,
+          ...seatData
+        });
       }
       
-      // Create new seat layout
-      const seats = buildSeatLayout(capacity);
-      const createdSeats = await Seat.insertMany(seats);
-      
-      const seatmap = await Seatmap.create({
-        roomId: room._id,
-        showtimes: null,
-        seats: createdSeats.map(s => s._id),
-        isTemplate: true,
-        capacity: capacity
-      });
-      
-      room.seatmapId = seatmap._id;
-      await room.save();
+      seatIds.push(seat._id);
     }
+    
+    // Update room with new seats and auto-calculate capacity from seats array
+    room.seats = seatIds;
+    room.capacity = seatIds.length;
+    await room.save();
     
     res.json(room);
   } catch (error) {
@@ -220,13 +220,9 @@ exports.deleteRoom = async (req, res) => {
       return res.status(404).json({ message: "Phòng không tồn tại" });
     }
     
-    // Clean up seats and seatmap
-    if (room.seatmapId) {
-      const seatmap = await Seatmap.findById(room.seatmapId);
-      if (seatmap && seatmap.seats) {
-        await Seat.deleteMany({ _id: { $in: seatmap.seats } });
-      }
-      await Seatmap.findByIdAndDelete(room.seatmapId);
+    // Clean up seats
+    if (room.seats && room.seats.length > 0) {
+      await Seat.deleteMany({ _id: { $in: room.seats } });
     }
     
     // Delete room

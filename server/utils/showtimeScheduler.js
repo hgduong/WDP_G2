@@ -1,7 +1,6 @@
 const Showtime = require("../models/showtime");
 const Room = require("../models/room");
 const Movie = require("../models/movie");
-const Seatmap = require("../models/seatmap");
 const Seat = require("../models/seat");
 
 /**

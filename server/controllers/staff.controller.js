@@ -3,7 +3,7 @@ const Booking = require("../models/booking");
 const Showtime = require("../models/showtime");
 const Room = require("../models/room");
 const Seat = require("../models/seat");
-const Seatmap = require("../models/seatmap");
+const SeatStatus = require("../models/seatStatus");
 const Ticket = require("../models/ticket");
 const bcrypt = require("bcrypt");
 const { sendMail } = require("../utils/mail");
@@ -25,11 +25,27 @@ const sanitizeStaff = (staff) => {
   return staffObject;
 };
 
-const seatmapController = require("./seatmap.controller");
-
 const buildSeatBlueprint = (capacity = 0) => {
-  // Use the shared function from seatmapController
-  return seatmapController.buildSeatLayout(capacity);
+  const effectiveCapacity = Math.max(Number(capacity) || 0, 50);
+  const seatsPerRow = 10;
+  const rowCount = Math.ceil(effectiveCapacity / seatsPerRow);
+  const seats = [];
+
+  for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+    const rowLetter = String.fromCharCode(65 + rowIndex);
+    const seatsInThisRow = Math.min(seatsPerRow, effectiveCapacity - rowIndex * seatsPerRow);
+
+    // All rows: standard seats
+    for (let seatNum = 1; seatNum <= seatsInThisRow; seatNum++) {
+      seats.push({
+        row: rowLetter,
+        number: seatNum,
+        type: "Standard"
+      });
+    }
+  }
+
+  return seats;
 };
 
 const createBookingCode = () =>
@@ -44,27 +60,66 @@ const createTicketCode = () =>
     .slice(2, 4)
     .toUpperCase()}`;
 
-const populateSeatmap = async (seatmapId) =>
-  Seatmap.findById(seatmapId).populate("seats");
-
-const cloneRoomSeatmapToShowtime = async (roomSeatmap, showtimeId) => {
-  const clonedSeats = await Seat.insertMany(
-    (roomSeatmap.seats || []).map((seat) => ({
-      row: seat.row,
-      number: seat.number,
-      type: seat.type || "Standard",
-      status: "Available",
-    })),
-  );
-
-  return Seatmap.create({
-    roomId: roomSeatmap.roomId,
-    showtimes: showtimeId,
-    seats: clonedSeats.map((seat) => seat._id),
+const getSeatsForShowtime = async (showtimeId) => {
+  const showtime = await Showtime.findById(showtimeId).populate("roomId");
+  if (!showtime) return null;
+  
+  // Get seats from Room
+  const room = await Room.findById(showtime.roomId._id || showtime.roomId).populate("seats");
+  if (!room) return null;
+  
+  // Get seatStatuses for this showtime
+  const seatStatuses = await SeatStatus.find({ showtimeId: showtimeId });
+  
+  // Merge seats with their statuses
+  const seatsWithStatus = room.seats.map(seat => {
+    const status = seatStatuses.find(
+      s => s.seatId.toString() === seat._id.toString()
+    );
+    return {
+      ...seat.toObject(),
+      status: status?.status || 'Available',
+      price: status?.price || 0,
+      heldBy: status?.heldBy,
+      heldUntil: status?.heldUntil,
+      bookedBy: status?.bookedBy
+    };
   });
+  
+  return {
+    roomId: room._id,
+    showtimeId: showtimeId,
+    seats: seatsWithStatus,
+    capacity: room.seats.length
+  };
 };
 
-const createSeatmapForShowtime = async (showtime, room) => {
+const createSeatStatusesForShowtime = async (room, showtimeId) => {
+  // Get seats from Room
+  const roomWithSeats = await Room.findById(room._id || room).populate("seats");
+  if (!roomWithSeats || !roomWithSeats.seats || roomWithSeats.seats.length === 0) {
+    throw new Error("Room has no seats");
+  }
+
+  // Create SeatStatus for each seat in this showtime
+  const seatStatusesData = roomWithSeats.seats.map(seat => ({
+    seatId: seat._id,
+    showtimeId: showtimeId,
+    status: 'Available',
+    price: 50000 // Default price
+  }));
+  
+  const createdStatuses = await SeatStatus.insertMany(seatStatusesData);
+  
+  // Update showtime with seatStatuses references
+  await Showtime.findByIdAndUpdate(showtimeId, { 
+    seatStatuses: createdStatuses.map(s => s._id) 
+  });
+  
+  return createdStatuses;
+};
+
+const ensureSeatsForShowtime = async (showtime, room) => {
   // Ensure we have the latest room data with correct capacity
   // If room is already populated, use it; otherwise fetch fresh data
   let roomData = room;
@@ -76,25 +131,27 @@ const createSeatmapForShowtime = async (showtime, room) => {
   }
   
   const actualCapacity = roomData?.capacity || 60; // Default to 60 if still 0
-  console.log("Creating seatmap with capacity:", actualCapacity);
+  console.log("Ensuring seats with capacity:", actualCapacity);
   
-  if (roomData?.seatmapId) {
-    const roomSeatmap = await Seatmap.findById(roomData.seatmapId).populate("seats");
-    if (roomSeatmap && roomSeatmap.seats?.length > 0) {
-      return cloneRoomSeatmapToShowtime(roomSeatmap, showtime._id);
-    }
+  // Check if room already has seats
+  if (roomData?.seats && roomData.seats.length > 0) {
+    return createSeatStatusesForShowtime(roomData, showtime._id);
   }
 
+  // If room has no seats, create them
   const seats = await Seat.insertMany(buildSeatBlueprint(actualCapacity));
-  return Seatmap.create({
-    roomId: roomData._id,
-    showtimes: showtime._id,
+  
+  // Update room with seats
+  await Room.findByIdAndUpdate(roomData._id, {
     seats: seats.map((seat) => seat._id),
+    capacity: seats.length
   });
+  
+  return createSeatStatusesForShowtime(roomData, showtime._id);
 };
 
-const ensureShowtimeSeatmap = async (showtimeInput) => {
-  console.log("=== ensureShowtimeSeatmap DEBUG ===");
+const ensureShowtimeSeats = async (showtimeInput) => {
+  console.log("=== ensureShowtimeSeats DEBUG ===");
   const showtime =
     showtimeInput?.populate && typeof showtimeInput.populate === "function"
       ? showtimeInput
@@ -107,81 +164,44 @@ const ensureShowtimeSeatmap = async (showtimeInput) => {
   }
 
   console.log("Showtime ID:", showtime._id);
-  console.log("Showtime seatMap:", showtime.seatMap);
   console.log("Showtime roomId:", showtime.roomId);
 
-  if (showtime.seatMap) {
-    console.log("Method 1: Checking showtime.seatMap field...");
-    const existingSeatmap = await populateSeatmap(showtime.seatMap);
-    if (existingSeatmap) {
-      // FIX: Check if seatmap has seats, if not generate them!
-      // Also check if number of seats matches room capacity
-      const room = await Room.findById(showtime.roomId);
-      const expectedCapacity = room?.capacity || 60;
-      
-      if (!existingSeatmap.seats || existingSeatmap.seats.length === 0) {
-        console.log(`Staff: Seatmap has ${existingSeatmap.seats?.length || 0} seats! Generating...`, existingSeatmap._id);
-        
-        // Create new seats with correct capacity
-        const seats = await Seat.insertMany(buildSeatBlueprint(expectedCapacity));
-        
-        // Update seatmap using findByIdAndUpdate to avoid VersionError
-        await Seatmap.findByIdAndUpdate(existingSeatmap._id, {
-          $set: { seats: seats.map(s => s._id) }
-        });
-        
-        // Reload with populated seats
-        return await populateSeatmap(existingSeatmap._id);
-      }
-      return existingSeatmap;
-    }
-  }
-
-  let seatmap = await Seatmap.findOne({ showtimes: showtime._id }).populate("seats");
-  console.log("Method 2: Finding by showtimes field:", seatmap ? "found" : "not found");
+  // Check if seatStatuses already exist for this showtime
+  const existingSeatStatuses = await SeatStatus.find({ showtimeId: showtime._id });
   
-  if (seatmap) {
-    // FIX: Also check if found seatmap has correct number of seats
-    console.log("Method 2: Seatmap found, checking capacity...");
-    const room = await Room.findById(showtime.roomId);
-    console.log("Method 2: Room found:", room ? "yes" : "no", "| capacity:", room?.capacity);
-    const expectedCapacity = room?.capacity || 60;
-    
-    if (!seatmap.seats || seatmap.seats.length === 0) {
-      console.log(`Staff: Found seatmap has ${seatmap.seats?.length || 0} seats! Generating...`, seatmap._id);
-      
-      const seats = await Seat.insertMany(buildSeatBlueprint(expectedCapacity));
-      
-      // Update seatmap using findByIdAndUpdate to avoid VersionError
-      await Seatmap.findByIdAndUpdate(seatmap._id, {
-        $set: { seats: seats.map(s => s._id) }
-      });
-      
-      seatmap = await populateSeatmap(seatmap._id);
-    }
-    
-    if (!showtime.seatMap || showtime.seatMap.toString() !== seatmap._id.toString()) {
-      await Showtime.findByIdAndUpdate(showtime._id, { $set: { seatMap: seatmap._id } });
-    }
-    return seatmap;
+  if (existingSeatStatuses && existingSeatStatuses.length > 0) {
+    console.log("Method 1: Found existing seatStatuses:", existingSeatStatuses.length);
+    return getSeatsForShowtime(showtime._id);
   }
 
+  // Get room and ensure it has seats
   const room = await Room.findById(showtime.roomId);
-  console.log("Method 4: Trying room.seatmapId:", room?.seatmapId || "none");
+  console.log("Method 2: Room found:", room ? "yes" : "no", "| capacity:", room?.capacity);
   
   if (!room) {
     const error = new Error("Phòng chiếu không tồn tại");
     error.statusCode = 404;
     throw error;
   }
-  console.log("Method 4: Room found, capacity:", room.capacity);
-  console.log("Staff: Creating new seatmap with room capacity:", room.capacity);
+  
+  const expectedCapacity = room?.capacity || 60;
+  
+  if (!room.seats || room.seats.length === 0) {
+    console.log(`Staff: Room has ${room.seats?.length || 0} seats! Generating...`, room._id);
+    
+    const seats = await Seat.insertMany(buildSeatBlueprint(expectedCapacity));
+    
+    // Update room with seats
+    await Room.findByIdAndUpdate(room._id, {
+      $set: { seats: seats.map(s => s._id), capacity: seats.length }
+    });
+  }
+  
+  console.log("Staff: Creating seatStatuses with room capacity:", room.capacity);
 
-  seatmap = await createSeatmapForShowtime(showtime, room);
-  showtime.seatMap = seatmap._id;
-  await showtime.save();
+  await ensureSeatsForShowtime(showtime, room);
 
-  return populateSeatmap(seatmap._id);
+  return getSeatsForShowtime(showtime._id);
 };
 
 const formatSeatLabel = (seat) => {
@@ -502,8 +522,8 @@ exports.getStaffBookingShowtimes = async (req, res) => {
 
     const enrichedShowtimes = await Promise.all(
       filteredShowtimes.map(async (showtime) => {
-        const seatmap = await ensureShowtimeSeatmap(showtime);
-        const seats = seatmap.seats || [];
+        const seatData = await ensureShowtimeSeats(showtime);
+        const seats = seatData.seats || [];
         const availableSeats = seats.filter((seat) => seat.status === "Available").length;
         const bookedSeats = seats.filter((seat) => seat.status === "Booked").length;
 
@@ -537,8 +557,8 @@ exports.getSeatMapForStaffBooking = async (req, res) => {
       return res.status(404).json({ message: "Suất chiếu không tồn tại" });
     }
 
-    const seatmap = await ensureShowtimeSeatmap(showtime);
-    const seats = [...(seatmap.seats || [])].sort((a, b) => {
+    const seatData = await ensureShowtimeSeats(showtime);
+    const seats = [...(seatData.seats || [])].sort((a, b) => {
       if (a.row === b.row) return a.number - b.number;
       return a.row.localeCompare(b.row);
     });
@@ -554,7 +574,7 @@ exports.getSeatMapForStaffBooking = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Loi khi lay seatmap staff booking:", error);
+    console.error("Loi khi lay seat staff booking:", error);
     res.status(error.statusCode || 500).json({ message: error.message || "Loi server" });
   }
 };
@@ -619,9 +639,9 @@ exports.createStaffBooking = async (req, res) => {
       return res.status(400).json({ message: "Chỉ có thể đặt chỗ suất chiếu đang mở bán" });
     }
 
-    const seatmap = await ensureShowtimeSeatmap(showtime);
+    const seatData = await ensureShowtimeSeats(showtime);
     const uniqueSeatIds = [...new Set(seatIds)];
-    const selectedSeats = seatmap.seats.filter((seat) =>
+    const selectedSeats = seatData.seats.filter((seat) =>
       uniqueSeatIds.includes(seat._id.toString()),
     );
 
@@ -1112,13 +1132,19 @@ exports.unlockInternalSeats = async (req, res) => {
       return res.status(403).json({ message: "Không có quyền mở khóa ghế nội bộ" });
     }
 
-    const seatmap = await Seatmap.findOne({ showtimes: showtimeId });
-    if (!seatmap) {
-      return res.status(404).json({ message: "Không tìm thấy seatmap" });
+    // Get showtime and room
+    const showtime = await Showtime.findById(showtimeId);
+    if (!showtime) {
+      return res.status(404).json({ message: "Không tìm thấy suất chiếu" });
+    }
+
+    const room = await Room.findById(showtime.roomId).populate("seats");
+    if (!room || !room.seats || room.seats.length === 0) {
+      return res.status(404).json({ message: "Không tìm thấy ghế trong phòng" });
     }
 
     const internalSeats = await Seat.find({
-      _id: { $in: seatmap.seats },
+      _id: { $in: room.seats.map(s => s._id) },
       status: "Internal",
     });
 

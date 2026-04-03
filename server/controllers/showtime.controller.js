@@ -1,7 +1,7 @@
 // controllers/showtime.controller.js
 const Showtime = require("../models/showtime");
-const Seatmap = require("../models/seatmap");
 const Seat = require("../models/seat");
+const SeatStatus = require("../models/seatStatus");
 const Movie = require("../models/movie");
 const Room = require("../models/room");
 // ensure related models are registered for populate
@@ -102,81 +102,24 @@ exports.getShowtimesByMovie = async (req, res) => {
     const result = [];
     for (let s of showtimes) {
       try {
-        // Get seatmap if exists (without auto-creating)
-        let seatmap = null;
+        // Get seats from Room
+        const room = await Room.findById(s.roomId._id || s.roomId).populate("seats");
+        const seats = room?.seats || [];
         
-        // Method 1: Check showtime.seatMap
-        if (s.seatMap) {
-          seatmap = await Seatmap.findById(s.seatMap).populate("seats");
-        }
+        // Get seatStatuses for this showtime
+        const seatStatuses = await SeatStatus.find({ showtimeId: s._id });
         
-        // Method 2: Find by showtimes field
-        if (!seatmap) {
-          seatmap = await Seatmap.findOne({ showtimes: s._id }).populate("seats");
-        }
-        
-        // Method 3: Clone from room's seatmapId (if available)
-        if (!seatmap && s.roomId) {
-          const room = await Room.findById(s.roomId._id || s.roomId);
-          console.log("ShowtimesByMovie - Room capacity:", room?.capacity);
-          if (room?.seatmapId) {
-            const roomSeatmap = await Seatmap.findById(room.seatmapId).populate("seats");
-            if (roomSeatmap && roomSeatmap.seats?.length > 0) {
-              // Clone seats
-              const clonedSeats = await Seat.insertMany(
-                (roomSeatmap.seats || []).map((seat) => ({
-                  row: seat.row,
-                  number: seat.number,
-                  type: seat.type || "Standard",
-                  status: "Available",
-                }))
-              );
-              seatmap = await Seatmap.create({
-                roomId: roomSeatmap.roomId,
-                showtimes: s._id,
-                seats: clonedSeats.map((seat) => seat._id),
-              });
-              seatmap = await Seatmap.findById(seatmap._id).populate("seats");
-              
-              // Update showtime with seatMap reference
-              s.seatMap = seatmap._id;
-              await s.save();
-            }
-          }
-        }
-        
-        // Method 4: Create new seatmap from room capacity
-        if (!seatmap && s.roomId) {
-          const room = await Room.findById(s.roomId._id || s.roomId);
-          console.log("ShowtimesByMovie - Creating with capacity:", room?.capacity);
-          if (room) {
-            const seatmapController = require("./seatmap.controller");
-            const seatsData = seatmapController.buildSeatLayout(room.capacity || 50);
-            const createdSeats = await Seat.insertMany(seatsData);
-            seatmap = await Seatmap.create({
-              roomId: room._id,
-              showtimes: s._id,
-              seats: createdSeats.map((seat) => seat._id),
-            });
-            seatmap = await Seatmap.findById(seatmap._id).populate("seats");
-            
-            // Update showtime with seatMap reference
-            s.seatMap = seatmap._id;
-            await s.save();
-          }
-        }
-        
-        // Method 5: Removed seat count mismatch regeneration to preserve existing seat IDs
-        
-        const seats = seatmap?.seats || [];
-        const availableSeats = seats.filter((seat) => seat.status === "Available").length;
+        // Count available seats
+        const availableSeats = seatStatuses.filter(
+          (status) => status.status === "Available"
+        ).length;
 
         result.push({
           ...s.toObject(),
           availableSeats,
         });
       } catch (seatErr) {
-        console.error("Error fetching seatmap for showtime", s._id, seatErr);
+        console.error("Error fetching seats for showtime", s._id, seatErr);
         result.push({
           ...s.toObject(),
           availableSeats: 0,
