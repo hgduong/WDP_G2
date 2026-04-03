@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Seat = require("../models/seat");
 const SeatStatus = require("../models/seatStatus");
 const Room = require("../models/room");
@@ -543,17 +544,33 @@ exports.addSeat = async (req, res) => {
   }
 };
 
-module.exports = {
-  buildSeatLayout: exports.buildSeatLayout,
-  generateSeatLayout: exports.generateSeatLayout,
-  getSeatmapByShowtime: exports.getSeatmapByShowtime,
-  holdSeats: exports.holdSeats,
-  releaseSeats: exports.releaseSeats,
-  getHeldSeats: exports.getHeldSeats,
-  bookSeats: exports.bookSeats,
-  getSeatsByRoom: exports.getSeatsByRoom,
-  updateSeat: exports.updateSeat,
-  deleteSeat: exports.deleteSeat,
-  addSeat: exports.addSeat,
-  startHoldCleanupJob,
+let holdCleanupTimer = null;
+
+exports.startHoldCleanupJob = () => {
+  if (holdCleanupTimer) {
+    return holdCleanupTimer;
+  }
+
+  holdCleanupTimer = setInterval(async () => {
+    try {
+      const now = new Date();
+      await SeatStatus.updateMany(
+        { 
+          status: "Holding", 
+          heldUntil: { $lte: now }
+        },
+        { 
+          $set: { 
+            status: "Available", 
+            heldBy: null, 
+            heldUntil: null 
+          } 
+        }
+      );
+    } catch (error) {
+      console.error("Hold cleanup failed:", error);
+    }
+  }, 5000);
+
+  return holdCleanupTimer;
 };
