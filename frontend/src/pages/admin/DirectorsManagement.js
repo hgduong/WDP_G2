@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import {
   getAllDirectors,
   createDirector,
@@ -35,7 +35,6 @@ const DirectorsManagement = () => {
     gender: "",
     nationality: "",
     description: "",
-    movies: [],
   });
 
   useEffect(() => {
@@ -74,22 +73,16 @@ const DirectorsManagement = () => {
     }));
   };
 
-  const handleMovieToggle = (movieId) => {
-    setFormData((prev) => {
-      const current = prev.movies || [];
-      if (current.includes(movieId)) {
-        return { ...prev, movies: current.filter((id) => id !== movieId) };
-      }
-      return { ...prev, movies: [...current, movieId] };
-    });
-  };
-
   const getMovieTitles = (movieIds) => {
     if (!Array.isArray(movieIds) || movieIds.length === 0) return "-";
     const movieMap = new Map(movies.map((movie) => [movie._id, movie.title]));
     const titles = movieIds
-      .map((item) => (typeof item === "string" ? item : item?._id))
-      .map((id) => movieMap.get(id))
+      .map((item) => {
+        if (!item) return null;
+        if (typeof item === "string") return movieMap.get(item) || null;
+        if (item.title) return item.title;
+        return movieMap.get(item._id) || null;
+      })
       .filter(Boolean);
     return titles.length > 0 ? titles.join(", ") : "-";
   };
@@ -103,7 +96,7 @@ const DirectorsManagement = () => {
 
   const openAddModal = () => {
     setEditingDirector(null);
-    setFormData({ name: "", dateOfBirth: "", gender: "", nationality: "", description: "", movies: [] });
+    setFormData({ name: "", dateOfBirth: "", gender: "", nationality: "", description: "" });
     setShowModal(true);
   };
 
@@ -120,7 +113,6 @@ const DirectorsManagement = () => {
       gender: director.gender || "",
       nationality: director.nationality || "",
       description: director.description || "",
-      movies: Array.isArray(director.movies) ? director.movies.map((m) => (typeof m === "string" ? m : m?._id)).filter(Boolean) : [],
     });
     setShowModal(true);
   };
@@ -221,9 +213,11 @@ const DirectorsManagement = () => {
             <option value="Nam">Đạo diễn Nam</option>
             <option value="Nữ">Đạo diễn Nữ</option>
           </select>
+          {/*
           <button className="btn btn-primary" onClick={openAddModal}>
             + Thêm đạo diễn
           </button>
+          */}
         </div>
       </div>
 
@@ -319,22 +313,16 @@ const DirectorsManagement = () => {
               </div>
 
               <div className="form-group">
-                <label>Phim đã tham gia (tick chọn)</label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "5px" }}>
-                  {movies.length === 0 && (
-                    <span className="text-muted">Chưa có phim</span>
-                  )}
-                  {movies.map((movie) => (
-                    <label key={movie._id} style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
-                      <input
-                        type="checkbox"
-                        checked={formData.movies.includes(movie._id)}
-                        onChange={() => handleMovieToggle(movie._id)}
-                      />
-                      {movie.title}
-                    </label>
-                  ))}
-                </div>
+                <label>Phim đạo diễn (tự động)</label>
+                <textarea
+                  value={
+                    editingDirector
+                      ? getMovieTitles(editingDirector.movies)
+                      : "Tự động cập nhật theo Quản lý phim"
+                  }
+                  rows="2"
+                  disabled
+                />
               </div>
 
               <div className="form-group">

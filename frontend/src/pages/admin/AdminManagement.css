@@ -858,6 +858,50 @@
   margin-top: 10px;
 }
 
+.multi-select-dropdown {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-top: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #fff;
+}
+
+.multi-select-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 24px;
+  align-items: start;
+  justify-items: start;
+}
+
+.multi-select-item {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding-left: 0;
+}
+
+.multi-select-checkbox {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.multi-select-label {
+  word-break: break-word;
+  flex: 1 1 auto;
+}
+
+.multi-select-item input[type="checkbox"] {
+  width: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;

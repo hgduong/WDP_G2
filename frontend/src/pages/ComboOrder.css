@@ -1,0 +1,151 @@
+.combo-page {
+  padding: 30px 40px 80px;
+  background: #f7f2e8;
+  min-height: 100vh;
+}
+
+.combo-header {
+  background: #b7b7b7;
+  color: #222;
+  padding: 12px 18px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.combo-header h1 {
+  margin: 0 0 4px;
+  font-size: 22px;
+}
+
+.combo-header p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.combo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.combo-card {
+  background: #fffdf5;
+  border: 1px solid #e2d8c8;
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 16px;
+  align-items: start;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+
+.combo-image {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.combo-image img {
+  width: 120px;
+  height: auto;
+  object-fit: contain;
+}
+
+.combo-body h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.combo-body ul {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.combo-note {
+  font-size: 13px;
+  line-height: 1.4;
+  margin: 0 0 12px;
+  color: #333;
+}
+
+.combo-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.combo-price {
+  font-weight: 700;
+  color: #111;
+}
+
+.combo-qty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.combo-qty button {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: #d60000;
+  color: #fff;
+  font-weight: 700;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.combo-qty span {
+  display: inline-flex;
+  width: 34px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.combo-summary {
+  position: sticky;
+  bottom: 0;
+  margin-top: 24px;
+  background: #111;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.combo-summary button {
+  background: #e00000;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .combo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .combo-card {
+    grid-template-columns: 1fr;
+  }
+
+  .combo-image {
+    justify-content: flex-start;
+  }
+}

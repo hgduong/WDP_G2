@@ -385,8 +385,15 @@ exports.deleteMovie = async (req, res) => {
       { $pull: { movies: req.params.id } }
     );
 
-    // Đồng bộ lại Actor/Director (tránh trường hợp bị lệch danh sách movies)
-    await syncMovieActorsAndDirectors(movie);
+    // Xóa movieId khỏi Actor/Director để tránh dữ liệu mồ côi
+    await Actor.updateMany(
+      { movies: movie._id },
+      { $pull: { movies: movie._id } }
+    );
+    await Director.updateMany(
+      { movies: movie._id },
+      { $pull: { movies: movie._id } }
+    );
 
     res.json({ message: "Phim đã được xóa" });
   } catch (error) {
@@ -431,5 +438,4 @@ exports.getSpecialMovies = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 
