@@ -1,9 +1,6 @@
 const Seat = require("../models/seat");
 const SeatStatus = require("../models/seatStatus");
 const Room = require("../models/room");
-const mongoose = require("mongoose");
-
-let holdCleanupTimer;
 
 // Helper function to build seat layout (can be used by other controllers)
 exports.buildSeatLayout = (totalSeats) => {
@@ -103,44 +100,6 @@ exports.generateSeatLayout = async (req, res) => {
     }
     res.status(500).json({ message: error.message });
   }
-};
-
-const startHoldCleanupJob = () => {
-  if (holdCleanupTimer) {
-    return holdCleanupTimer;
-  }
-
-  const SeatStatus = require("../models/seatStatus");
-  const Booking = require("../models/booking");
-
-  holdCleanupTimer = setInterval(async () => {
-    try {
-      const now = new Date();
-      const expiredHolds = await SeatStatus.find({
-        status: "Hold",
-        expiresAt: { $lte: now },
-      });
-
-      for (const seatStatus of expiredHolds) {
-        const activeBookings = await Booking.findOne({
-          seatIds: seatStatus.seat,
-          showtime: seatStatus.showtime,
-          status: { $in: ["Pending", "Confirmed"] },
-        });
-
-        if (!activeBookings) {
-          seatStatus.status = "Available";
-          seatStatus.booking = null;
-          seatStatus.expiresAt = null;
-          await seatStatus.save();
-        }
-      }
-    } catch (error) {
-      console.error("Hold cleanup job failed:", error);
-    }
-  }, 5000);
-
-  return holdCleanupTimer;
 };
 
 exports.getSeatmapByShowtime = async (req, res) => {
@@ -347,7 +306,12 @@ exports.getHeldSeats = async (req, res) => {
 
     res.json(heldSeatStatuses);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    await session.abortTransaction();
+    return res
+      .status(error.statusCode || 500)
+      .json({ message: error.message || "Failed to release seats" });
+  } finally {
+    session.endSession();
   }
 };
 
