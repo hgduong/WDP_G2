@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Seat = require("../models/seat");
 const SeatStatus = require("../models/seatStatus");
 const Room = require("../models/room");
@@ -541,4 +542,35 @@ exports.addSeat = async (req, res) => {
     }
     res.status(500).json({ message: error.message });
   }
+};
+
+let holdCleanupTimer = null;
+
+exports.startHoldCleanupJob = () => {
+  if (holdCleanupTimer) {
+    return holdCleanupTimer;
+  }
+
+  holdCleanupTimer = setInterval(async () => {
+    try {
+      const now = new Date();
+      await SeatStatus.updateMany(
+        { 
+          status: "Holding", 
+          heldUntil: { $lte: now }
+        },
+        { 
+          $set: { 
+            status: "Available", 
+            heldBy: null, 
+            heldUntil: null 
+          } 
+        }
+      );
+    } catch (error) {
+      console.error("Hold cleanup failed:", error);
+    }
+  }, 5000);
+
+  return holdCleanupTimer;
 };
