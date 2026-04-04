@@ -102,8 +102,12 @@ export const getCinemaInfo = (orderData) => {
  * @returns {object|null} Room information or null
  */
 export const getRoomInfo = (orderData) => {
+  if (!orderData) return null;
   if (orderData?.room) return orderData.room;
   if (orderData?.roomId) return orderData.roomId;
+  const showtime = orderData?.showtime || orderData?.showtimeId;
+  if (showtime?.roomId) return showtime.roomId;
+  if (showtime?.room) return showtime.room;
   return null;
 };
 
