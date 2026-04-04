@@ -574,3 +574,144 @@ exports.startHoldCleanupJob = () => {
 
   return holdCleanupTimer;
 };
+
+// Helper function to cleanup expired holds for a specific showtime (exported for other controllers)
+exports.cleanupExpiredHoldsForShowtime = async (showtimeId, options = {}) => {
+  const { session } = options;
+  const now = new Date();
+
+  try {
+    const updateResult = await SeatStatus.updateMany(
+      {
+        showtimeId: showtimeId,
+        status: "Holding",
+        $or: [
+          { heldUntil: { $lte: now } },
+          { heldUntil: null }
+        ]
+      },
+      {
+        $set: {
+          status: "Available",
+          heldBy: null,
+          heldUntil: null
+        }
+      }
+    );
+
+    return { modifiedCount: updateResult.modifiedCount };
+  } catch (error) {
+    console.error("cleanupExpiredHoldsForShowtime error:", error);
+    throw error;
+  }
+};
+
+// Helper function to release seats for a user (exported for other controllers)
+exports.releaseSeatsForUser = async (showtimeId, userId, options = {}) => {
+  const { session } = options;
+  const now = new Date();
+
+  try {
+    const updateResult = await SeatStatus.updateMany(
+      {
+        showtimeId: showtimeId,
+        heldBy: userId,
+        status: "Holding"
+      },
+      {
+        $set: {
+          status: "Available",
+          heldBy: null,
+          heldUntil: null
+        }
+      }
+    );
+
+    return { modifiedCount: updateResult.modifiedCount };
+  } catch (error) {
+    console.error("releaseSeatsForUser error:", error);
+    throw error;
+  }
+};
+
+// Helper function to ensure seatmap exists for a showtime (exported for other controllers)
+exports.ensureShowtimeSeatmap = async (showtime) => {
+  const Showtime = require("../models/showtime");
+  const Room = require("../models/room");
+
+  try {
+    const showtimeObj = showtime?.populate && typeof showtime.populate === "function"
+      ? showtime
+      : await Showtime.findById(showtime._id || showtime).populate("roomId");
+    
+    if (!showtimeObj) {
+      throw new Error("Suất chiếu không tồn tại");
+    }
+
+    const room = await Room.findById(showtimeObj.roomId._id || showtimeObj.roomId).populate("seats");
+    if (!room) {
+      throw new Error("Phòng chiếu không tồn tại");
+    }
+
+    // Ensure seat statuses exist for this showtime
+    const showtimeId = showtimeObj._id;
+    const existingStatuses = await SeatStatus.find({ showtimeId });
+    
+    if (!existingStatuses || existingStatuses.length === 0) {
+      // Create seat statuses for all seats in the room
+      const seatStatuses = room.seats.map(seat => ({
+        showtimeId,
+        seatId: seat._id,
+        status: "Available",
+        price: 0,
+        heldBy: null,
+        heldUntil: null,
+        bookedBy: null
+      }));
+      
+      await SeatStatus.insertMany(seatStatuses);
+    }
+
+    // Get final seat statuses
+    const seatStatuses = await SeatStatus.find({ showtimeId });
+
+    // Merge seats with their statuses
+    const seatsWithStatus = room.seats.map(seat => {
+      const status = seatStatuses.find(
+        s => s.seatId.toString() === seat._id.toString()
+      );
+      return {
+        ...seat.toObject(),
+        status: status?.status || "Available",
+        price: status?.price || 0,
+        heldBy: status?.heldBy,
+        heldUntil: status?.heldUntil,
+        bookedBy: status?.bookedBy
+      };
+    });
+
+    return {
+      roomId: room._id,
+      showtimeId,
+      seats: seatsWithStatus,
+      capacity: room.seats.length
+    };
+  } catch (error) {
+    console.error("ensureShowtimeSeatmap error:", error);
+    throw error;
+  }
+};
+
+// Helper function to build seat summary (exported for other controllers)
+exports.buildSeatSummary = (seats = []) => {
+  const availableSeats = seats.filter(s => s.status === "Available").length;
+  const bookedSeats = seats.filter(s => s.status === "Booked").length;
+  const holdingSeats = seats.filter(s => s.status === "Holding").length;
+
+  return {
+    availableSeats,
+    bookedSeats,
+    holdingSeats,
+    totalSeats: seats.length
+  };
+};
