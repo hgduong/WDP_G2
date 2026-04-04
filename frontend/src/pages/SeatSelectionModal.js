@@ -721,10 +721,10 @@ export default function SeatSelectionModal({
 
               {qrResult.qrData ? (
                 <div className="qr-image-wrapper">
-                  <img
+                  {/* <img
                     src={generateQRCodeUrl(qrResult.qrData)}
                     alt="Payment QR Code"
-                  />
+                  /> */}
                 </div>
               ) : (
                 <div className="payment-no-qr">

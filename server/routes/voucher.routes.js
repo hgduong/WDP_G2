@@ -6,6 +6,9 @@ const { authenticateToken } = require("../config/auth.middleware");
 // Áp dụng voucher (công khai) - phải đặt trước /:id
 router.post("/apply", voucherController.applyVoucher);
 
+// Áp dụng voucher cho staff
+router.post("/staff-apply", authenticateToken, voucherController.applyVoucher);
+
 // Lấy danh sách voucher (công khai)
 router.get("/", voucherController.getAllVouchers);
 
