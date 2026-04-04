@@ -234,14 +234,14 @@ const createPendingQrBooking = async ({ userId, showtimeId, seatIds, customerInf
 
     const basePrice = baseSeatPriceFromContext(showtime, room);
     const amount = calculateTotalPrice(holdState.selectedSeats, basePrice);
-    
+
     // Get active movie ticket tax
     const Tax = require("../models/tax");
     const activeTax = await Tax.findOne({ categoryName: "Movie Ticket", isActive: true });
     const taxRate = activeTax ? activeTax.taxRate : 8;
     const taxAmount = (amount * taxRate) / 100;
     const totalAmount = amount + taxAmount;
-    
+
     const bookingCode = generateBookingCode("BK");
     const orderCode = createOrderCode();
 
@@ -266,16 +266,20 @@ const createPendingQrBooking = async ({ userId, showtimeId, seatIds, customerInf
       expiresAt: holdState.expiresAt,
     });
 
+    console.log("Creating PayOS payment request with amount:", Math.round(totalAmount));
     const payosResponse = await payos.paymentRequests.create(
       buildPayOSPayload({
         bookingId: draftBooking._id,
         bookingCode,
         orderCode,
-        amount: totalAmount,
+        amount: Math.round(totalAmount),
         customerInfo: draftBooking.customerInfo,
         expiresAt: holdState.expiresAt,
       }),
-    );
+    ).catch(err => {
+      console.error("PayOS Error:", err.response?.data || err.message);
+      throw err;
+    });
 
     const createSession = await mongoose.startSession();
     let createSessionOpen = true;
@@ -399,22 +403,20 @@ const sendBookingConfirmationEmail = async (bookingId) => {
     return;
   }
 
-  const movieTitle = booking.showtimeId?.movieId?.title || "Movie";
-  const showtimeText = booking.showtimeId?.startTime
-    ? new Date(booking.showtimeId.startTime).toLocaleString("vi-VN")
-    : "N/A";
+  const movieTitle = booking.showtimeId?.movieId?.title || "Phim chưa xác định";
+  const startTime = booking.showtimeId?.startTime ? new Date(booking.showtimeId.startTime) : null;
+  const showTime = startTime ? startTime.toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' }) : "---";
+  const showDate = startTime ? startTime.toLocaleDateString("vi-VN") : "---";
 
   const ticketRows = (booking.tickets || [])
     .map(
       (ticket) => `
         <tr>
-          <td style="padding:8px;border:1px solid #ddd;">${ticket.ticketCode}</td>
-          <td style="padding:8px;border:1px solid #ddd;">${
+          <td style="padding:12px; border:1px solid #eee;">${ticket.ticketCode}</td>
+          <td style="padding:12px; border:1px solid #eee; font-weight:bold; color:#c41e3a;">${
             seatmapController.formatSeatLabel(ticket.seatId)
           }</td>
-          <td style="padding:8px;border:1px solid #ddd;">${ticket.price.toLocaleString(
-            "vi-VN",
-          )} VND</td>
+          <td style="padding:12px; border:1px solid #eee;">${ticket.price.toLocaleString("vi-VN")} VNĐ</td>
         </tr>
       `,
     )
@@ -422,30 +424,52 @@ const sendBookingConfirmationEmail = async (bookingId) => {
 
   await sendMail({
     to: booking.customerInfo.email,
-    subject: `Booking confirmed ${booking.bookingCode}`,
+    subject: `[TIME CINEMAS] Xác nhận đặt vé thành công - Mã đơn: ${booking.bookingCode}`,
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
-        <h2 style="color:#2f855a;">Booking confirmed</h2>
-        <p>Hello ${booking.customerInfo.fullName || "Customer"},</p>
-        <p>Your payment has been confirmed successfully.</p>
-        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-          <tr><td style="padding:8px;"><strong>Booking code</strong></td><td style="padding:8px;">${booking.bookingCode}</td></tr>
-          <tr><td style="padding:8px;"><strong>Movie</strong></td><td style="padding:8px;">${movieTitle}</td></tr>
-          <tr><td style="padding:8px;"><strong>Showtime</strong></td><td style="padding:8px;">${showtimeText}</td></tr>
-          <tr><td style="padding:8px;"><strong>Cinema</strong></td><td style="padding:8px;">${booking.cinemaId?.name || "N/A"}</td></tr>
-          <tr><td style="padding:8px;"><strong>Room</strong></td><td style="padding:8px;">${booking.roomId?.name || "N/A"}</td></tr>
-          <tr><td style="padding:8px;"><strong>Total</strong></td><td style="padding:8px;">${booking.totalPrice.toLocaleString("vi-VN")} VND</td></tr>
-        </table>
-        <table style="width:100%;border-collapse:collapse;border:1px solid #ddd;">
-          <thead>
-            <tr style="background:#2f855a;color:#fff;">
-              <th style="padding:8px;border:1px solid #ddd;">Ticket</th>
-              <th style="padding:8px;border:1px solid #ddd;">Seat</th>
-              <th style="padding:8px;border:1px solid #ddd;">Price</th>
-            </tr>
-          </thead>
-          <tbody>${ticketRows}</tbody>
-        </table>
+      <div style="font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width:600px; margin:0 auto; color:#333; border:1px solid #ddd; border-radius:10px; overflow:hidden;">
+        <div style="background: linear-gradient(135deg, #c41e3a, #8b0000); padding:20px; text-align:center; color:#fff;">
+          <h1 style="margin:0; font-size:24px; text-transform:uppercase; letter-spacing:2px;">Time Cinemas</h1>
+          <p style="margin:5px 0 0; opacity:0.8;">Cảm ơn bạn đã lựa chọn dịch vụ của chúng tôi!</p>
+        </div>
+        
+        <div style="padding:30px;">
+          <h2 style="color:#c41e3a; border-bottom:2px solid #f5f5f5; padding-bottom:10px; margin-top:0;">Xác nhận đặt vé thành công</h2>
+          <p>Xin chào <strong>${booking.customerInfo.fullName || "Quý khách"}</strong>,</p>
+          <p>Chúc mừng! Giao dịch của bạn đã được xác nhận thành công. Dưới đây là thông tin chi tiết vé xem phim của bạn:</p>
+          
+          <div style="background:#f9f9f9; padding:20px; border-radius:8px; margin:20px 0; border-left:4px solid #c41e3a;">
+            <table style="width:100%; border-collapse:collapse;">
+              <tr><td style="padding:8px 0; color:#666; width:120px;">Mã đặt vé:</td><td style="padding:8px 0; font-weight:bold; font-size:16px;">${booking.bookingCode}</td></tr>
+              <tr><td style="padding:8px 0; color:#666;">Phim:</td><td style="padding:8px 0; font-weight:bold;">${movieTitle}</td></tr>
+              <tr><td style="padding:8px 0; color:#666;">Ngày chiếu:</td><td style="padding:8px 0; font-weight:bold;">${showDate}</td></tr>
+              <tr><td style="padding:8px 0; color:#666;">Giờ chiếu:</td><td style="padding:8px 0; font-weight:bold; color:#c41e3a;">${showTime}</td></tr>
+              <tr><td style="padding:8px 0; color:#666;">Rạp:</td><td style="padding:8px 0;">${booking.cinemaId?.name || "N/A"}</td></tr>
+              <tr><td style="padding:8px 0; color:#666;">Phòng chiếu:</td><td style="padding:8px 0; font-weight:bold;">${booking.roomId?.name || "N/A"}</td></tr>
+              <tr><td style="padding:8px 0; color:#666;">Tổng tiền:</td><td style="padding:8px 0; font-weight:bold; color:#27ae60; font-size:18px;">${booking.totalPrice.toLocaleString("vi-VN")} VNĐ</td></tr>
+            </table>
+          </div>
+
+          <h3 style="margin-bottom:10px;">Chi tiết chỗ ngồi:</h3>
+          <table style="width:100%; border-collapse:collapse; text-align:left;">
+            <thead>
+              <tr style="background:#f1f1f1;">
+                <th style="padding:12px; border:1px solid #ddd;">Mã vé</th>
+                <th style="padding:12px; border:1px solid #ddd;">Vị trí ghế</th>
+                <th style="padding:12px; border:1px solid #ddd;">Giá</th>
+              </tr>
+            </thead>
+            <tbody>${ticketRows}</tbody>
+          </table>
+
+          <div style="margin-top:30px; padding:15px; background:#fff8e1; border-radius:6px; font-size:13px; color:#856404;">
+            <strong>Lưu ý:</strong> Vui lòng xuất trình email này hoặc mã đặt vé tại quầy để nhận vé cứng hoặc trực tiếp vào phòng chiếu. Chúc bạn có những phút giây xem phim vui vẻ!
+          </div>
+        </div>
+
+        <div style="background:#f5f5f5; padding:20px; text-align:center; font-size:12px; color:#888;">
+          <p>© 2026 Time Cinemas. Tất cả quyền lợi được bảo lưu.</p>
+          <p>Địa chỉ: ${booking.cinemaId?.address || "Hệ thống rạp chiếu phim Time Cinemas"}</p>
+        </div>
       </div>
     `,
   });

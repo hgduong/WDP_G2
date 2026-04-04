@@ -832,7 +832,7 @@ exports.getStaffDashboardStats = async (req, res) => {
     const pendingPaymentsCount = await Booking.countDocuments({
       createdAt: { $gte: startOfDay, $lt: endOfDay },
       bookingSource: "Staff",
-      paymentStatus: { $in: ["PayAtCounter", "Unpaid"] },
+      paymentStatus: { $in: ["PayAtCounter", "Pending"] },
       status: { $ne: "Cancelled" },
     });
 

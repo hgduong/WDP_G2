@@ -174,6 +174,33 @@ function StaffBooking() {
           setLoadingSeatMap(true);
         }
         const data = await getSeatmapByShowtime(selectedShowtimeId);
+
+        if (data && Array.isArray(data.seats)) {
+          data.seats = data.seats.map((seat) => {
+            let isHidden = false;
+            if (seat.type === "Couple" && seat.couplePairId) {
+              const pairSeat = data.seats.find((s) => s._id === seat.couplePairId);
+              if (pairSeat && seat.number > pairSeat.number) {
+                isHidden = true; // Hide the right-side seat of the pair
+              }
+            }
+            // For StaffBooking, we also update seat.label directly if it's a couple seat
+            // to make sure it shows the paired numbers correctly
+            let label = seat.label || `${seat.row}${seat.number}`;
+            if (seat.type === "Couple" && seat.couplePairId) {
+              const pair = data.seats.find((s) => s._id === seat.couplePairId);
+              if (pair) {
+                const rightNumber = pair.number;
+                label = seat.number < rightNumber
+                  ? `${seat.row}${seat.number}-${rightNumber}`
+                  : `${seat.row}${rightNumber}-${seat.number}`;
+              }
+            }
+
+            return { ...seat, isHidden, label };
+          });
+        }
+
         setSeatMapData(data);
       } catch (loadError) {
         if (!silent) {
@@ -199,7 +226,7 @@ function StaffBooking() {
 
   useEffect(() => {
     const mySeats = (seatMapData?.seats || [])
-      .filter((seat) => seat.isHeldByMe)
+      .filter((seat) => seat.isHeldByMe && !seat.isHidden)
       .map((seat) => seat._id);
     setSelectedSeatIds(mySeats);
     heldSeatIdsRef.current = mySeats;
@@ -292,12 +319,17 @@ function StaffBooking() {
   const groupedSeats = useMemo(() => {
     const seats = seatMapData?.seats || [];
     return seats.reduce((groups, seat) => {
+      if (seat.isHidden) return groups;
       if (!groups[seat.row]) {
         groups[seat.row] = [];
       }
       groups[seat.row].push(seat);
       return groups;
     }, {});
+  }, [seatMapData]);
+
+  const maxColumns = useMemo(() => {
+    return (seatMapData?.seats || []).reduce((max, seat) => Math.max(max, seat.number), 0);
   }, [seatMapData]);
 
   const selectedSeats = useMemo(() => {
@@ -659,18 +691,56 @@ function StaffBooking() {
                   <div key={row} className="seat-row">
                     <div className="row-label">{row}</div>
                     <div className="row-seats">
-                      {seats.sort((a, b) => a.number - b.number).map((seat) => (
-                        <button
-                          key={seat._id}
-                          type="button"
-                          className={seatButtonClass(seat)}
-                          onClick={() => toggleSeat(seat)}
-                          disabled={seatActionLoading || submitting || (!seat.isHeldByMe && seat.status !== "Available")}
-                          title={seat.label}
-                        >
-                          {seat.label}
-                        </button>
-                      ))}
+                      {Array.from({ length: maxColumns }, (_, i) => i + 1).map((colNumber) => {
+                        const seat = seats.find((s) => s.number === colNumber);
+
+                        if (!seat) {
+                          // Check if it's the hidden right half of a Couple seat
+                          const isCoupleRightHalf = (seatMapData?.seats || []).some(
+                            (s) => s.row === row && s.number === colNumber && s.isHidden
+                          );
+                          if (isCoupleRightHalf) {
+                            return null; // Let the left half (flex: 2) take space
+                          }
+
+                          // Completely missing (deleted permanently) -> render transparent gap
+                          return (
+                            <div
+                              key={`empty-${row}-${colNumber}`}
+                              className="seat-button"
+                              style={{ visibility: "hidden", border: "none", background: "transparent" }}
+                            />
+                          );
+                        }
+
+                        if (seat.status === "Deleted") {
+                          // "Ẩn ghế" -> Shows an 'X'
+                          return (
+                            <button
+                              key={seat._id}
+                              className={`seat-button booked ${seat.type === "Couple" ? "couple" : ""}`}
+                              disabled
+                              style={{ background: "#2a2a3e", borderColor: "#4a4a5e", color: "#ff6b6b", cursor: "not-allowed", opacity: 0.6 }}
+                              title="Ghế này đang tạm ẩn"
+                            >
+                              ×
+                            </button>
+                          );
+                        }
+
+                        return (
+                          <button
+                            key={seat._id}
+                            type="button"
+                            className={seatButtonClass(seat)}
+                            onClick={() => toggleSeat(seat)}
+                            disabled={seatActionLoading || submitting || (!seat.isHeldByMe && seat.status !== "Available")}
+                            title={seat.label}
+                          >
+                            {seat.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}

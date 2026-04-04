@@ -518,6 +518,11 @@ const CinemaManagement = () => {
 
   // Add new row to seat grid
   const handleAddRow = () => {
+    if (seatGrid.rows >= 26) {
+      toast.error("Đã đạt tối đa 26 hàng (A-Z)!");
+      return;
+    }
+    
     setSeatGrid((prev) => {
       const newRowLabel = String.fromCharCode(65 + prev.rows);
       const newSeats = [];
@@ -668,6 +673,10 @@ const CinemaManagement = () => {
   const handleSaveAllSeats = async () => {
     if (!selectedRoom) return;
 
+    // Save current state for potential rollback
+    const previousSeatGrid = { ...seatGrid };
+    const previousOriginalSeats = [...originalSeats];
+
     try {
       const currentSeats = seatGrid.seats;
       const originalIds = originalSeats.map((s) => s._id);
@@ -679,41 +688,102 @@ const CinemaManagement = () => {
         (orig) => !currentSeats.find((curr) => curr.id === orig._id),
       );
 
-      // Execute batch operations
-      const promises = [];
+      // Execute operations sequentially to handle errors properly
+      // Track successful operations for rollback
+      const createdIds = [];
+      const updatedIds = [];
 
-      // Create new seats
+      // Create new seats one by one
       for (const seat of toCreate) {
-        promises.push(
-          addSeat(selectedRoom._id, {
+        try {
+          const result = await addSeat(selectedRoom._id, {
             row: seat.row,
             number: seat.number,
             type: seat.type,
             status: seat.status,
             couplePairId: seat.couplePairId || null,
-          }),
-        );
+          });
+          createdIds.push({ seat, resultId: result._id });
+        } catch (createErr) {
+          // Rollback: delete already created seats
+          for (const created of createdIds) {
+            try {
+              await deleteSeat(created.resultId);
+            } catch (e) { /* ignore rollback errors */ }
+          }
+          throw createErr;
+        }
       }
 
-      // Update modified seats
+      // Update modified seats one by one
       for (const seat of toUpdate) {
-        promises.push(
-          updateSeat(seat.id, {
+        try {
+          await updateSeat(seat.id, {
             row: seat.row,
             number: seat.number,
             type: seat.type,
             status: seat.status,
             couplePairId: seat.couplePairId || null,
-          }),
-        );
+          });
+          updatedIds.push(seat.id);
+        } catch (updateErr) {
+          // Rollback: revert already updated seats
+          for (const id of updatedIds) {
+            const original = originalSeats.find((s) => s._id === id);
+            if (original) {
+              try {
+                await updateSeat(id, {
+                  type: original.type,
+                  status: original.status,
+                });
+              } catch (e) { /* ignore rollback errors */ }
+            }
+          }
+          // Also delete newly created seats
+          for (const created of createdIds) {
+            try {
+              await deleteSeat(created.resultId);
+            } catch (e) { /* ignore rollback errors */ }
+          }
+          throw updateErr;
+        }
       }
 
-      // Delete removed seats
+      // Delete removed seats one by one
       for (const seat of toDelete) {
-        promises.push(deleteSeat(seat._id));
+        try {
+          await deleteSeat(seat._id);
+        } catch (deleteErr) {
+          // Rollback: recreate deleted seats
+          try {
+            await addSeat(selectedRoom._id, {
+              row: seat.row,
+              number: seat.number,
+              type: seat.type,
+              status: seat.status,
+            });
+          } catch (e) { /* ignore rollback errors */ }
+          
+          // Also rollback previous changes
+          for (const id of updatedIds) {
+            const original = originalSeats.find((s) => s._id === id);
+            if (original) {
+              try {
+                await updateSeat(id, {
+                  type: original.type,
+                  status: original.status,
+                });
+              } catch (e) { /* ignore rollback errors */ }
+            }
+          }
+          for (const created of createdIds) {
+            try {
+              await deleteSeat(created.resultId);
+            } catch (e) { /* ignore rollback errors */ }
+          }
+          throw deleteErr;
+        }
       }
-
-      await Promise.all(promises);
 
       // Refresh seats
       const data = await getSeatsByRoom(selectedRoom._id);
@@ -731,6 +801,10 @@ const CinemaManagement = () => {
       toast.success("Đã lưu cấu hình ghế thành công!");
       closeSeatModal();
     } catch (err) {
+      // Restore previous state on error
+      setSeatGrid(previousSeatGrid);
+      setOriginalSeats(previousOriginalSeats);
+      
       const errorMsg = err?.message || "Có lỗi xảy ra khi lưu cấu hình ghế";
       toast.error(errorMsg);
     }

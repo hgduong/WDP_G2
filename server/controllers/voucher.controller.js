@@ -185,10 +185,14 @@ exports.deleteVoucher = async (req, res) => {
 // Áp dụng voucher (kiểm tra và sử dụng)
 exports.applyVoucher = async (req, res) => {
   try {
-    const { code, orderValue, userId } = req.body;
+    // Hỗ trợ cả hai format: code/voucherCode và orderValue/totalPrice
+    const { code, voucherCode, orderValue, totalPrice, userId } = req.body;
+    const voucherCodeToUse = (code || voucherCode || "").toUpperCase().trim();
+    const orderValueToUse = orderValue || totalPrice || 0;
 
     // Tìm voucher theo code (thêm điều kiện isActive nếu cần)
-    const voucher = await Voucher.findOne({ code });
+    console.log("Searching voucher with code:", voucherCodeToUse);
+    const voucher = await Voucher.findOne({ code: voucherCodeToUse });
     if (!voucher) {
       return res.status(404).json({ message: "Mã voucher không hợp lệ" });
     }
@@ -220,14 +224,14 @@ exports.applyVoucher = async (req, res) => {
     }
 
     // Kiểm tra giá trị đơn hàng tối thiểu
-    if (orderValue < updatedVoucher.minOrderValue) {
+    if (orderValueToUse < updatedVoucher.minOrderValue) {
       return res.status(400).json({ 
         message: `Đơn hàng tối thiểu ${updatedVoucher.minOrderValue.toLocaleString()} VND` 
       });
     }
 
     // Tính giảm giá
-    let discountAmount = (orderValue * updatedVoucher.discountPercent) / 100;
+    let discountAmount = (orderValueToUse * updatedVoucher.discountPercent) / 100;
     if (discountAmount > updatedVoucher.maxDiscount) {
       discountAmount = updatedVoucher.maxDiscount;
     }

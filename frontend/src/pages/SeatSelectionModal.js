@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getSeatmapByShowtime,
+  getBookingById,
   holdSeats,
   prepareQrBooking,
   releaseSeats,
 } from "../services/api";
+import { generateQRCodeUrl } from "../utils/orderUtils";
 
 const DEFAULT_PRICE = 75000;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const formatSeatLabel = (seat) => {
+const formatSeatLabel = (seat, allSeats = []) => {
   if (!seat) {
     return "";
   }
@@ -18,11 +20,24 @@ const formatSeatLabel = (seat) => {
     return seat.label;
   }
 
-  return seat.type === "Couple"
-    ? `${seat.row}${seat.number}-${seat.number + 1}`
-    : `${seat.row}${seat.number}`;
-};
+  // Dynamic Couple Label based on pair
+  if (seat.type === "Couple") {
+    let rightNumber = seat.number + 1; // Fallback
+    if (seat.couplePairId) {
+      const pair = allSeats.find((s) => s._id === seat.couplePairId);
+      if (pair) {
+        rightNumber = pair.number;
+      }
+    }
+    // Return formatted as smallerNumber-largerNumber regardless of orientation
+    return seat.number < rightNumber
+      ? `${seat.row}${seat.number}-${rightNumber}`
+      : `${seat.row}${rightNumber}-${seat.number}`;
+  }
 
+  return `${seat.row}${seat.number}`;
+};
+// 60 Second
 const formatCountdown = (totalSeconds) => {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
@@ -49,6 +64,8 @@ export default function SeatSelectionModal({
   const [preparingBooking, setPreparingBooking] = useState(false);
   const [error, setError] = useState("");
   const [nowTick, setNowTick] = useState(Date.now());
+  const [qrResult, setQrResult] = useState(null);
+  const [paymentNowTick, setPaymentNowTick] = useState(Date.now());
   const [customerInfo, setCustomerInfo] = useState({
     fullName: "",
     email: "",
@@ -87,6 +104,21 @@ export default function SeatSelectionModal({
         }
 
         const seatmap = await getSeatmapByShowtime(showtimeId);
+        //Hide
+
+        if (seatmap && Array.isArray(seatmap.seats)) {
+          seatmap.seats = seatmap.seats.map((seat) => {
+            let isHidden = false;
+            if (seat.type === "Couple" && seat.couplePairId) {
+              const pairSeat = seatmap.seats.find((s) => s._id === seat.couplePairId);
+              if (pairSeat && seat.number > pairSeat.number) {
+                isHidden = true; // Hide the right-side seat of the pair
+              }
+            }
+            return { ...seat, isHidden };
+          });
+        }
+
         setSeatMapData(seatmap);
         setError("");
       } catch (loadError) {
@@ -116,7 +148,7 @@ export default function SeatSelectionModal({
   }, [isOpen, showtimeId, loadSeatMap]);
 
   const selectedSeats = useMemo(
-    () => (seatMapData?.seats || []).filter((seat) => seat.isHeldByMe),
+    () => (seatMapData?.seats || []).filter((seat) => seat.isHeldByMe && !seat.isHidden),
     [seatMapData],
   );
 
@@ -126,7 +158,7 @@ export default function SeatSelectionModal({
   }, [selectedSeats, showtimeId]);
 
   useEffect(() => {
-    if (!isOpen || selectedSeats.length === 0) {
+    if (!isOpen || (selectedSeats.length === 0 && !qrResult)) {
       setNowTick(Date.now());
       return undefined;
     }
@@ -138,7 +170,7 @@ export default function SeatSelectionModal({
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [isOpen, selectedSeats.length]);
+  }, [isOpen, selectedSeats.length, qrResult]);
 
   const holdDeadline = useMemo(() => {
     if (selectedSeats.length === 0) {
@@ -167,6 +199,49 @@ export default function SeatSelectionModal({
     (sum, seat) => sum + seatPrice(seat, basePrice),
     0,
   );
+
+  const paymentCountdownSeconds = useMemo(() => {
+    const expiresAt = qrResult?.payment?.expiresAt;
+    if (!expiresAt) return 0;
+    return Math.max(0, Math.floor((new Date(expiresAt).getTime() - nowTick) / 1000));
+  }, [qrResult, nowTick]);
+
+  const handleCancelPayment = () => {
+    setQrResult(null);
+    bookingPreparedRef.current = false;
+  };
+
+  const checkPaymentStatus = useCallback(async () => {
+    if (!qrResult?.booking?._id) return;
+    try {
+      const booking = await getBookingById(qrResult.booking._id);
+
+      // If payment is Paid, Expired, or Cancelled, we should stop showing the overlay
+      if (booking.paymentStatus === "Paid") {
+        setQrResult(null);
+        bookingPreparedRef.current = false;
+        onBookingSuccess?.(booking);
+      } else if (["Expired", "Cancelled"].includes(booking.paymentStatus)) {
+        setQrResult(null);
+        bookingPreparedRef.current = false;
+        setError(booking.paymentStatus === "Expired" ? "Yêu cầu thanh toán đã hết hạn." : "Thanh toán đã bị hủy.");
+        loadSeatMap({ silent: true });
+      }
+    } catch (err) {
+      console.error("Failed to check payment status:", err);
+    }
+  }, [qrResult, onBookingSuccess, loadSeatMap]);
+
+  // Fallback Polling if socket fails
+  useEffect(() => {
+    if (!qrResult?._id && !qrResult?.booking?._id) return undefined;
+
+    const interval = setInterval(() => {
+      checkPaymentStatus();
+    }, 5000); // Check every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [qrResult, checkPaymentStatus]);
 
   const releaseHeldSeats = useCallback(async (options = {}) => {
     if (releaseInFlightRef.current || bookingPreparedRef.current) {
@@ -203,6 +278,9 @@ export default function SeatSelectionModal({
     const handleSeatChange = (payload) => {
       if (payload?.showtimeId === showtimeId) {
         loadSeatMap({ silent: true });
+        if (payload.reason === "payment_paid") {
+          checkPaymentStatus();
+        }
       }
     };
 
@@ -256,6 +334,8 @@ export default function SeatSelectionModal({
   const groupedSeats = useMemo(() => {
     const seats = seatMapData?.seats || [];
     return seats.reduce((groups, seat) => {
+      if (seat.isHidden) return groups;
+
       if (!groups[seat.row]) {
         groups[seat.row] = [];
       }
@@ -263,6 +343,10 @@ export default function SeatSelectionModal({
       groups[seat.row].push(seat);
       return groups;
     }, {});
+  }, [seatMapData]);
+
+  const maxColumns = useMemo(() => {
+    return (seatMapData?.seats || []).reduce((max, seat) => Math.max(max, seat.number), 0);
   }, [seatMapData]);
 
   const handleCustomerInfoChange = (event) => {
@@ -304,8 +388,11 @@ export default function SeatSelectionModal({
 
       await loadSeatMap({ silent: true });
     } catch (toggleError) {
-      console.error("Seat action failed:", toggleError);
-      setError(toggleError?.message || "Không thể cập nhật trạng thái ghế.");
+      console.error("Seat action failed [toggleError]:", toggleError);
+      if (toggleError?.response?.data) {
+        console.error("Response data details:", toggleError.response.data);
+      }
+      setError(toggleError?.message || toggleError?.response?.data?.message || "Không thể cập nhật trạng thái ghế.");
       await loadSeatMap({ silent: true });
     } finally {
       setSeatActionLoading(false);
@@ -362,12 +449,14 @@ export default function SeatSelectionModal({
 
       if (response?.booking?._id) {
         localStorage.setItem("lastOrderBookingId", response.booking._id);
+        setQrResult(response);
       }
-
-      onBookingSuccess?.(response?.booking || null);
     } catch (prepareError) {
-      console.error("Prepare QR booking failed:", prepareError);
-      setError(prepareError?.message || "Không thể tạo QR thanh toán.");
+      console.error("Prepare QR booking failed [prepareError]:", prepareError);
+      if (prepareError?.response?.data) {
+        console.error("Response data details:", prepareError.response.data);
+      }
+      setError(prepareError?.message || prepareError?.response?.data?.message || "Không thể tạo QR thanh toán.");
       bookingPreparedRef.current = false;
       await loadSeatMap({ silent: true });
     } finally {
@@ -404,8 +493,12 @@ export default function SeatSelectionModal({
   }
 
   return (
-    <div className="modal-overlay" onClick={handleClose}>
-      <div className="seat-modal-content" onClick={(event) => event.stopPropagation()}>
+    <div className="modal-overlay" onClick={!qrResult ? handleClose : undefined}>
+      <div
+        className="seat-modal-content"
+        style={{ position: "relative" }}
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="seat-modal-header">
           <h3>Chọn ghế - {movie?.title}</h3>
           <button className="modal-close" onClick={handleClose}>
@@ -434,7 +527,7 @@ export default function SeatSelectionModal({
 
         {error ? <div className="selection-error">{error}</div> : null}
 
-        <div className="screen">MÀN HÌNH CHIẾU</div>
+        <div className="screen">MÀN HÌNH CHIẾU </div>
 
         <div className="seat-grid-modal">
           {seatModalLoading ? (
@@ -448,9 +541,44 @@ export default function SeatSelectionModal({
                 <div key={row} className="seat-row">
                   <span className="row-label">{row}</span>
                   <div className="row-seats">
-                    {groupedSeats[row]
-                      .sort((left, right) => left.number - right.number)
-                      .map((seat) => (
+                    {Array.from({ length: maxColumns }, (_, i) => i + 1).map((colNumber) => {
+                      const seat = groupedSeats[row].find((s) => s.number === colNumber);
+
+                      if (!seat) {
+                        // Check if it's the hidden right half of a Couple seat
+                        const isCoupleRightHalf = (seatMapData?.seats || []).some(
+                          (s) => s.row === row && s.number === colNumber && s.isHidden
+                        );
+                        if (isCoupleRightHalf) {
+                          return null; // Let the left half (flex: 2) take space
+                        }
+
+                        // Completely missing (deleted permanently) -> render transparent gap
+                        return (
+                          <div
+                            key={`empty-${row}-${colNumber}`}
+                            className="seat-button"
+                            style={{ visibility: "hidden", border: "none", background: "transparent" }}
+                          />
+                        );
+                      }
+                      //Hide seat
+                      if (seat.status === "Deleted") {
+                        // "Ẩn ghế" -> Shows an 'X'
+                        return (
+                          <button
+                            key={seat._id}
+                            className={`seat-button booked ${seat.type === "Couple" ? "couple" : ""}`}
+                            disabled
+                            style={{ background: "#f3f3f8ff", borderColor: "#e9e9edff", color: "#eae4e4ff", cursor: "not-allowed", opacity: 0 }}
+                            title="Ghế này đang tạm ẩn"
+                          >
+
+                          </button>
+                        );
+                      }
+
+                      return (
                         <button
                           key={seat._id}
                           className={getSeatClass(seat)}
@@ -458,13 +586,15 @@ export default function SeatSelectionModal({
                           disabled={
                             seatActionLoading ||
                             preparingBooking ||
+                            !!qrResult ||
                             (!seat.isHeldByMe && seat.status !== "Available")
                           }
-                          title={formatSeatLabel(seat)}
+                          title={formatSeatLabel(seat, seatMapData?.seats)}
                         >
-                          {formatSeatLabel(seat)}
+                          {formatSeatLabel(seat, seatMapData?.seats)}
                         </button>
-                      ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))
@@ -497,7 +627,7 @@ export default function SeatSelectionModal({
             Ghế đã chọn:{" "}
             <strong>
               {selectedSeats.length > 0
-                ? selectedSeats.map((seat) => formatSeatLabel(seat)).join(", ")
+                ? selectedSeats.map((seat) => formatSeatLabel(seat, seatMapData?.seats)).join(", ")
                 : "Chưa có"}
             </strong>
           </div>
@@ -516,6 +646,7 @@ export default function SeatSelectionModal({
                 value={customerInfo.fullName}
                 onChange={handleCustomerInfoChange}
                 placeholder="Nhập họ tên"
+                readOnly={!!qrResult}
               />
             </label>
 
@@ -527,6 +658,7 @@ export default function SeatSelectionModal({
                 value={customerInfo.phone}
                 onChange={handleCustomerInfoChange}
                 placeholder="090..."
+                readOnly={!!qrResult}
               />
             </label>
 
@@ -538,6 +670,7 @@ export default function SeatSelectionModal({
                 value={customerInfo.email}
                 onChange={handleCustomerInfoChange}
                 placeholder="email@example.com"
+                readOnly={!!qrResult}
               />
             </label>
 
@@ -549,6 +682,7 @@ export default function SeatSelectionModal({
                 value={customerInfo.notes}
                 onChange={handleCustomerInfoChange}
                 placeholder="Thông tin thêm nếu cần"
+                readOnly={!!qrResult}
               />
             </label>
           </div>
@@ -565,12 +699,12 @@ export default function SeatSelectionModal({
           )}
 
           <div className="seat-modal-actions">
-            <button className="btn btn-back" onClick={handleClose} disabled={preparingBooking}>
+            <button className="btn btn-back" onClick={handleClose} disabled={preparingBooking || !!qrResult}>
               Đóng
             </button>
             <button
               className="btn btn-primary"
-              disabled={selectedSeats.length === 0 || preparingBooking || seatActionLoading}
+              disabled={selectedSeats.length === 0 || preparingBooking || seatActionLoading || !!qrResult}
               onClick={handleBookingConfirmation}
             >
               {preparingBooking
@@ -579,6 +713,44 @@ export default function SeatSelectionModal({
             </button>
           </div>
         </div>
+
+        {qrResult && (
+          <div className="payment-overlay">
+            <div className="payment-qr-card">
+              <h4>THANH TOÁN ĐẶT VÉ</h4>
+
+              {qrResult.qrData ? (
+                <div className="qr-image-wrapper">
+                  {/* <img
+                    src={generateQRCodeUrl(qrResult.qrData)}
+                    alt="Payment QR Code"
+                  /> */}
+                </div>
+              ) : (
+                <div className="payment-no-qr">
+                  <div className="no-qr-icon">💳</div>
+                  <p>Nhấn nút bên dưới để mở trang thanh toán PayOS</p>
+                </div>
+              )}
+
+              <div className="payment-details">
+                <p>Mã đơn: <strong>{qrResult.booking?.bookingCode}</strong></p>
+                <p>Số tiền: <strong className="amount">{(qrResult.payment?.amount ?? totalPrice).toLocaleString("vi-VN")}đ</strong></p>
+              </div>
+              <div className="payment-timer-box">
+                <span>Hết hạn trong:</span>
+                <span className="timer">{formatCountdown(paymentCountdownSeconds)}</span>
+              </div>
+              <div className="payment-actions">
+                {qrResult.paymentUrl && (
+                  <a href={qrResult.paymentUrl} target="_blank" rel="noreferrer" className="btn btn-primary">Mở trang PayOS</a>
+                )}
+                <button className="btn btn-secondary" onClick={handleCancelPayment}>Hủy &amp; Chọn lại</button>
+              </div>
+              <p className="payment-hint">Màn hình sẽ tự động cập nhật khi thanh toán thành công</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

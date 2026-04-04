@@ -6,7 +6,6 @@ const { authenticateToken, authorizeRoles } = require("../config/auth.middleware
 router.post(
   "/prepare-qr",
   authenticateToken,
-  authorizeRoles(["Customer", "Admin"]),
   bookingController.prepareQrBooking,
 );
 

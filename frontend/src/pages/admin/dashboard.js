@@ -52,6 +52,7 @@ const Dashboard = () => {
     totalRevenue: 0,
     totalBookings: 0,
     topMovies: [],
+    topCinemas: [],
     weeklyData: [],
     loading: true,
   });
@@ -140,11 +141,39 @@ const Dashboard = () => {
         }
       });
 
-      // Top movies
+      // Top movies (show all, no limit)
       const topMovies = Object.entries(movieRevenue)
         .map(([title, data]) => ({ title, ...data }))
-        .sort((a, b) => b.revenue - a.revenue)
-        .slice(0, 5);
+        .sort((a, b) => b.revenue - a.revenue);
+
+      // Group revenue by cinema
+      const cinemaRevenue = {};
+      const cinemas = await getAllCinemas();
+      completedBookings.forEach((booking) => {
+        const showtime = showtimes.find(
+          (s) => s._id === booking.showtimeId?._id || s._id === booking.showtimeId
+        );
+        if (showtime) {
+          const cinemaId = showtime.roomId?.cinemaId?._id || showtime.roomId?.cinemaId;
+          if (!cinemaId) return;
+          
+          const cinema = cinemas.find((c) => String(c._id) === String(cinemaId));
+          if (!cinema) return;
+          
+          const cinemaName = cinema.name;
+          if (!cinemaName) return;
+
+          if (!cinemaRevenue[cinemaName]) {
+            cinemaRevenue[cinemaName] = { revenue: 0, count: 0 };
+          }
+          cinemaRevenue[cinemaName].revenue += booking.totalPrice || 0;
+          cinemaRevenue[cinemaName].count += 1;
+        }
+      });
+
+      const topCinemas = Object.entries(cinemaRevenue)
+        .map(([name, data]) => ({ name, ...data }))
+        .sort((a, b) => b.revenue - a.revenue);
 
       // Weekly breakdown
       const weeklyDataMap = {};
@@ -182,6 +211,7 @@ const Dashboard = () => {
         totalRevenue,
         totalBookings: completedBookings.length,
         topMovies,
+        topCinemas,
         weeklyData,
         loading: false,
       });
@@ -348,53 +378,6 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Bar Chart - Weekly Revenue */}
-        {!revenueStats.loading && revenueStats.weeklyData.length > 0 && (
-          <div style={{ flex: "0 0 100%", marginBottom: "24px", padding: "16px", background: "#fff", borderRadius: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
-            <h4 style={{ marginBottom: "16px", color: "#333" }}>Doanh thu theo ngày</h4>
-            <div style={{ 
-              display: "flex", 
-              alignItems: "flex-end", 
-              gap: "3px", 
-              height: "150px",
-              paddingTop: "10px",
-              overflowX: "auto"
-            }}>
-              {revenueStats.weeklyData.map((day, index) => {
-                const maxRevenue = Math.max(...revenueStats.weeklyData.map(d => d.revenue), 1);
-                const height = day.revenue > 0 ? (day.revenue / maxRevenue) * 130 : 4;
-                const isLast = index === revenueStats.weeklyData.length - 1;
-                return (
-                  <div 
-                    key={day.label + index}
-                    style={{ 
-                      flex: "0 0 auto",
-                      minWidth: "20px",
-                      display: "flex", 
-                      flexDirection: "column", 
-                      alignItems: "center",
-                      gap: "4px"
-                    }}
-                    title={`${day.label}: ${formatMoney(day.revenue)} (${day.count} đơn)`}
-                  >
-                    <div style={{ 
-                      width: "18px", 
-                      height: `${height}px`, 
-                      background: isLast
-                        ? "linear-gradient(180deg, #e50914, #ff6b6b)"
-                        : "linear-gradient(180deg, #667eea, #764ba2)",
-                      borderRadius: "3px 3px 0 0",
-                      minHeight: "4px",
-                      transition: "height 0.3s ease"
-                    }} />
-                    <span style={{ fontSize: "9px", color: "#666", whiteSpace: "nowrap" }}>{day.label.split('/')[0]}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {/* Top Movies */}
         {!revenueStats.loading && revenueStats.topMovies.length > 0 && (
           <div className="top-movies-section" style={{ flex: "0 0 100%", marginTop: "10px" }}>
@@ -438,6 +421,46 @@ const Dashboard = () => {
         {!revenueStats.loading && revenueStats.topMovies.length === 0 && (
           <div style={{ flex: "0 0 100%", textAlign: "center", padding: "20px", color: "#666" }}>
             Chưa có doanh thu trong khoảng thời gian này
+          </div>
+        )}
+
+        {/* Top Cinemas */}
+        {!revenueStats.loading && revenueStats.topCinemas.length > 0 && (
+          <div className="top-cinemas-section" style={{ flex: "0 0 100%", marginTop: "20px" }}>
+            <h4 style={{ marginBottom: "12px", color: "#333" }}>Top rạp doanh thu cao nhất</h4>
+            <div className="top-cinemas-list">
+              {revenueStats.topCinemas.map((cinema, index) => (
+                <div key={cinema.name} className="top-cinema-item" style={{ marginBottom: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                    <span style={{ fontWeight: "500", color: "#333" }}>
+                      {index + 1}. {cinema.name}
+                    </span>
+                    <span style={{ fontWeight: "600", color: "#28a745" }}>
+                      {formatMoney(cinema.revenue)}
+                    </span>
+                  </div>
+                  <div style={{ 
+                    height: "8px", 
+                    background: "#e9ecef", 
+                    borderRadius: "4px",
+                    overflow: "hidden" 
+                  }}>
+                    <div style={{ 
+                      height: "100%", 
+                      width: `${(cinema.revenue / revenueStats.topCinemas[0].revenue) * 100}%`,
+                      background: index === 0 
+                        ? "linear-gradient(90deg, #ffc107, #ff9800)" 
+                        : "linear-gradient(90deg, #17a2b8, #20c997)",
+                      borderRadius: "4px",
+                      transition: "width 0.3s ease"
+                    }} />
+                  </div>
+                  <span style={{ fontSize: "12px", color: "#666" }}>
+                    {cinema.count} đơn
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

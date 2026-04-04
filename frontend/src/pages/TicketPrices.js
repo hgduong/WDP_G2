@@ -6,7 +6,7 @@ const priceRules = [
     title: "U22",
     description: "Áp dụng cho khách hàng dưới 22 tuổi. Giá vé ưu đãi dành cho học sinh, sinh viên.",
     badge: "Ưu đãi",
-    price: "50.000",
+    price: "75.000",
     unit: "VND",
     features: [
       "Dành cho khách dưới 22 tuổi",
