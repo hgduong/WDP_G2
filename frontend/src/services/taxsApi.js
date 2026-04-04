@@ -61,11 +61,15 @@ export const checkOverlap = async (data) => {
 
 export const getActiveFoodBeverageTax = async () => {
   try {
-    const taxes = await API.get("/api/taxs");
-    const activeTax = taxes.data.find(
-      (t) => t.categoryName === "Food & Beverage" && t.isActive
-    );
-    return activeTax;
+    const response = await API.get("/api/taxs/active/food-beverage", {
+      params: { t: Date.now() },
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
+    });
+    return response.data;
   } catch (error) {
     return null;
   }
