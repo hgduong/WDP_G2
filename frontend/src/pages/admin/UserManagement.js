@@ -4,7 +4,7 @@ import {
   getAllUsers,
   updateUserStatus,
   updateUserRole,
-  getUserBookings,
+  getUserBookingsByUserId,
 } from "../../services/api";
 import "./AdminManagement.css";
 
@@ -79,7 +79,10 @@ const UserManagement = () => {
     try {
       // Lấy userId từ user object (userId = _id trong collection users)
       const userId = user.userId || user._id;
-      const data = await getUserBookings(userId);
+      if (!userId) {
+        throw new Error("Không tìm thấy userId để lấy lịch sử đặt vé");
+      }
+      const data = await getUserBookingsByUserId(userId);
       setBookings(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err?.message || "Không thể tải lịch sử đặt vé");
@@ -383,4 +386,3 @@ const UserManagement = () => {
 };
 
 export default UserManagement;
-
