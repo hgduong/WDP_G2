@@ -11,6 +11,101 @@ const FOOD_BEVERAGE_COMBOS = [
   { id: "combo-my", name: "Combo MY" },
 ];
 
+const DAY_MAP = {
+  0: "Sun",
+  1: "Mon",
+  2: "Tue",
+  3: "Wed",
+  4: "Thu",
+  5: "Fri",
+  6: "Sat",
+};
+
+const calculateTax = async (req, res) => {
+  try {
+    const { cinemaId, roomType, showtimeId, categoryName, showtimeDate } = req.body;
+    
+    const defaultTaxRates = {
+      "Movie Ticket": 8,
+      "Food & Beverage": 10,
+    };
+
+    const baseTaxRate = defaultTaxRates[categoryName] || 8;
+    
+    let finalTaxRate = baseTaxRate;
+    let taxBreakdown = {
+      baseRate: baseTaxRate,
+      roomTypeRate: null,
+      showtimeRuleRate: null,
+      finalRate: baseTaxRate,
+      appliedRules: [],
+    };
+
+    const taxes = await Tax.find({ 
+      categoryName, 
+      isActive: true,
+      $or: [
+        { cinemaId: null },
+        { cinemaId: cinemaId }
+      ]
+    }).sort({ priority: -1, roomTypePriority: -1 });
+
+    const roomTypeTax = taxes.find(t => 
+      t.taxType === "room_type" && 
+      t.roomType === roomType
+    );
+
+    if (roomTypeTax && roomTypeTax.taxRate > 0) {
+      finalTaxRate = roomTypeTax.taxRate;
+      taxBreakdown.roomTypeRate = roomTypeTax.taxRate;
+      taxBreakdown.appliedRules.push({
+        type: "room_type",
+        roomType: roomTypeTax.roomType,
+        rate: roomTypeTax.taxRate,
+      });
+      return res.json({ rate: finalTaxRate, breakdown: taxBreakdown });
+    }
+
+    if (showtimeDate) {
+      const date = new Date(showtimeDate);
+      const showtimeDay = DAY_MAP[date.getDay()];
+      const showtimeHour = date.getHours();
+      const showtimeMinutes = date.getMinutes();
+      const showtimeTime = `${String(showtimeHour).padStart(2, "0")}:${String(showtimeMinutes).padStart(2, "0")}`;
+
+      const showtimeRules = taxes.filter(t => t.taxType === "showtime_rule");
+      
+      for (const rule of showtimeRules) {
+        if (!rule.daysOfWeek || !rule.daysOfWeek.includes(showtimeDay)) continue;
+        
+        if (rule.timeStart && rule.timeEnd) {
+          if (showtimeTime < rule.timeStart || showtimeTime > rule.timeEnd) continue;
+        }
+
+        if (rule.adjustmentType === "add") {
+          finalTaxRate = baseTaxRate + (rule.additionalRate || 0);
+        } else if (rule.adjustmentType === "replace") {
+          finalTaxRate = rule.additionalRate || baseTaxRate;
+        }
+
+        taxBreakdown.showtimeRuleRate = finalTaxRate;
+        taxBreakdown.appliedRules.push({
+          type: "showtime_rule",
+          daysOfWeek: rule.daysOfWeek,
+          timeRange: `${rule.timeStart}-${rule.timeEnd}`,
+          rate: finalTaxRate,
+        });
+        break;
+      }
+    }
+
+    taxBreakdown.finalRate = finalTaxRate;
+    return res.json({ rate: finalTaxRate, breakdown: taxBreakdown });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 const getAllTaxs = async (req, res) => {
   try {
     const taxes = await Tax.find().sort({ createdAt: -1 });
@@ -111,26 +206,46 @@ const checkActiveTaxOverlap = async (categoryName, applyFrom, applyTo, excludeId
 
 const createTax = async (req, res) => {
   try {
-    const { categoryName, taxRate, description, applyFrom, applyTo, lastUpdatedBy } = req.body;
-
-    const overlappingTax = await checkActiveTaxOverlap(categoryName, applyFrom, applyTo);
-
-    if (overlappingTax) {
-      return res.status(400).json({
-        message: "Đã có mức thuế đang hoạt động cho danh mục này",
-        overlap: true,
-        existingTax: overlappingTax,
-      });
-    }
-
-    const newTax = new Tax({
+    const {
+      taxType,
       categoryName,
       taxRate,
       description,
       applyFrom,
       applyTo,
-      isActive: true,
+      lastUpdatedBy,
+      cinemaId,
+      roomType,
+      roomTypePriority,
+      showtimeId,
+      daysOfWeek,
+      timeStart,
+      timeEnd,
+      adjustmentType,
+      additionalRate,
+      priority,
+      isActive,
+    } = req.body;
+
+    const newTax = new Tax({
+      taxType: taxType || "category",
+      categoryName,
+      taxRate: taxRate || 0,
+      description,
+      applyFrom: applyFrom || new Date().toISOString(),
+      applyTo,
+      isActive: isActive !== undefined ? isActive : true,
       lastUpdatedBy: lastUpdatedBy || "Admin",
+      cinemaId: cinemaId || null,
+      roomType,
+      roomTypePriority,
+      showtimeId,
+      daysOfWeek,
+      timeStart,
+      timeEnd,
+      adjustmentType,
+      additionalRate,
+      priority,
     });
 
     const savedTax = await newTax.save();
@@ -142,32 +257,50 @@ const createTax = async (req, res) => {
 
 const updateTax = async (req, res) => {
   try {
-    const { categoryName, taxRate, description, applyFrom, applyTo, isActive, lastUpdatedBy } = req.body;
+    const {
+      taxType,
+      categoryName,
+      taxRate,
+      description,
+      applyFrom,
+      applyTo,
+      isActive,
+      lastUpdatedBy,
+      cinemaId,
+      roomType,
+      roomTypePriority,
+      showtimeId,
+      daysOfWeek,
+      timeStart,
+      timeEnd,
+      adjustmentType,
+      additionalRate,
+      priority,
+    } = req.body;
 
     const existingTax = await Tax.findById(req.params.id);
     if (!existingTax) {
       return res.status(404).json({ message: "Không tìm thấy thuế" });
     }
 
-    if (categoryName && categoryName !== existingTax.categoryName) {
-      const overlappingTax = await checkActiveTaxOverlap(categoryName, applyFrom, applyTo, req.params.id);
-
-      if (overlappingTax) {
-        return res.status(400).json({
-          message: "Đã có mức thuế đang hoạt động cho danh mục này",
-          overlap: true,
-          existingTax: overlappingTax,
-        });
-      }
-    }
-
-    existingTax.categoryName = categoryName || existingTax.categoryName;
-    existingTax.taxRate = taxRate !== undefined ? taxRate : existingTax.taxRate;
-    existingTax.description = description !== undefined ? description : existingTax.description;
-    existingTax.applyFrom = applyFrom || existingTax.applyFrom;
-    existingTax.applyTo = applyTo !== undefined ? applyTo : existingTax.applyTo;
-    existingTax.isActive = isActive !== undefined ? isActive : existingTax.isActive;
-    existingTax.lastUpdatedBy = lastUpdatedBy || existingTax.lastUpdatedBy;
+    if (taxType !== undefined) existingTax.taxType = taxType;
+    if (categoryName) existingTax.categoryName = categoryName;
+    if (taxRate !== undefined) existingTax.taxRate = taxRate;
+    if (description !== undefined) existingTax.description = description;
+    if (applyFrom) existingTax.applyFrom = applyFrom;
+    if (applyTo !== undefined) existingTax.applyTo = applyTo;
+    if (isActive !== undefined) existingTax.isActive = isActive;
+    if (lastUpdatedBy) existingTax.lastUpdatedBy = lastUpdatedBy;
+    if (cinemaId !== undefined) existingTax.cinemaId = cinemaId;
+    if (roomType !== undefined) existingTax.roomType = roomType;
+    if (roomTypePriority !== undefined) existingTax.roomTypePriority = roomTypePriority;
+    if (showtimeId !== undefined) existingTax.showtimeId = showtimeId;
+    if (daysOfWeek !== undefined) existingTax.daysOfWeek = daysOfWeek;
+    if (timeStart !== undefined) existingTax.timeStart = timeStart;
+    if (timeEnd !== undefined) existingTax.timeEnd = timeEnd;
+    if (adjustmentType !== undefined) existingTax.adjustmentType = adjustmentType;
+    if (additionalRate !== undefined) existingTax.additionalRate = additionalRate;
+    if (priority !== undefined) existingTax.priority = priority;
 
     const updatedTax = await existingTax.save();
     res.json(updatedTax);
@@ -221,4 +354,5 @@ module.exports = {
   updateTax,
   deleteTax,
   checkOverlap,
+  calculateTax,
 };
