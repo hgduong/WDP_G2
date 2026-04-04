@@ -85,21 +85,39 @@ const ComboOrder = () => {
   useEffect(() => {
     const fetchTax = async () => {
       try {
-        const tax = await getActiveFoodBeverageTax();
-        if (tax && tax.taxRate) {
-          setTaxRate(tax.taxRate);
-          setTaxInfo(tax);
+        // Get selected combo IDs from quantities
+        const selectedComboIds = Object.keys(quantities).filter(id => quantities[id] > 0);
+        if (selectedComboIds.length === 0) {
+          setTaxInfo(null);
+          return;
+        }
+        
+        const comboIds = selectedComboIds.join(",");
+        const tax = await getActiveFoodBeverageTax(comboIds);
+        
+        // Handle both single tax and array of taxes
+        const taxes = Array.isArray(tax) ? tax : (tax ? [tax] : []);
+        
+        if (taxes.length > 0) {
+          // Store all applicable taxes with their rates
+          const taxMap = {};
+          taxes.forEach(t => {
+            if (t.applyTo && Array.isArray(t.applyTo)) {
+              t.applyTo.forEach(comboId => {
+                taxMap[comboId] = t.taxRate;
+              });
+            }
+          });
+          setTaxInfo(taxMap);
         } else {
-          setTaxRate(0);
           setTaxInfo(null);
         }
       } catch (error) {
-        setTaxRate(0);
         setTaxInfo(null);
       }
     };
     fetchTax();
-  }, []);
+  }, [quantities]);
 
   const total = useMemo(() => {
     return COMBOS.reduce(
@@ -115,35 +133,21 @@ const ComboOrder = () => {
   }, [quantities]);
 
   const taxAmount = useMemo(() => {
-    if (!selectedCombos.length || !taxRate || taxRate === 0) return 0;
+    if (!selectedCombos.length || !taxInfo) return 0;
     
-    const selectedComboIds = selectedCombos.sort();
-    const taxApplyTo = taxInfo?.applyTo;
-
-    if (!taxApplyTo || !Array.isArray(taxApplyTo)) {
-      return total * (taxRate / 100);
-    }
-
-    const hasSameCombo = selectedComboIds.every((id) =>
-      taxApplyTo.includes(id)
-    );
-
-    if (hasSameCombo) {
-      return total * (taxRate / 100);
-    }
-
     let tax = 0;
     for (const combo of COMBOS) {
       const qty = quantities[combo.id] || 0;
       if (qty > 0) {
         const comboPrice = combo.price * qty;
-        if (taxApplyTo.includes(combo.id)) {
-          tax += comboPrice * (taxRate / 100);
+        const rate = taxInfo[combo.id];
+        if (rate) {
+          tax += comboPrice * (rate / 100);
         }
       }
     }
     return tax;
-  }, [quantities, taxRate, taxInfo, total, selectedCombos]);
+  }, [quantities, taxInfo, selectedCombos]);
 
   const updateQuantity = (id, nextValue) => {
     setQuantities((prev) => ({
@@ -206,7 +210,7 @@ const ComboOrder = () => {
         </div>
         {taxAmount > 0 && (
           <div>
-            <strong>Thuế ({taxRate}%):</strong> {formatVnd(taxAmount)}
+            <strong>Thuế:</strong> {formatVnd(taxAmount)}
           </div>
         )}
         <div>

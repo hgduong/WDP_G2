@@ -59,10 +59,14 @@ export const checkOverlap = async (data) => {
   }
 };
 
-export const getActiveFoodBeverageTax = async () => {
+export const getActiveFoodBeverageTax = async (comboIds = "") => {
   try {
+    const params = { t: Date.now() };
+    if (comboIds) {
+      params.comboIds = comboIds;
+    }
     const response = await API.get("/api/taxs/active/food-beverage", {
-      params: { t: Date.now() },
+      params,
       headers: {
         'Cache-Control': 'no-cache',
         'Pragma': 'no-cache',
