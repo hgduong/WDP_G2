@@ -69,7 +69,10 @@ const SeatConfigModal = ({
   // Tìm ghế pair của ghế đôi
   const getCouplePairSeat = (seat) => {
     if (!seat.couplePairId) return null;
-    return seatGrid.seats.find((s) => s.id === seat.couplePairId);
+    const pair = seatGrid.seats.find((s) => s.id === seat.couplePairId);
+    // Nếu ghế pair đã bị xóa hoặc không tồn tại trong grid, trả về null (orphan)
+    if (!pair || pair.status === "Deleted") return null;
+    return pair;
   };
 
   const handleAddRowClick = () => {
@@ -243,7 +246,7 @@ const SeatConfigModal = ({
                             return (
                               <div
                                 key={seat.id}
-                                className={`seat-cell ${seat.type.toLowerCase()} ${seat.status === "Deleted" ? "deleted" : ""} ${selectedSeat?.id === seat.id ? "selected" : ""} ${isFirstInPair ? 'couple-pair-first' : ''}`}
+                                className={`seat-cell ${(seat.type || 'standard').toLowerCase()} ${seat.status === "Deleted" ? "deleted" : ""} ${selectedSeat?.id === seat.id ? "selected" : ""} ${isFirstInPair ? 'couple-pair-first' : ''}`}
                                 onClick={(e) => {
                                   if (e.button === 0) {
                                     // Left click
@@ -262,9 +265,9 @@ const SeatConfigModal = ({
                                         "VIP",
                                         "Couple",
                                       ];
-                                      const currentIndex = types.indexOf(
-                                        seat.type,
-                                      );
+                                      // Fallback to Standard if type is invalid/null
+                                      const validType = types.includes(seat.type) ? seat.type : "Standard";
+                                      const currentIndex = types.indexOf(validType);
                                       const newType =
                                         types[
                                           (currentIndex + 1) % types.length
