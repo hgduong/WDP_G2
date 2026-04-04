@@ -84,7 +84,7 @@ exports.updateUserProfile = async (req, res) => {
     // Xóa cookie cũ trước khi set cookie mới
     res.clearCookie("jwt", {
       httpOnly: true,
-      sameSite: "strict",
+      sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
     });
 
@@ -92,7 +92,7 @@ exports.updateUserProfile = async (req, res) => {
     res.cookie("jwt", newToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000, // 1 ngày
     });
 
@@ -176,7 +176,7 @@ exports.deleteAccount = async (req, res) => {
     // Xóa cookie JWT
     res.clearCookie("jwt", {
       httpOnly: true,
-      sameSite: "strict",
+      sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
     });
 

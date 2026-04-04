@@ -61,21 +61,32 @@ export default function OrderUser() {
           <h2>Quét mã QR để thanh toán</h2>
           <div className="payment-qr-container">
             <div className="payment-qr">
-              <img
-                src={generateQRCodeUrl(orderData.paymentId.qrData)}
-                alt="Payment QR"
-                className="qr-code-payment"
-              />
-              <p className="payment-amount">Còn lại: {countdownText}</p>
+              {orderData.paymentId.qrData ? (
+                <div className="payment-qr-image-wrapper">
+                  <img
+                    src={generateQRCodeUrl(orderData.paymentId.qrData)}
+                    alt="Payment QR"
+                    className="qr-code-payment"
+                  />
+                  <p className="payment-amount">Quét mã để chuyển khoản</p>
+                </div>
+              ) : (
+                <div className="payment-no-qr">
+                  <div className="no-qr-icon">💳</div>
+                  <p>Vui lòng sử dụng liên kết thanh toán bên dưới</p>
+                </div>
+              )}
+              <p className="payment-timer">Hết hạn trong: {countdownText}</p>
               <p className="payment-note">
-                Trạng thái được đồng bộ từ backend {polling ? "(đang kiểm tra)" : ""}
+                {polling ? "Đang đồng bộ trạng thái..." : "Màn hình sẽ tự động cập nhật khi thanh toán thành công"}
               </p>
               {orderData.paymentId.checkoutUrl ? (
                 <a
-                  className="btn btn-secondary"
+                  className="btn btn-primary"
                   href={orderData.paymentId.checkoutUrl}
                   target="_blank"
                   rel="noreferrer"
+                  style={{ display: 'inline-block', marginTop: '10px' }}
                 >
                   Mở trang PayOS
                 </a>

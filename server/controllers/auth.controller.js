@@ -42,7 +42,7 @@ function issueAuthCookie(res, user) {
   res.cookie("jwt", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: 24 * 60 * 60 * 1000,
   });
 }
@@ -286,7 +286,7 @@ exports.verifyOtp = async (req, res) => {
       res.cookie("jwt", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        sameSite: "lax",
         maxAge: 24 * 60 * 60 * 1000, // 1 ngày
       });
 
@@ -551,7 +551,7 @@ const loginWithLocalStrategy = (req, res, next, options = {}) => {
     res.cookie("jwt", token, {
       httpOnly: true, // ngăn JS truy cập
       secure: process.env.NODE_ENV === "production", // chỉ bật khi production
-      sameSite: "strict", // chống CSRF
+      sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000, // 1 ngày
     });
 
@@ -614,7 +614,7 @@ exports.facebookCallback = (req, res, next) => {
     res.cookie("jwt", token, {
       httpOnly: true, // ngăn JS đọc cookie
       secure: process.env.NODE_ENV === "production", // chỉ bật khi production
-      sameSite: "strict", // chống CSRF
+      sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000, // 1 ngày
     });
     // Redirect về frontend kèm token
@@ -663,7 +663,7 @@ exports.googleCallback = (req, res, next) => {
     res.cookie("jwt", token, {
       httpOnly: true, // ngăn JS đọc cookie
       secure: process.env.NODE_ENV === "production", // chỉ bật khi production
-      sameSite: "strict", // chống CSRF
+      sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000, // 1 ngày
     });
 
@@ -674,7 +674,7 @@ exports.googleCallback = (req, res, next) => {
 
 // Đăng xuất
 exports.logout = (req, res) => {
-  res.clearCookie("jwt", { httpOnly: true, sameSite: "strict", secure: process.env.NODE_ENV === "production" });
+  res.clearCookie("jwt", { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
   res.status(200).json({ message: "Đăng xuất thành công" });
 };
 
