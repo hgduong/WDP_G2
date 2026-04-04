@@ -122,7 +122,7 @@ exports.addRoom = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { capacity, name, cinemaId, movieId, ...roomData } = req.body;
+    const { capacity, name, cinemaId, movieIds, ...roomData } = req.body;
 
     if (!name) {
       await session.abortTransaction();
@@ -134,9 +134,9 @@ exports.addRoom = async (req, res) => {
       return res.status(400).json({ message: "cinemaId là bắt buộc" });
     }
 
-    // Handle movieId properly
-    if (movieId) {
-      roomData.movieId = movieId;
+    // Handle movieIds properly (array)
+    if (movieIds && Array.isArray(movieIds)) {
+      roomData.movieIds = movieIds.filter(Boolean);
     }
 
     const existingRoom = await Room.findOne({ name: name.trim(), cinemaId }).session(session);
@@ -191,13 +191,13 @@ exports.updateRoom = async (req, res) => {
       return res.status(404).json({ message: "Phòng không tồn tại" });
     }
 
-    const { capacity, name, cinemaId, regenerateSeats, movieId, ...roomData } = req.body;
+    const { capacity, name, cinemaId, regenerateSeats, movieIds, ...roomData } = req.body;
 
-    // Handle movieId properly - convert empty string to null
-    if (movieId) {
-      roomData.movieId = movieId;
+    // Handle movieIds properly (array) - convert empty string to empty array
+    if (movieIds && Array.isArray(movieIds)) {
+      roomData.movieIds = movieIds.filter(Boolean);
     } else {
-      roomData.movieId = null;
+      roomData.movieIds = [];
     }
 
     // Check duplicate room name if name is being updated

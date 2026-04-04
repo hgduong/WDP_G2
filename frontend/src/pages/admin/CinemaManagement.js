@@ -65,7 +65,7 @@ const CinemaManagement = () => {
     cinemaId: "",
     name: "",
     type: "Standard",
-    movieId: "",
+    movieIds: [],
     startTime: "",
     price: "",
     timeSlots: [],
@@ -152,24 +152,10 @@ const CinemaManagement = () => {
   }, [selectedCinema, fetchRooms]);
 
   // Memoized helpers
-  const getAssignedMovieIds = useCallback((currentRoomId) => {
-    const assignedIds = [];
-    cinemaRooms.forEach((room) => {
-      if (currentRoomId === null || currentRoomId === undefined) {
-        if (room.movieId) {
-          assignedIds.push(room.movieId);
-        }
-      } else if (room._id !== currentRoomId && room.movieId) {
-        assignedIds.push(room.movieId);
-      }
-    });
-    return assignedIds;
-  }, [cinemaRooms]);
-
+  // Removed: movies can now be assigned to multiple rooms
   const getAvailableMovies = useCallback((currentRoomId) => {
-    const assignedIds = getAssignedMovieIds(currentRoomId);
-    return movies.filter((movie) => !assignedIds.includes(movie._id));
-  }, [movies, getAssignedMovieIds]);
+    return movies;
+  }, [movies]);
 
   // Initial data fetch
   useEffect(() => {
@@ -184,11 +170,12 @@ const CinemaManagement = () => {
     }
   }, [selectedCinema, fetchRooms]);
 
-  const getMovieForRoom = useCallback((room) => {
-    const movieId = room.movieId;
-    if (!movieId) return null;
-    if (typeof movieId === "object") return movieId;
-    return movies.find((m) => m._id === movieId) || null;
+  const getMoviesForRoom = useCallback((room) => {
+    const roomMovieIds = room.movieIds || [];
+    return roomMovieIds.map((movieId) => {
+      if (typeof movieId === "object") return movieId;
+      return movies.find((m) => m._id === movieId) || null;
+    }).filter(Boolean);
   }, [movies]);
 
   const handleCinemaInputChange = useCallback((e) => {
@@ -198,57 +185,67 @@ const CinemaManagement = () => {
 
   const handleRoomInputChange = useCallback((e) => {
     const { name, value } = e.target;
-    setRoomFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'movieIds') {
+      const values = Array.from(e.target.selectedOptions, option => option.value);
+      if (values.length > 2) {
+        toast.warning("Mỗi phòng chỉ chiếu tối đa 2 phim");
+        return;
+      }
+      setRoomFormData((prev) => ({ ...prev, [name]: values }));
+    } else {
+      setRoomFormData((prev) => ({ ...prev, [name]: value }));
+    }
   }, []);
 
   // Validate endDate must be after startTime
-  const validateEndDate = useCallback((movieId, startTime) => {
-    if (!movieId || !startTime) return { valid: true, message: "" };
+  const validateEndDate = useCallback((movieIds, startTime) => {
+    if (!movieIds || movieIds.length === 0 || !startTime) return { valid: true, message: "" };
 
-    const selectedMovie = movies.find((m) => m._id === movieId);
-    if (!selectedMovie || !selectedMovie.endDate)
-      return { valid: true, message: "" };
+    for (const movieId of movieIds) {
+      const selectedMovie = movies.find((m) => m._id === movieId);
+      if (!selectedMovie || !selectedMovie.endDate) continue;
 
-    const startDate = new Date(startTime);
-    const movieReleaseDate = selectedMovie.releaseDate
-      ? new Date(selectedMovie.releaseDate)
-      : null;
-    const movieEndDate = new Date(selectedMovie.endDate);
+      const startDate = new Date(startTime);
+      const movieReleaseDate = selectedMovie.releaseDate
+        ? new Date(selectedMovie.releaseDate)
+        : null;
+      const movieEndDate = new Date(selectedMovie.endDate);
 
-    const startDateOnly = new Date(
-      startDate.getFullYear(),
-      startDate.getMonth(),
-      startDate.getDate(),
-    );
-    const endDateOnly = new Date(
-      movieEndDate.getFullYear(),
-      movieEndDate.getMonth(),
-      movieEndDate.getDate(),
-    );
-
-    if (movieReleaseDate) {
-      const releaseDateOnly = new Date(
-        movieReleaseDate.getFullYear(),
-        movieReleaseDate.getMonth(),
-        movieReleaseDate.getDate(),
+      const startDateOnly = new Date(
+        startDate.getFullYear(),
+        startDate.getMonth(),
+        startDate.getDate(),
       );
-      if (startDateOnly < releaseDateOnly) {
-        const releaseStr = formatDate(selectedMovie.releaseDate);
+      const endDateOnly = new Date(
+        movieEndDate.getFullYear(),
+        movieEndDate.getMonth(),
+        movieEndDate.getDate(),
+      );
+
+      if (movieReleaseDate) {
+        const releaseDateOnly = new Date(
+          movieReleaseDate.getFullYear(),
+          movieReleaseDate.getMonth(),
+          movieReleaseDate.getDate(),
+        );
+        if (startDateOnly < releaseDateOnly) {
+          const releaseStr = formatDate(selectedMovie.releaseDate);
+          const startDateStr = formatDate(startTime);
+          return {
+            valid: false,
+            message: `Không thể chọn ngày chiếu (${startDateStr}) trước ngày khởi chiếu (${releaseStr})`,
+          };
+        }
+      }
+
+      if (startDateOnly > endDateOnly) {
+        const endDateStr = formatDate(selectedMovie.endDate);
         const startDateStr = formatDate(startTime);
         return {
           valid: false,
-          message: `Không thể chọn ngày chiếu (${startDateStr}) trước ngày khởi chiếu (${releaseStr})`,
+          message: `Không thể chọn ngày chiếu (${startDateStr}) sau ngày kết thúc chiếu phim (${endDateStr})`,
         };
       }
-    }
-
-    if (startDateOnly > endDateOnly) {
-      const endDateStr = formatDate(selectedMovie.endDate);
-      const startDateStr = formatDate(startTime);
-      return {
-        valid: false,
-        message: `Không thể chọn ngày chiếu (${startDateStr}) sau ngày kết thúc chiếu phim (${endDateStr})`,
-      };
     }
     return { valid: true, message: "" };
   }, [movies]);
@@ -302,9 +299,9 @@ const CinemaManagement = () => {
     e.preventDefault();
 
     // Validate endDate if movie and startTime are selected
-    if (roomFormData.movieId && roomFormData.startTime) {
+    if (roomFormData.movieIds && roomFormData.movieIds.length > 0 && roomFormData.startTime) {
       const validation = validateEndDate(
-        roomFormData.movieId,
+        roomFormData.movieIds,
         roomFormData.startTime,
       );
       if (!validation.valid) {
@@ -321,8 +318,7 @@ const CinemaManagement = () => {
         timeSlots: roomFormData.timeSlots || [],
         description: roomFormData.description,
         status: roomFormData.status,
-        // Lưu thông tin phim đang chiếu trực tiếp vào room
-        movieId: roomFormData.movieId || null,
+        movieIds: roomFormData.movieIds || [],
         startTime: roomFormData.startTime || null,
         price: roomFormData.price ? parseInt(roomFormData.price) : null,
       };
@@ -367,11 +363,13 @@ const CinemaManagement = () => {
 
   const handleEditRoom = (room) => {
     setEditingRoom(room);
+    const roomMovieIds = room.movieIds || [];
+    const mappedIds = roomMovieIds.map((m) => (typeof m === 'object' ? m._id : m));
     setRoomFormData({
       cinemaId: room.cinemaId || selectedCinema._id,
       name: room.name || "",
       type: room.type || "Standard",
-      movieId: room.movieId || "",
+      movieIds: mappedIds,
       startTime: room.startTime || "",
       price: room.price || "",
       timeSlots: room.timeSlots || [],
@@ -736,17 +734,29 @@ const CinemaManagement = () => {
   // Open seat config modal with grid
   const openSeatConfigModal = async (room) => {
     try {
-      const data = await getSeatsByRoom(room._id);
-      const seats = data.seats || [];
+      let data;
+      let seats = [];
+      
+      try {
+        data = await getSeatsByRoom(room._id);
+        seats = data.seats || [];
+      } catch (seatErr) {
+        if (seatErr?.response?.status === 404) {
+          toast.info("Phòng chưa có ghế. Đang tự động tạo...");
+          await generateSeatLayout(room._id);
+          data = await getSeatsByRoom(room._id);
+          seats = data.seats || [];
+        } else {
+          throw seatErr;
+        }
+      }
 
       setRoomSeats(seats);
       setSelectedRoom(room);
       setOriginalSeats(seats);
 
-      // Initialize grid based on actual seats
       const grid = initializeSeatGrid(seats, 5, 10);
 
-      // Calculate actual grid size from the grid
       const maxRow =
         grid.length > 0
           ? Math.max(...grid.map((s) => s.row.charCodeAt(0) - 65)) + 1
@@ -759,7 +769,6 @@ const CinemaManagement = () => {
         columns: Math.max(10, maxCol),
         seats: grid,
       });
-
 
       setShowSeatModal(true);
     } catch (err) {
@@ -784,7 +793,7 @@ const CinemaManagement = () => {
       name: "",
       capacity: "",
       type: "Standard",
-      movieId: "",
+      movieIds: [],
       startTime: "",
       price: "",
       timeSlots: [],
@@ -830,7 +839,7 @@ const CinemaManagement = () => {
           <RoomTable
             rooms={cinemaRooms}
             movies={movies}
-            getMovieForRoom={getMovieForRoom}
+            getMoviesForRoom={getMoviesForRoom}
             onEditRoom={handleEditRoom}
             onDeleteClick={handleDeleteClick}
             onOpenSeatConfig={openSeatConfigModal}
