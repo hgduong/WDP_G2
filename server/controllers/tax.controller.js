@@ -125,9 +125,26 @@ const getCombos = async (req, res) => {
 
 const getActiveFoodBeverageTax = async (req, res) => {
   try {
+    const { comboIds } = req.query;
     const taxes = await Tax.find({ categoryName: "Food & Beverage", isActive: true });
-    const now = new Date();
     
+    // If specific comboIds provided, find all taxes for those combos
+    if (comboIds) {
+      const comboIdArray = comboIds.split(",");
+      
+      const validTaxes = taxes.filter((t) => {
+        if (!t.applyTo || !Array.isArray(t.applyTo)) return false;
+        return t.applyTo.some(comboId => comboIdArray.includes(comboId));
+      });
+      
+      if (validTaxes.length > 0) {
+        return res.status(200).json(validTaxes);
+      }
+      return res.status(200).json(null);
+    }
+    
+    // Otherwise return any valid tax (backwards compatibility)
+    const now = new Date();
     const validTax = taxes.find((t) => {
       const applyFrom = new Date(t.applyFrom);
       return now >= applyFrom;
