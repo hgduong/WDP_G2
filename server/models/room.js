@@ -7,7 +7,7 @@ const roomSchema = new mongoose.Schema({
   capacity: { type: Number},
   seats: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Seat' }], // liên kết tới nhiều ghế (static seat info)
   type: { type: String, enum: ['Standard', 'VIP', 'IMAX', 'Double'], default: 'Standard' },
-  movieId: { type: mongoose.Schema.Types.ObjectId, ref: 'Movie' }, // Phim đang chiếu (denormalized for quick display)
+  movieIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Movie' }], // Danh sách phim đang chiếu
   timeSlots: [{ type: String }], // Mảng khung giờ cố định, ví dụ: ["09:00", "13:00", "17:00", "21:00"]
   description: { type: String },
   status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },

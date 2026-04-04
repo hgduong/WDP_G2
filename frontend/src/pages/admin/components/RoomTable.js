@@ -3,7 +3,7 @@ import React from "react";
 const RoomTable = ({
   rooms,
   movies,
-  getMovieForRoom,
+  getMoviesForRoom,
   onEditRoom,
   onDeleteClick,
   onOpenSeatConfig,
@@ -45,7 +45,7 @@ const RoomTable = ({
         </thead>
         <tbody>
           {rooms.map((room, index) => {
-            const movie = getMovieForRoom(room);
+            const movieList = getMoviesForRoom(room);
             return (
               <tr key={room._id}>
                 <td>{index + 1}</td>
@@ -53,12 +53,15 @@ const RoomTable = ({
                 <td>{getRoomTypeBadge(room.type)}</td>
                 <td>{room.seats?.length || 0}</td>
                 <td>
-                  {movie ? (
-                    <span className="movie-playing">
-                      {typeof movie === "object" && movie.title
-                        ? movie.title
-                        : "Phim đã xóa"}
-                    </span>
+                  {movieList && movieList.length > 0 ? (
+                    <div className="movie-list">
+                      {movieList.map((movie, i) => (
+                        <span key={i} className="movie-playing">
+                          {movie?.title || "Phim đã xóa"}
+                          {i < movieList.length - 1 && ", "}
+                        </span>
+                      ))}
+                    </div>
                   ) : (
                     <span className="no-movie">Chưa có phim</span>
                   )}

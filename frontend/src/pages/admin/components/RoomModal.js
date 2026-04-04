@@ -55,21 +55,25 @@ const RoomModal = ({
 
           <div className="form-row">
             <div className="form-group">
-              <label>Chọn phim</label>
+              <label>Chọn phim (tối đa 2, giữ Ctrl/Cmd để chọn nhiều)</label>
               <select
-                name="movieId"
-                value={formData.movieId}
+                name="movieIds"
+                value={formData.movieIds}
                 onChange={onInputChange}
+                multiple
+                style={{ height: '120px' }}
               >
-                <option value="">-- Chưa có phim --</option>
                 {getAvailableMovies(
                   editingRoom ? editingRoom._id : null,
-                ).map((movie) => (
+                ).map((movie, index) => (
                   <option key={movie._id} value={movie._id}>
-                    {movie.title}
+                    {movie.title} {index === 0 ? '⭐ (ưu tiên)' : ''}
                   </option>
                 ))}
               </select>
+              <small style={{color: '#666', fontSize: '11px'}}>
+                ⭐ = phim ưu tiên chiếu trước, các phim khác phải chọn giờ cách xa tối thiểu 30 phút
+              </small>
             </div>
           </div>
 

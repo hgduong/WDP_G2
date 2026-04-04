@@ -184,6 +184,16 @@ exports.addShowtime = async (req, res) => {
       return res.status(404).json({ message: "Phòng không tồn tại" });
     }
     
+    // Kiểm tra phòng có phim được chọn hay không
+    const roomMovieIds = room.movieIds || [];
+    const hasMovie = roomMovieIds.some(mid => {
+      const id = typeof mid === 'object' ? mid.toString() : mid;
+      return id === movieId;
+    });
+    if (!hasMovie) {
+      return res.status(400).json({ message: "Phòng này không được назна chiếu phim đó" });
+    }
+    
     // Validate duration
     const finalDuration = duration || movie.duration || 120;
     if (finalDuration < 0) {
@@ -205,6 +215,40 @@ exports.addShowtime = async (req, res) => {
       if (!time) {
         return res.status(400).json({ message: "Thời gian chiếu là bắt buộc" });
       }
+    }
+
+    // Validate time slots don't conflict with other movies in the same room (same date only)
+    const conflicts = [];
+    
+    for (const newTime of timeList) {
+      const newStart = new Date(newTime);
+      const newEnd = new Date(newStart.getTime() + finalDuration * 60000);
+      const newDateStr = newStart.toDateString();
+      
+      // Only check conflicts for the same date
+      const existingShowtimes = await Showtime.find({
+        roomId,
+        status: { $ne: 'Cancelled' }
+      });
+      
+      for (const existing of existingShowtimes) {
+        const existingStart = new Date(existing.startTime);
+        // Skip if not same date
+        if (existingStart.toDateString() !== newDateStr) continue;
+        
+        const existingEnd = new Date(existingStart.getTime() + (existing.duration || 120) * 60000);
+        
+        // Check overlap (startA < endB && startB < endA)
+        if (newStart < existingEnd && newEnd > existingStart) {
+          const existingMovie = await Movie.findById(existing.movieId);
+          const existingTimeStr = existingStart.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+          conflicts.push(`${newTime} trùng với "${existingMovie?.title || 'Phim đã xóa'}" lúc ${existingTimeStr}`);
+        }
+      }
+    }
+    
+    if (conflicts.length > 0) {
+      return res.status(400).json({ message: `Lịch chiếu bị trùng: ${conflicts.join(', ')}` });
     }
     
     // Tạo nhiều lịch chiếu

@@ -79,6 +79,7 @@ const ShowtimeManagement = () => {
   // State for multi-showtime creation
   const [selectedMovie, setSelectedMovie] = useState('');
   const [selectedRoom, setSelectedRoom] = useState('');
+  const [selectedRooms, setSelectedRooms] = useState([]);
   const [generatedSlots, setGeneratedSlots] = useState([]);
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -100,9 +101,39 @@ const ShowtimeManagement = () => {
     return movies.filter(movie => !moviesWithShowtimes.has(movie._id));
   };
 
-  // Get rooms that have the selected movie assigned (from CinemaManagement)
+  // Get rooms that have the selected movie assigned (from CinemaManagement) and don't have showtime for this movie yet
+  const getAvailableRoomsForMovie = (movieId) => {
+    if (!movieId) return [];
+    const existingShowtimeRoomIds = new Set();
+    showtimes.forEach(st => {
+      const stMovieId = st.movieId?._id || st.movieId;
+      if (stMovieId === movieId) {
+        const roomId = st.roomId?._id || st.roomId;
+        if (roomId) existingShowtimeRoomIds.add(roomId);
+      }
+    });
+    return rooms.filter(room => {
+      const roomMovieIds = room.movieIds || [];
+      const hasMovie = roomMovieIds.some(mid => {
+        const id = typeof mid === 'object' ? mid._id : mid;
+        return id === movieId;
+      });
+      const roomId = room._id || room;
+      const hasNoShowtime = !existingShowtimeRoomIds.has(roomId);
+      return hasMovie && hasNoShowtime;
+    });
+  };
+
+  // Get rooms that have the selected movie assigned (for edit modal)
   const getRoomsWithMovie = (movieId) => {
-    return rooms.filter(room => room.movieId === movieId);
+    if (!movieId) return [];
+    return rooms.filter(room => {
+      const roomMovieIds = room.movieIds || [];
+      return roomMovieIds.some(mid => {
+        const id = typeof mid === 'object' ? mid._id : mid;
+        return id === movieId;
+      });
+    });
   };
 
   const fetchData = useCallback(async () => {
@@ -131,8 +162,8 @@ const ShowtimeManagement = () => {
 
   // Generate time slots based on movie duration (for today as template)
   const generateTimeSlots = () => {
-    if (!selectedMovie || !selectedRoom) {
-      toast.warning('Vui lòng chọn phim và phòng');
+    if (!selectedMovie || selectedRooms.length === 0) {
+      toast.warning('Vui lòng chọn phim và ít nhất 1 phòng');
       return;
     }
 
@@ -201,12 +232,24 @@ const ShowtimeManagement = () => {
     }
   };
 
+  const toggleRoom = (roomId) => {
+    if (selectedRooms.includes(roomId)) {
+      setSelectedRooms(selectedRooms.filter(r => r !== roomId));
+      setGeneratedSlots([]);
+      setSelectedSlots([]);
+    } else {
+      setSelectedRooms([...selectedRooms, roomId]);
+      setGeneratedSlots([]);
+      setSelectedSlots([]);
+    }
+  };
+
   const handleSaveShowtimes = async () => {
-    if (!selectedMovie || !selectedRoom || selectedSlots.length === 0) {
-      toast.warning('Vui lòng chọn phim, phòng và ít nhất 1 khung giờ');
+    if (!selectedMovie || selectedRooms.length === 0 || selectedSlots.length === 0) {
+      toast.warning('Vui lòng chọn phim, ít nhất 1 phòng và 1 khung giờ');
       return;
     }
-
+    
     // Prevent multiple clicks
     if (isSaving) return;
     setIsSaving(true);
@@ -244,20 +287,23 @@ const ShowtimeManagement = () => {
         const day = String(currentDate.getDate()).padStart(2, '0');
         const dateStr = `${year}-${month}-${day}`;
 
-        for (const slot of selectedSlots) {
-          const slotTime = new Date(slot.startTime);
-          const showtimeDate = new Date(dateStr);
-          showtimeDate.setHours(slotTime.getHours(), slotTime.getMinutes(), 0, 0);
+        // Create showtimes for all selected rooms and all selected slots
+        for (const roomId of selectedRooms) {
+          for (const slot of selectedSlots) {
+            const slotTime = new Date(slot.startTime);
+            const showtimeDate = new Date(dateStr);
+            showtimeDate.setHours(slotTime.getHours(), slotTime.getMinutes(), 0, 0);
 
-          const showtimeData = {
-            movieId: selectedMovie,
-            roomId: selectedRoom,
-            startTime: showtimeDate.toISOString(),
-            duration: slot.movieDuration,
-            language: 'Tiếng Việt'
-          };
-          await createShowtime(showtimeData);
-          totalCreated++;
+            const showtimeData = {
+              movieId: selectedMovie,
+              roomId: roomId,
+              startTime: showtimeDate.toISOString(),
+              duration: slot.movieDuration,
+              language: 'Tiếng Việt'
+            };
+            await createShowtime(showtimeData);
+            totalCreated++;
+          }
         }
 
         currentDate.setDate(currentDate.getDate() + 1);
@@ -297,7 +343,7 @@ const ShowtimeManagement = () => {
     setShowModal(false);
     setEditingShowtime(null);
     setSelectedMovie('');
-    setSelectedRoom('');
+    setSelectedRooms([]);
     setGeneratedSlots([]);
     setSelectedSlots([]);
     setIsSaving(false);
@@ -308,28 +354,37 @@ const ShowtimeManagement = () => {
     return true;
   });
 
-  // Group showtimes by movie + room (only unique times, not by day)
+  // Group showtimes by movie AND room (each movie-room combination is a separate row)
   const groupedShowtimes = () => {
     const groups = {};
     filteredShowtimes.forEach(showtime => {
       const movieId = showtime.movieId?._id || showtime.movieId;
       const roomId = showtime.roomId?._id || showtime.roomId;
-      const key = `${movieId}-${roomId}`;
+      const roomName = showtime.roomId?.name || rooms.find(r => r._id === roomId)?.name || 'N/A';
       
-      if (!groups[key]) {
-        groups[key] = {
+      // Group by movie + room combination
+      const groupKey = `${movieId}-${roomId}`;
+      
+      if (!groups[groupKey]) {
+        groups[groupKey] = {
           movieId: showtime.movieId,
-          roomId: showtime.roomId,
-          showtimes: [],
-          uniqueTimes: new Set()
+          roomId: roomId,
+          roomName: roomName,
+          showtimes: []
         };
       }
       
-      // Extract just the time part (HH:mm) to check uniqueness
-      const timePart = formatTime(showtime.startTime);
-      if (!groups[key].uniqueTimes.has(timePart)) {
-        groups[key].uniqueTimes.add(timePart);
-        groups[key].showtimes.push(showtime);
+      // Deduplicate by time only (ignore date)
+      const showtimeDate = new Date(showtime.startTime);
+      const timeKey = `${showtimeDate.getHours()}-${showtimeDate.getMinutes()}`;
+      const hasTime = groups[groupKey].showtimes.some(s => {
+        const existingDate = new Date(s.startTime);
+        return existingDate.getHours() === showtimeDate.getHours() && 
+               existingDate.getMinutes() === showtimeDate.getMinutes();
+      });
+      
+      if (!hasTime) {
+        groups[groupKey].showtimes.push(showtime);
       }
     });
     
@@ -338,16 +393,24 @@ const ShowtimeManagement = () => {
       group.showtimes.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
     });
     
-    return Object.values(groups);
+    // Sort groups by movie title, then room name
+    const result = Object.values(groups);
+    result.sort((a, b) => {
+      const movieCompare = (a.movieId?.title || '').localeCompare(b.movieId?.title || '');
+      if (movieCompare !== 0) return movieCompare;
+      return (a.roomName || '').localeCompare(b.roomName || '');
+    });
+    
+    return result;
   };
 
   const handleDeleteGroup = async (group) => {
-    // Get ALL showtime IDs directly from showtimes (not filtered)
+    // Get showtime IDs for this specific movie-room combination
+    const gMovieId = group.movieId?._id || group.movieId;
+    const gRoomId = group.roomId;
     const allForGroup = showtimes.filter(s => {
       const sMovieId = s.movieId?._id || s.movieId;
       const sRoomId = s.roomId?._id || s.roomId;
-      const gMovieId = group.movieId?._id || group.movieId;
-      const gRoomId = group.roomId?._id || group.roomId;
       return sMovieId === gMovieId && sRoomId === gRoomId;
     });
     
@@ -360,24 +423,25 @@ const ShowtimeManagement = () => {
   };
 
   const handleEdit = (group) => {
-    // Get ALL showtimes for this movie+room from filtered data
+    // Get ALL showtimes for this specific movie-room combination (all dates)
+    const gMovieId = group.movieId?._id || group.movieId;
+    const gRoomId = group.roomId;
     const allForGroup = filteredShowtimes.filter(s => {
       const sMovieId = s.movieId?._id || s.movieId;
       const sRoomId = s.roomId?._id || s.roomId;
-      const gMovieId = group.movieId?._id || group.movieId;
-      const gRoomId = group.roomId?._id || group.roomId;
       return sMovieId === gMovieId && sRoomId === gRoomId;
     });
     
-    setEditingGroup(group);
+    // Keep all showtimes in editingGroup (for display), and select ALL initially
+    setEditingGroup({...group, showtimes: allForGroup});
     setExistingShowtimes(allForGroup);
-    setEditSelectedSlots(allForGroup.map(s => ({ startTime: s.startTime, _id: s._id, movieDuration: s.duration })));
+    setEditSelectedSlots(allForGroup.map(s => ({ startTime: s.startTime, _id: s._id, movieDuration: s.duration, roomId: s.roomId?._id || s.roomId })));
     
     setEditGeneratedSlots([]);
     
     setEditFormData({
-      movieId: group.movieId?._id || group.movieId,
-      roomId: group.roomId?._id || group.roomId,
+      movieId: gMovieId,
+      roomId: gRoomId || '',
       language: group.showtimes[0]?.language || 'Tiếng Việt',
       status: group.showtimes[0]?.status || 'Scheduled'
     });
@@ -442,21 +506,27 @@ const ShowtimeManagement = () => {
     setEditGeneratedSlots(slots);
   };
 
-  const toggleEditSlot = (slot) => {
-    const existsIndex = editSelectedSlots.findIndex(s => s.startTime === slot.startTime);
+  const toggleEditSlot = (showtime) => {
+    // Toggle individual showtime by _id
+    const existsIndex = editSelectedSlots.findIndex(s => s._id === showtime._id);
     if (existsIndex >= 0) {
-      // Remove from selected (will be deleted on save)
+      // Remove from selected (this specific showtime will be deleted on save)
       const updated = [...editSelectedSlots];
       updated.splice(existsIndex, 1);
       setEditSelectedSlots(updated);
     } else {
-      // Add to selected (will be created on save)
-      setEditSelectedSlots([...editSelectedSlots, slot]);
+      // Add to selected
+      setEditSelectedSlots([...editSelectedSlots, { 
+        startTime: showtime.startTime, 
+        _id: showtime._id, 
+        movieDuration: showtime.duration, 
+        roomId: showtime.roomId?._id || showtime.roomId 
+      }]);
     }
   };
 
-  const isSlotSelected = (slot) => {
-    return editSelectedSlots.some(s => s.startTime === slot.startTime);
+  const isSlotSelected = (showtime) => {
+    return editSelectedSlots.some(s => s._id === showtime._id);
   };
 
   const handleUpdateShowtime = async (e) => {
@@ -467,22 +537,22 @@ const ShowtimeManagement = () => {
     setIsUpdating(true);
     
     try {
-      // Get all existing showtime IDs for this movie+room
+      // Get existing showtime IDs for this movie+room
       const existingForGroup = filteredShowtimes.filter(s => {
         const sMovieId = s.movieId?._id || s.movieId;
         const sRoomId = s.roomId?._id || s.roomId;
         return sMovieId === editFormData.movieId && sRoomId === editFormData.roomId;
       });
       
-      const existingIds = existingForGroup.map(s => s._id);
+      // Get selected IDs from editSelectedSlots
       const selectedIds = editSelectedSlots.filter(s => s._id).map(s => s._id);
-      const toDelete = existingIds.filter(id => !selectedIds.includes(id));
-
-      // Delete all old showtimes
-      for (const id of toDelete) {
-        await deleteShowtime(id);
+      
+      // Delete showtimes that were unchecked (not in selectedIds)
+      const toDelete = existingForGroup.filter(s => !selectedIds.includes(s._id));
+      for (const st of toDelete) {
+        await deleteShowtime(st._id);
       }
-
+      
       // Get movie info
       const movie = movies.find(m => m._id === editFormData.movieId);
       const releaseDate = movie?.releaseDate ? new Date(movie.releaseDate) : new Date();
@@ -507,6 +577,7 @@ const ShowtimeManagement = () => {
         const day = String(currentDate.getDate()).padStart(2, '0');
         const dateStr = `${year}-${month}-${day}`;
 
+        // Only create NEW showtimes (slots without _id)
         for (const slot of editSelectedSlots.filter(s => !s._id)) {
           const slotTime = new Date(slot.startTime);
           const showtimeDate = new Date(dateStr);
@@ -638,19 +709,24 @@ const ShowtimeManagement = () => {
           </thead>
           <tbody>
             {groupedShowtimes().map((group, index) => (
-              <tr key={`${group.movieId?._id || group.movieId}-${group.roomId?._id || group.roomId}`}>
+              <tr key={`${group.movieId?._id || group.movieId}-${group.roomId}`}>
                 <td>{index + 1}</td>
                 <td className="movie-title">
                   {group.movieId?.title || 'N/A'}
                 </td>
-                <td>{group.roomId?.name || 'N/A'}</td>
+                <td>
+                  <div style={{fontSize: '12px'}}>
+                    {group.roomName}
+                  </div>
+                </td>
                 <td>
                   <div className="time-slots-group">
-                    {group.showtimes.map((showtime, idx) => (
+                    {group.showtimes.slice(0, 8).map((showtime, idx) => (
                       <span key={showtime._id} className="time-slot-item">
                         {formatTime(showtime.startTime)}
                       </span>
                     ))}
+                    {group.showtimes.length > 8 && <span style={{color: '#666'}}> +{group.showtimes.length - 8}</span>}
                   </div>
                 </td>
                 <td>{group.showtimes[0]?.language || 'N/A'}</td>
@@ -681,207 +757,206 @@ const ShowtimeManagement = () => {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Thêm Lịch Chiếu Mới</h3>
-              <button className="modal-close" onClick={closeModal}>&times;</button>
-            </div>
-            
-            <div className="modal-body">
-              {/* Step 1: Select Movie, Room, Date */}
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Chọn phim *</label>
-                  {getAvailableMovies().length === 0 ? (
-                    <div style={{
-                      padding: '15px',
-                      background: '#fff3cd',
-                      border: '1px solid #ffc107',
-                      borderRadius: '8px',
-                      color: '#856404'
-                    }}>
-                      ⚠️ Tất cả các phim đã có suất chiếu. Vui lòng xóa suất chiếu cũ nếu muốn tạo mới.
-                    </div>
-                  ) : (
-                    <select
-  value={selectedMovie}
-  onChange={(e) => {
-    setSelectedMovie(e.target.value);
-    setSelectedRoom('');
-    setGeneratedSlots([]);
-    setSelectedSlots([]);
-  }}
-  required
-  style={{ width: '100%', maxWidth: '300px' }}
->
-  <option value="">Chọn phim</option>
-  {getAvailableMovies().map(movie => (
-    <option key={movie._id} value={movie._id}>
-      {movie.title} {movie.duration ? `(${movie.duration} phút)` : ''}
-    </option>
-  ))}
-</select>
-                  )}
-                </div>
-              </div>
+  <div className="modal-overlay" onClick={closeModal}>
+    <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h3>Thêm Lịch Chiếu Mới</h3>
+        <button className="modal-close" onClick={closeModal}>&times;</button>
+      </div>
+      
+      <div className="modal-body">
+        <div style={{
+          padding: '10px 15px',
+          background: '#e7f3ff',
+          border: '1px solid #0066cc',
+          borderRadius: '6px',
+          marginBottom: '15px',
+          fontSize: '13px'
+        }}>
+          <strong>Hướng dẫn:</strong> Một phòng có thể chiếu nhiều phim khác nhau. 
+          Chỉ cần đảm bảo các suất chiếu không trùng giờ (backend sẽ kiểm tra overlap nếu có).
+        </div>
 
-              {/* Show rooms as clickable cards */}
-              {selectedMovie && getAvailableMovies().length > 0 && (
-                <div className="rooms-display">
-                  <label style={{display: 'block', marginBottom: '10px', fontWeight: '500'}}>
-                    Chọn phòng chiếu:
-                  </label>
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                    gap: '15px',
-                    marginBottom: '15px'
-                  }}>
-                    {getRoomsWithMovie(selectedMovie).map(room => (
-                      <div
-                        key={room._id}
-                        onClick={() => {
-                          setSelectedRoom(room._id);
-                          setGeneratedSlots([]);
-                          setSelectedSlots([]);
-                        }}
-                        style={{
-                          padding: '15px',
-                          border: selectedRoom === room._id ? '3px solid #28a745' : '1px solid #dee2e6',
-                          borderRadius: '8px',
-                          background: selectedRoom === room._id ? '#d4edda' : '#fff',
-                          cursor: 'pointer',
-                          textAlign: 'center',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <div style={{fontWeight: 'bold', fontSize: '16px'}}>{room.name}</div>
-                        <div style={{color: '#666', fontSize: '13px'}}>{room.type} - {room.capacity} ghế</div>
-                      </div>
-                    ))}
-                    {getRoomsWithMovie(selectedMovie).length === 0 && (
-                      <div style={{
-                        gridColumn: '1 / -1',
-                        padding: '20px',
-                        textAlign: 'center',
-                        color: '#dc3545',
-                        background: '#fff5f5',
-                        borderRadius: '8px',
-                        border: '1px solid #dc3545'
-                      }}>
-                        ⚠️ Chưa có phòng nào được gán cho phim này.
-                        <br/>
-                        Vui lòng gán phim trong "Quản lý Rạp & Phòng Chiếu"
-                      </div>
+        {/* Step 1: Select Movie */}
+        <div className="form-row">
+          <div className="form-group">
+            <label>Chọn phim *</label>
+            <select
+              value={selectedMovie}
+              onChange={(e) => {
+                setSelectedMovie(e.target.value);
+                setSelectedRoom('');
+                setSelectedRooms([]);
+                setGeneratedSlots([]);
+                setSelectedSlots([]);
+              }}
+              required
+              style={{ width: '100%', maxWidth: '300px' }}
+            >
+              <option value="">Chọn phim</option>
+              {movies.map(movie => (
+                <option key={movie._id} value={movie._id}>
+                  {movie.title} {movie.duration ? `(${movie.duration} phút)` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Show rooms as clickable cards - Chỉ hiện phòng được set chiếu phim này và chưa có lịch chiếu */}
+        {selectedMovie && (
+          <div className="rooms-display">
+            <label style={{display: 'block', marginBottom: '10px', fontWeight: '500'}}>
+              Chọn phòng chiếu (có thể chọn nhiều phòng):
+            </label>
+            {getAvailableRoomsForMovie(selectedMovie).length === 0 ? (
+              <div style={{
+                padding: '15px',
+                background: '#fff3cd',
+                border: '1px solid #ffc107',
+                borderRadius: '8px',
+                color: '#856404',
+                marginBottom: '15px'
+              }}>
+                Không có phòng nào khả dụng cho phim này. Vui lòng kiểm tra phòng đã được gán phim trong Quản lý Rạp.
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                gap: '15px',
+                marginBottom: '15px'
+              }}>
+                {getAvailableRoomsForMovie(selectedMovie).map(room => (
+                  <div
+                    key={room._id}
+                    onClick={() => {
+                      setSelectedRoom(room._id);
+                      toggleRoom(room._id);
+                    }}
+                    style={{
+                      padding: '15px',
+                      border: selectedRooms.includes(room._id) ? '3px solid #28a745' : '1px solid #dee2e6',
+                      borderRadius: '8px',
+                      background: selectedRooms.includes(room._id) ? '#d4edda' : '#fff',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{fontWeight: 'bold', fontSize: '16px'}}>{room.name}</div>
+                    <div style={{color: '#666', fontSize: '13px'}}>{room.type} - {room.capacity} ghế</div>
+                    {selectedRooms.includes(room._id) && (
+                      <div style={{color: '#28a745', fontSize: '12px', marginTop: '5px'}}>✓ Đã chọn</div>
                     )}
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-              {/* Show selected movie and room */}
-              {selectedMovie && getAvailableMovies().length > 0 && (
-                <div className="selected-info" style={{
-                  background: '#e7f3ff',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  marginBottom: '15px',
-                  border: '1px solid #b3d7ff'
-                }}>
-                  <p style={{margin: 0, color: '#0056b3'}}>
-                    <strong>Phim:</strong> {movies.find(m => m._id === selectedMovie)?.title}
-                    {selectedRoom && <span> | <strong>Phòng chiếu:</strong> {rooms.find(r => r._id === selectedRoom)?.name}</span>}
-                    {!selectedRoom && getRoomsWithMovie(selectedMovie).length === 0 && 
-                      <span style={{color: '#dc3545'}}> | Chưa có phòng được gán cho phim này</span>}
-                  </p>
-                </div>
-              )}
+        {/* Show selected movie and room */}
+        {selectedMovie && selectedRoom && (
+          <div className="selected-info" style={{
+            background: '#e7f3ff',
+            padding: '12px',
+            borderRadius: '8px',
+            marginBottom: '15px',
+            border: '1px solid #b3d7ff'
+          }}>
+            <p style={{margin: 0, color: '#0056b3'}}>
+              <strong>Phim:</strong> {movies.find(m => m._id === selectedMovie)?.title}
+              <span> | <strong>Phòng chiếu:</strong> {rooms.find(r => r._id === selectedRoom)?.name}</span>
+            </p>
+          </div>
+        )}
 
-              {/* Step 2: Generate and select time slots */}
-              {selectedMovie && selectedRoom && getAvailableMovies().length > 0 && (
-                <div className="slots-section">
-                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
-                    <h4>Chọn khung giờ chiếu</h4>
-                    <button 
-                      type="button" 
-                      className="btn btn-primary"
-                      onClick={generateTimeSlots}
-                    >
-                      🔄 Tạo khung giờ
-                    </button>
-                  </div>
-
-                  {generatedSlots.length > 0 && (
-                    <>
-                      <p style={{marginBottom: '10px', color: '#666'}}>
-                        Đã chọn: <strong>{selectedSlots.length}</strong> suất chiếu - {getMovieTitle()}
-                      </p>
-                      <div className="slots-grid" style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                        gap: '10px',
-                        maxHeight: '300px',
-                        overflowY: 'auto',
-                        padding: '10px',
-                        border: '1px solid #dee2e6',
-                        borderRadius: '8px'
-                      }}>
-                        {generatedSlots.map((slot, index) => {
-                          const isSelected = selectedSlots.some(s => s.startTime === slot.startTime);
-                          return (
-                            <div
-                              key={index}
-                              onClick={() => toggleSlot(slot)}
-                              style={{
-                                padding: '12px',
-                                border: isSelected ? '2px solid #28a745' : '1px solid #dee2e6',
-                                borderRadius: '8px',
-                                background: isSelected ? '#d4edda' : '#fff',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
-                              }}
-                            >
-                              <div style={{fontWeight: 'bold', fontSize: '16px'}}>
-                                {new Date(slot.startTime).toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'})}
-                              </div>
-                              <div style={{fontSize: '12px', color: '#666'}}>
-                                → {new Date(slot.endTime).toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'})}
-                              </div>
-                              <div style={{fontSize: '11px', color: '#888', marginTop: '5px'}}>
-                                Nghỉ: {slot.breakTime} phút
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-
-                  {generatedSlots.length === 0 && (
-                    <p style={{color: '#666', fontStyle: 'italic'}}>
-                      Nhấn "Tạo khung giờ" để xem các khung giờ có thể chọn
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="modal-actions">
-              <button type="button" className="btn btn-secondary" onClick={closeModal}>
-                Hủy
-              </button>
+        {/* Step 2: Generate and select time slots */}
+        {selectedMovie && selectedRoom && (
+          <div className="slots-section">
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
+              <h4>Chọn khung giờ chiếu</h4>
               <button 
                 type="button" 
                 className="btn btn-primary"
-                onClick={handleSaveShowtimes}
-                disabled={selectedSlots.length === 0 || isSaving}
+                onClick={generateTimeSlots}
               >
-                {isSaving ? 'Đang lưu...' : `Lưu (${selectedSlots.length}) suất chiếu`}
+                🔄 Tạo khung giờ
               </button>
             </div>
+
+            {generatedSlots.length > 0 && (
+              <>
+                <p style={{marginBottom: '10px', color: '#666'}}>
+                  Đã chọn: <strong>{selectedSlots.length}</strong> suất chiếu - {getMovieTitle()}
+                </p>
+                <div className="slots-grid" style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                  gap: '10px',
+                  maxHeight: '300px',
+                  overflowY: 'auto',
+                  padding: '10px',
+                  border: '1px solid #dee2e6',
+                  borderRadius: '8px'
+                }}>
+                  {generatedSlots.map((slot, index) => {
+                    const isSelected = selectedSlots.some(s => s.startTime === slot.startTime);
+                    return (
+                      <div
+                        key={index}
+                        onClick={() => toggleSlot(slot)}
+                        style={{
+                          padding: '12px',
+                          border: isSelected ? '2px solid #28a745' : '1px solid #dee2e6',
+                          borderRadius: '8px',
+                          background: isSelected ? '#d4edda' : '#fff',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{fontWeight: 'bold', fontSize: '16px'}}>
+                          {new Date(slot.startTime).toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'})}
+                        </div>
+                        <div style={{fontSize: '12px', color: '#666'}}>
+                          → {new Date(slot.endTime).toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'})}
+                        </div>
+                        <div style={{fontSize: '11px', color: '#888', marginTop: '5px'}}>
+                          Nghỉ: {slot.breakTime} phút
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            {generatedSlots.length === 0 && (
+              <p style={{color: '#666', fontStyle: 'italic'}}>
+                Nhấn "Tạo khung giờ" để xem các khung giờ có thể chọn
+              </p>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      <div className="modal-actions">
+        <button type="button" className="btn btn-secondary" onClick={closeModal}>
+          Hủy
+        </button>
+        <button 
+          type="button" 
+          className="btn btn-primary"
+          onClick={handleSaveShowtimes}
+          disabled={selectedSlots.length === 0 || isSaving}
+        >
+          {isSaving ? 'Đang lưu...' : `Lưu (${selectedSlots.length}) suất chiếu`}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Edit Showtime Modal */}
       {showEditModal && editingGroup && (
@@ -892,40 +967,100 @@ const ShowtimeManagement = () => {
               <button className="modal-close" onClick={closeEditModal}>&times;</button>
             </div>
             <div className="modal-body">
-              {/* List of time slots with checkboxes */}
+              {/* List of time slots - show all but edit by unique times */}
               <div className="form-group">
-                <label>Giờ chiếu hiện tại (bỏ tick để xóa):</label>
-                <div className="slots-grid" style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-                  gap: '10px',
-                  marginTop: '10px'
-                }}>
-                  {editingGroup.showtimes.map((showtime) => (
-                    <div
-                      key={showtime._id}
-                      onClick={() => toggleEditSlot(showtime)}
-                      style={{
-                        padding: '10px',
-                        border: editSelectedSlots.some(s => s.startTime === showtime.startTime) ? '2px solid #28a745' : '1px solid #dee2e6',
-                        borderRadius: '8px',
-                        background: editSelectedSlots.some(s => s.startTime === showtime.startTime) ? '#d4edda' : '#fff',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={editSelectedSlots.some(s => s.startTime === showtime.startTime)}
-                        onChange={() => toggleEditSlot(showtime)}
-                      />
-                      <span>{formatTime(showtime.startTime)}</span>
+                <label>Giờ chiếu hiện tại (tick để giữ, bỏ tick để xóa khỏi mẫu):</label>
+                {(() => {
+                  // Group showtimes by date for display
+                  const groupedByDate = {};
+                  editingGroup.showtimes.forEach(s => {
+                    const dateKey = new Date(s.startTime).toISOString().split('T')[0];
+                    if (!groupedByDate[dateKey]) groupedByDate[dateKey] = [];
+                    groupedByDate[dateKey].push(s);
+                  });
+                  
+                  const sortedDates = Object.keys(groupedByDate).sort();
+                  
+                  if (sortedDates.length === 0) {
+                    return <p style={{color: '#666', fontStyle: 'italic'}}>Không có suất chiếu nào</p>;
+                  }
+                  
+                  return (
+                    <div style={{
+                      display: 'flex',
+                      gap: '12px',
+                      marginTop: '10px',
+                      overflowX: 'auto',
+                      paddingBottom: '10px'
+                    }}>
+                      {sortedDates.map(date => {
+                        const dateShowtimes = groupedByDate[date].sort((a, b) => 
+                          new Date(a.startTime) - new Date(b.startTime)
+                        );
+                        const dateLabel = new Date(date).toLocaleDateString('vi-VN', {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'numeric'
+                        });
+                        
+                        return (
+                          <div key={date} style={{
+                            minWidth: '100px',
+                            background: '#f8f9fa',
+                            borderRadius: '8px',
+                            padding: '8px',
+                            border: '1px solid #dee2e6'
+                          }}>
+                            <div style={{
+                              fontWeight: 'bold',
+                              fontSize: '12px',
+                              textAlign: 'center',
+                              marginBottom: '8px',
+                              color: '#333',
+                              paddingBottom: '6px',
+                              borderBottom: '1px solid #dee2e6'
+                            }}>
+                              {dateLabel}
+                            </div>
+                            <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                              {dateShowtimes.map(showtime => {
+                                // Check if this specific showtime is selected by _id
+                                const isSelected = isSlotSelected(showtime);
+                                return (
+                                  <div
+                                    key={showtime._id}
+                                    onClick={() => toggleEditSlot(showtime)}
+                                    style={{
+                                      padding: '6px 8px',
+                                      border: isSelected ? '2px solid #28a745' : '1px solid #dee2e6',
+                                      borderRadius: '4px',
+                                      background: isSelected ? '#d4edda' : '#fff',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      fontSize: '12px'
+                                    }}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => toggleEditSlot(showtime)}
+                                    />
+                                    <span style={{fontWeight: 'bold'}}>
+                                      {formatTime(showtime.startTime)}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
-                </div>
-                <small style={{color: '#666'}}>Đã chọn: {editSelectedSlots.length} suất chiếu</small>
+                  );
+                })()}
+                <small style={{color: '#666'}}>Đã chọn: {editSelectedSlots.length} giờ (áp dụng cho tất cả các ngày)</small>
               </div>
 
               {/* Thêm giờ mới */}
@@ -985,20 +1120,34 @@ const ShowtimeManagement = () => {
               <hr style={{margin: '20px 0'}} />
 
               <form onSubmit={handleUpdateShowtime} className="modal-form">
-                <div className="form-group">
+<div className="form-group">
                   <label>Phim</label>
                   <select 
-  name="movieId" 
-  value={editFormData.movieId} 
-  onChange={(e) => setEditFormData({...editFormData, movieId: e.target.value})}
-  required
-  style={{ width: '100%', maxWidth: '300px' }}
->
-  <option value="">-- Chọn phim --</option>
-  {movies.map(movie => (
-    <option key={movie._id} value={movie._id}>{movie.title}</option>
-  ))}
-</select>
+                    name="movieId" 
+                    value={editFormData.movieId} 
+                    onChange={(e) => {
+                      setEditFormData({
+                        ...editFormData, 
+                        movieId: e.target.value,
+                        roomId: ''
+                      });
+                      setEditSelectedSlots([]);
+                      setEditGeneratedSlots([]);
+                    }}
+                    required
+                    style={{ width: '100%', maxWidth: '300px' }}
+                  >
+                    <option value="">-- Chọn phim --</option>
+                    {movies.map(movie => {
+                      const playingRooms = getRoomsWithMovie(movie._id);
+                      const roomInfo = playingRooms.length > 0 ? playingRooms.map(r => r.name).join(', ') : (movie.duration ? `${movie.duration} phút` : '');
+                      return (
+                        <option key={movie._id} value={movie._id}>
+                          {movie.title} {roomInfo ? `(${roomInfo})` : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
                 </div>
 
                 <div className="form-group">
@@ -1006,7 +1155,17 @@ const ShowtimeManagement = () => {
                   <select 
                     name="roomId" 
                     value={editFormData.roomId} 
-                    onChange={(e) => setEditFormData({...editFormData, roomId: e.target.value})}
+                    onChange={(e) => {
+                      setEditFormData({...editFormData, roomId: e.target.value});
+                      // Reset slots when room changes
+                      const roomShowtimes = filteredShowtimes.filter(s => {
+                        const sMovieId = s.movieId?._id || s.movieId;
+                        const sRoomId = s.roomId?._id || s.roomId;
+                        return sMovieId === editFormData.movieId && sRoomId === e.target.value;
+                      });
+                      setEditSelectedSlots(roomShowtimes.map(s => ({ startTime: s.startTime, _id: s._id, movieDuration: s.duration, roomId: s.roomId?._id || s.roomId })));
+                      setEditGeneratedSlots([]);
+                    }}
                     required
                   >
                     <option value="">-- Chọn phòng --</option>
