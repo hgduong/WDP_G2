@@ -124,3 +124,14 @@ export const updateUserRole = async (userId, role) => {
     throw error.response?.data || error;
   }
 };
+
+// Get booking history by userId (Admin)
+export const getUserBookingsByUserId = async (userId) => {
+  try {
+    const response = await API.get(`/api/users/${userId}/bookings`);
+    return response.data;
+  } catch (error) {
+    console.error("Failed to load user bookings:", error);
+    throw error.response?.data || error;
+  }
+};
