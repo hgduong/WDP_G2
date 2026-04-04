@@ -29,6 +29,10 @@ export * from "./paymentsApi";
 // Vouchers API
 export * from "./vouchersApi";
 
+// Taxs API
+export * from "./taxsApi";
+export { getActiveFoodBeverageTax } from "./taxsApi";
+
 // Schedules API
 export * from "./schedulesApi";
 

@@ -28,6 +28,14 @@ const AdminLayout = ({ children }) => {
         { path: "/admin/schedules/attendance", label: "Theo dõi điểm danh" },
         { path: "/admin/schedules/create", label: "Tạo lịch làm việc" }
       ]
+    },
+    {
+      path: "/admin/taxs",
+      label: "Quản lý Thuế",
+      children: [
+        { path: "/admin/taxs/fix", label: "Thuế" },
+        { path: "/admin/taxs/set", label: "Cấu hình thuế" }
+      ]
     }
   ];
 

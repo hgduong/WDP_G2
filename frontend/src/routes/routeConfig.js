@@ -38,6 +38,7 @@ import ScheduleManagement from "../pages/admin/ScheduleManagement";
 import AttendanceTracking from "../pages/admin/AttendanceTracking";
 import ActorsManagement from "../pages/admin/ActorsManagement";
 import DirectorsManagement from "../pages/admin/DirectorsManagement";
+import TaxManagement from "../pages/admin/TaxManagement";
 
 export const routesConfig = [
   {
@@ -196,6 +197,11 @@ export const routesConfig = [
   {
     path: "/admin/schedules/attendance",
     element: <AttendanceTracking />,
+    allowedRoles: ["Admin"],
+  },
+  {
+    path: "/admin/taxs/fix",
+    element: <TaxManagement />,
     allowedRoles: ["Admin"],
   },
   

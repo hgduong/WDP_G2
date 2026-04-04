@@ -153,6 +153,9 @@ app.use("/api/seats", seatsRoutes);
 const scheduleRoutes = require("./routes/schedule.routes");
 app.use("/api/schedules", scheduleRoutes);
 
+const taxsRoutes = require("./routes/taxs.route");
+app.use("/api/taxs", taxsRoutes);
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // SERVER START
 // ═══════════════════════════════════════════════════════════════════════════════
