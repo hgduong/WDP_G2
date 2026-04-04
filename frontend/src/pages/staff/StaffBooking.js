@@ -9,6 +9,7 @@ import {
   holdSeats,
   releaseSeats,
   staffApplyVoucher,
+  getActiveMovieTicketTax,
 } from "../../services/api";
 import "../../assets/styles/StaffBooking.css";
 
@@ -69,6 +70,7 @@ function StaffBooking() {
   });
   const [voucherCode, setVoucherCode] = useState("");
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [ticketTaxRate, setTicketTaxRate] = useState(8);
   const [checkingVoucher, setCheckingVoucher] = useState(false);
   const [voucherError, setVoucherError] = useState("");
   const [voucherSuccess, setVoucherSuccess] = useState("");
@@ -82,6 +84,22 @@ function StaffBooking() {
   useEffect(() => {
     submittingRef.current = submitting;
   }, [submitting]);
+
+  useEffect(() => {
+    const fetchTicketTax = async () => {
+      try {
+        const tax = await getActiveMovieTicketTax();
+        if (tax && tax.taxRate) {
+          setTicketTaxRate(tax.taxRate);
+        } else {
+          setTicketTaxRate(8);
+        }
+      } catch (error) {
+        setTicketTaxRate(8);
+      }
+    };
+    fetchTicketTax();
+  }, []);
 
   useEffect(() => {
     const socketUrl = process.env.REACT_APP_SOCKET_URL || "http://localhost:9999";
@@ -289,7 +307,8 @@ function StaffBooking() {
 
   const pricePerSeat = Number(selectedShowtime?.price || 75000);
   const totalPrice = selectedSeats.reduce((sum, seat) => sum + seatPrice(seat, pricePerSeat), 0);
-  const finalPrice = Math.max(0, totalPrice - discountAmount);
+  const taxAmount = totalPrice * (ticketTaxRate / 100);
+  const finalPrice = Math.max(0, totalPrice - discountAmount) + taxAmount;
 
   const holdDeadline = useMemo(() => {
     if (!selectedSeats.length) {
@@ -369,7 +388,7 @@ function StaffBooking() {
       setCheckingVoucher(true);
       setVoucherError("");
       setVoucherSuccess("");
-      const result = await staffApplyVoucher(voucherCode.trim(), totalPrice);
+      const result = await staffApplyVoucher(voucherCode.trim(), finalPrice);
       if (result?.discountAmount) {
         setDiscountAmount(result.discountAmount);
         setVoucherSuccess(`Đã áp dụng giảm ${formatMoney(result.discountAmount)}`);
@@ -777,9 +796,11 @@ function StaffBooking() {
               </strong>
             </div>
             <div className="checkout-info">
+              <span>Tiền vé: {formatMoney(totalPrice)}</span>
+              {ticketTaxRate > 0 && <span>Thuế ({ticketTaxRate}%): {formatMoney(taxAmount)}</span>}
+              {discountAmount > 0 && <span>Giảm giá: -{formatMoney(discountAmount)}</span>}
               <span>Tổng tiền thanh toán</span>
               <div className="price-block">
-                {discountAmount > 0 ? <span className="original-price">{formatMoney(totalPrice)}</span> : null}
                 <strong className="final-price">{formatMoney(finalPrice)}</strong>
               </div>
             </div>

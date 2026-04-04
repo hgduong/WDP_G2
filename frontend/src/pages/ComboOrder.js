@@ -86,14 +86,16 @@ const ComboOrder = () => {
     const fetchTax = async () => {
       try {
         const tax = await getActiveFoodBeverageTax();
-        if (tax) {
+        if (tax && tax.taxRate) {
           setTaxRate(tax.taxRate);
           setTaxInfo(tax);
         } else {
-          setTaxRate(10);
+          setTaxRate(0);
+          setTaxInfo(null);
         }
       } catch (error) {
-        setTaxRate(10);
+        setTaxRate(0);
+        setTaxInfo(null);
       }
     };
     fetchTax();
@@ -113,7 +115,7 @@ const ComboOrder = () => {
   }, [quantities]);
 
   const taxAmount = useMemo(() => {
-    if (!selectedCombos.length || !taxRate) return 0;
+    if (!selectedCombos.length || !taxRate || taxRate === 0) return 0;
     
     const selectedComboIds = selectedCombos.sort();
     const taxApplyTo = taxInfo?.applyTo;

@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useMemo } from "react";
 import "../assets/styles/Booking.css";
 import { getImageUrl } from "../utils/imageUtils";
-import { createBooking, getShowtimeById } from "../services/api";
+import { createBooking, getShowtimeById, getActiveMovieTicketTax } from "../services/api";
 import { UserContext } from "../context/UserContext";
 import { getWalletBalance, pay } from "../services/transactionsApi";
 
@@ -130,7 +130,7 @@ export default function Booking() {
     }
 
     // Kiểm tra số dư ví nếu chọn thanh toán bằng ví
-    if (paymentMethod === "wallet" && walletBalance < totalPrice) {
+    if (paymentMethod === "wallet" && walletBalance < finalPrice) {
       setError("Số dư ví không đủ. Vui lòng nạp thêm tiền hoặc chọn phương thức thanh toán khác.");
       return;
     }
@@ -170,7 +170,7 @@ export default function Booking() {
         if (paymentMethod === "wallet") {
           try {
             const paymentResponse = await pay({
-              amount: totalPrice,
+              amount: finalPrice,
               description: `Thanh toán đặt vé ${savedBooking.bookingCode}`,
               bookingId: savedBooking._id
             });
@@ -212,6 +212,33 @@ export default function Booking() {
   // Default price per seat (can be configured)
   const pricePerSeat = 75000;
   const totalPrice = selectedSeats.length * pricePerSeat;
+
+  // Movie ticket tax
+  const [ticketTax, setTicketTax] = useState(0);
+  const [ticketTaxRate, setTicketTaxRate] = useState(0);
+
+  useEffect(() => {
+    const fetchTicketTax = async () => {
+      try {
+        const tax = await getActiveMovieTicketTax();
+        if (tax && tax.taxRate) {
+          setTicketTaxRate(tax.taxRate);
+        } else {
+          setTicketTaxRate(8);
+        }
+      } catch (error) {
+        setTicketTaxRate(8);
+      }
+    };
+    fetchTicketTax();
+  }, []);
+
+  const taxAmount = useMemo(() => {
+    if (!selectedSeats.length || !ticketTaxRate) return 0;
+    return totalPrice * (ticketTaxRate / 100);
+  }, [selectedSeats.length, totalPrice, ticketTaxRate]);
+
+  const finalPrice = totalPrice + taxAmount;
 
   if (loading) return <div className="loading">Đang tải...</div>;
 
@@ -335,8 +362,12 @@ export default function Booking() {
         <div className="summary" style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #ddd' }}>
           <div className="price-info">
             <span>Số ghế: {selectedSeats.length}</span>
+            <span>Giá vé: {totalPrice.toLocaleString("vi-VN")}đ</span>
+            {ticketTaxRate > 0 && (
+              <span>Thuế ({ticketTaxRate}%): {taxAmount.toLocaleString("vi-VN")}đ</span>
+            )}
             <span className="total-price" style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#4CAF50' }}>
-              Tổng tiền: {totalPrice.toLocaleString("vi-VN")}đ
+              Tổng tiền: {finalPrice.toLocaleString("vi-VN")}đ
             </span>
           </div>
           
@@ -355,11 +386,11 @@ export default function Booking() {
                     style={{ marginRight: '10px' }}
                   />
                   <span style={{ fontWeight: 'bold' }}>Thanh toán bằng ví</span>
-                  <span style={{ marginLeft: '10px', color: walletBalance >= totalPrice ? '#4CAF50' : '#f44336' }}>
+                  <span style={{ marginLeft: '10px', color: walletBalance >= finalPrice ? '#4CAF50' : '#f44336' }}>
                     (Số dư: {walletBalance.toLocaleString("vi-VN")}đ)
                   </span>
                 </label>
-                {paymentMethod === "wallet" && walletBalance < totalPrice && (
+                {paymentMethod === "wallet" && walletBalance < finalPrice && (
                   <div style={{ color: '#f44336', fontSize: '0.9em', marginLeft: '24px', marginTop: '5px' }}>
                     Số dư không đủ. Vui lòng nạp thêm tiền.
                   </div>
@@ -385,16 +416,12 @@ export default function Booking() {
           <button 
             type="submit"
             className="btn" 
-            disabled={selectedSeats.length === 0 || submitting || (paymentMethod === "wallet" && walletBalance < totalPrice)}
-            style={{ 
-              marginTop: '15px',
-              padding: '15px 30px',
-              fontSize: '1.1em',
-              backgroundColor: selectedSeats.length === 0 || (paymentMethod === "wallet" && walletBalance < totalPrice) ? '#ccc' : '#4CAF50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: selectedSeats.length === 0 || (paymentMethod === "wallet" && walletBalance < totalPrice) ? 'not-allowed' : 'pointer'
+            disabled={selectedSeats.length === 0 || submitting || (paymentMethod === "wallet" && walletBalance < finalPrice)}
+            style={{
+              width: '100%',
+              padding: '15px',
+              backgroundColor: selectedSeats.length === 0 || (paymentMethod === "wallet" && walletBalance < finalPrice) ? '#ccc' : '#4CAF50',
+              cursor: selectedSeats.length === 0 || (paymentMethod === "wallet" && walletBalance < finalPrice) ? 'not-allowed' : 'pointer'
             }}
           >
             {submitting ? "Đang xử lý..." : "Xác nhận đặt vé"}

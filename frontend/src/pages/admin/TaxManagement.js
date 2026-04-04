@@ -86,7 +86,7 @@ function TaxManagement() {
     try {
       let applyToValue;
       if (formData.categoryName === "Movie Ticket") {
-        applyToValue = formData.applyTo || null;
+        applyToValue = [];
       } else {
         applyToValue = formData.applyTo ? formData.applyTo.split(",").filter(Boolean) : [];
       }
@@ -130,7 +130,7 @@ function TaxManagement() {
       }
       let applyToValue;
       if (formData.categoryName === "Movie Ticket") {
-        applyToValue = formData.applyTo || null;
+        applyToValue = [];
       } else {
         applyToValue = formData.applyTo ? formData.applyTo.split(",").filter(Boolean) : [];
       }
@@ -160,7 +160,7 @@ function TaxManagement() {
     
     let applyToValue = "";
     if (tax.categoryName === "Movie Ticket") {
-      applyToValue = tax.applyTo ? tax.applyTo.split("T")[0] : "";
+      applyToValue = "";
     } else {
       applyToValue = Array.isArray(tax.applyTo) ? tax.applyTo.join(",") : "";
     }
@@ -224,9 +224,12 @@ function TaxManagement() {
   };
 
   const formatApplyTo = (tax) => {
-    if (!tax.applyTo) return "Vô thời hạn";
+    if (!tax.applyTo) return "Tất cả";
     if (tax.categoryName === "Movie Ticket") {
-      return new Date(tax.applyTo).toLocaleDateString("vi-VN");
+      if (Array.isArray(tax.applyTo)) {
+        return `${tax.applyTo.length} booking(s)`;
+      }
+      return tax.applyTo;
     } else {
       if (Array.isArray(tax.applyTo)) {
         return tax.applyTo.map(id => {
@@ -359,14 +362,8 @@ function TaxManagement() {
               
               {formData.categoryName === "Movie Ticket" ? (
                 <div className="form-group">
-                  <label>Ngày kết thúc:</label>
-                  <input
-                    type="date"
-                    name="applyTo"
-                    value={formData.applyTo}
-                    onChange={handleInputChange}
-                  />
-                  <small style={{ color: "#666" }}>Để trống nếu áp dụng vô thời hạn</small>
+                  <label>Áp dụng cho:</label>
+                  <small style={{ color: "#666" }}>Tự động thêm _id của booking khi có đơn hàng mới</small>
                 </div>
               ) : (
                 <div className="form-group">

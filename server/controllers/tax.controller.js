@@ -28,6 +28,44 @@ const getCombos = async (req, res) => {
   }
 };
 
+const getActiveFoodBeverageTax = async (req, res) => {
+  try {
+    const taxes = await Tax.find({ categoryName: "Food & Beverage", isActive: true });
+    const now = new Date();
+    
+    const validTax = taxes.find((t) => {
+      const applyFrom = new Date(t.applyFrom);
+      return now >= applyFrom;
+    });
+    
+    if (validTax) {
+      return res.status(200).json(validTax);
+    }
+    return res.status(200).json(null);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+const getActiveMovieTicketTax = async (req, res) => {
+  try {
+    const taxes = await Tax.find({ categoryName: "Movie Ticket", isActive: true });
+    const now = new Date();
+    
+    const validTax = taxes.find((t) => {
+      const applyFrom = new Date(t.applyFrom);
+      return now >= applyFrom;
+    });
+    
+    if (validTax) {
+      return res.status(200).json(validTax);
+    }
+    return res.status(200).json(null);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 const getTaxById = async (req, res) => {
   try {
     const tax = await Tax.findById(req.params.id);
@@ -176,6 +214,8 @@ const checkOverlap = async (req, res) => {
 module.exports = {
   getAllTaxs,
   getCombos,
+  getActiveFoodBeverageTax,
+  getActiveMovieTicketTax,
   getTaxById,
   createTax,
   updateTax,
