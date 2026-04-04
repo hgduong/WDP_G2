@@ -39,6 +39,7 @@ import AttendanceTracking from "../pages/admin/AttendanceTracking";
 import ActorsManagement from "../pages/admin/ActorsManagement";
 import DirectorsManagement from "../pages/admin/DirectorsManagement";
 import TaxManagement from "../pages/admin/TaxManagement";
+import TaxConfigPage from "../pages/admin/TaxConfigPage";
 
 export const routesConfig = [
   {
@@ -202,6 +203,11 @@ export const routesConfig = [
   {
     path: "/admin/taxs/fix",
     element: <TaxManagement />,
+    allowedRoles: ["Admin"],
+  },
+  {
+    path: "/admin/taxs/set",
+    element: <TaxConfigPage />,
     allowedRoles: ["Admin"],
   },
   

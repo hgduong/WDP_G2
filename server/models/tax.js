@@ -13,14 +13,18 @@ const FOOD_BEVERAGE_COMBOS = [
 
 const taxSchema = new mongoose.Schema(
   {
+    taxType: {
+      type: String,
+      enum: ["category", "room_type", "showtime_rule"],
+      default: "category",
+    },
     categoryName: {
       type: String,
-      required: true,
-      enum: ["Movie Ticket", "Food & Beverage"],
+      enum: ["Movie Ticket", "Food & Beverage", null],
     },
     taxRate: {
       type: Number,
-      required: true,
+      default: 0,
       min: 0,
       max: 100,
     },
@@ -44,14 +48,67 @@ const taxSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    cinemaId: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    roomType: {
+      type: String,
+      enum: ["Standard", "VIP", "IMAX", "Double", null],
+      default: null,
+    },
+    roomTypePriority: {
+      type: Number,
+      default: 1,
+      min: 1,
+      max: 10,
+    },
+    showtimeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Showtime",
+      default: null,
+    },
+    daysOfWeek: {
+      type: [String],
+      enum: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+      default: [],
+    },
+    timeStart: {
+      type: String,
+      default: null,
+    },
+    timeEnd: {
+      type: String,
+      default: null,
+    },
+    adjustmentType: {
+      type: String,
+      enum: ["add", "replace", null],
+      default: null,
+    },
+    additionalRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    priority: {
+      type: Number,
+      default: 1,
+      min: 1,
+      max: 10,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-taxSchema.index({ categoryName: 1, applyFrom: 1 });
+taxSchema.index({ categoryName: 1, applyFrom: 1, taxType: 1 });
 taxSchema.index({ isActive: 1 });
+taxSchema.index({ cinemaId: 1, roomType: 1, categoryName: 1, taxType: 1 });
+taxSchema.index({ cinemaId: 1, showtimeId: 1, categoryName: 1, taxType: 1 });
+taxSchema.index({ priority: -1 });
 
 taxSchema.statics.FOOD_BEVERAGE_COMBOS = FOOD_BEVERAGE_COMBOS;
 

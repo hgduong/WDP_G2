@@ -6,6 +6,7 @@ router.get("/", taxController.getAllTaxs);
 router.get("/combos", taxController.getCombos);
 router.get("/active/food-beverage", taxController.getActiveFoodBeverageTax);
 router.get("/active/movie-ticket", taxController.getActiveMovieTicketTax);
+router.get("/calculate", taxController.calculateTax);
 router.get("/:id", taxController.getTaxById);
 router.post("/", taxController.createTax);
 router.put("/:id", taxController.updateTax);
