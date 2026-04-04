@@ -1620,6 +1620,18 @@
   gap: 8px;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-start;
+  padding-right: 30px;
+  padding-bottom: 12px;
+}
+
+.btn-history {
+  padding: 5px 10px;
+  font-size: 10px;
+  border-radius: 12px;
+  min-height: 28px;
+  line-height: 1.1;
+  width: 130px;
 }
 
 .stats-summary {

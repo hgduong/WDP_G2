@@ -8,6 +8,7 @@ const AdminLayout = ({ children }) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedItems, setExpandedItems] = useState({});
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { logout, role } = useContext(UserContext);
 
   const allMenuItems = [
@@ -144,7 +145,10 @@ const AdminLayout = ({ children }) => {
             <span className="nav-icon"></span>
             {sidebarOpen && <span className="nav-label">Về trang chủ</span>}
           </a>
-          <button className="logout-btn" onClick={handleLogout}>
+          <button
+            className="logout-btn"
+            onClick={() => setShowLogoutConfirm(true)}
+          >
             <span className="nav-icon"></span>
             {sidebarOpen && <span className="nav-label">Đăng xuất</span>}
           </button>
@@ -161,6 +165,47 @@ const AdminLayout = ({ children }) => {
 
         <main className="admin-content">{children}</main>
       </div>
+
+      {showLogoutConfirm && (
+        <div
+          className="admin-modal-overlay"
+          onClick={() => setShowLogoutConfirm(false)}
+        >
+          <div
+            className="admin-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="admin-modal-header">
+              <h3>Xác nhận đăng xuất</h3>
+              <button
+                className="admin-modal-close"
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="admin-modal-body">
+              Bạn muốn đăng xuất?
+            </div>
+            <div className="admin-modal-actions">
+              <button
+                className="btn btn-secondary"
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                Hủy
+              </button>
+              <button
+                className="btn btn-danger"
+                type="button"
+                onClick={handleLogout}
+              >
+                Đăng xuất
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

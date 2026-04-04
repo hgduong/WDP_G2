@@ -6,6 +6,7 @@ import {
   deleteDirector,
 } from "../../services/directorsApi";
 import { getAllMovies } from "../../services/moviesApi";
+import { getAllCountries } from "../../services/countriesApi";
 import { toast } from "react-toastify";
 import "./AdminManagement.css";
 
@@ -20,6 +21,7 @@ const DirectorsManagement = () => {
   };
   const [directors, setDirectors] = useState([]);
   const [movies, setMovies] = useState([]);
+  const [countries, setCountries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedMovieFilter, setSelectedMovieFilter] = useState("");
@@ -40,6 +42,7 @@ const DirectorsManagement = () => {
   useEffect(() => {
     fetchDirectors();
     fetchMovies();
+    fetchCountries();
   }, []);
 
   const fetchDirectors = async () => {
@@ -60,6 +63,15 @@ const DirectorsManagement = () => {
     try {
       const data = await getAllMovies();
       setMovies(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchCountries = async () => {
+    try {
+      const data = await getAllCountries();
+      setCountries(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
     }
@@ -327,12 +339,26 @@ const DirectorsManagement = () => {
 
               <div className="form-group">
                 <label>Quốc tịch</label>
-                <input
-                  type="text"
+                <select
                   name="nationality"
                   value={formData.nationality}
                   onChange={handleInputChange}
-                />
+                >
+                  <option value="">Chọn quốc gia</option>
+                  {formData.nationality &&
+                    !countries.some(
+                      (country) => country.name === formData.nationality
+                    ) && (
+                      <option value={formData.nationality}>
+                        {formData.nationality}
+                      </option>
+                  )}
+                  {countries.map((country) => (
+                    <option key={country.code || country.name} value={country.name}>
+                      {country.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="form-group">
