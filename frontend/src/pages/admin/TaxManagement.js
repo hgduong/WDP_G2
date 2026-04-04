@@ -21,12 +21,14 @@ function TaxManagement() {
   const [editingTax, setEditingTax] = useState(null);
   const [showWarning, setShowWarning] = useState(false);
   const [overlappingTax, setOverlappingTax] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("all");
   const [formData, setFormData] = useState({
     categoryName: "Movie Ticket",
     taxRate: 8,
     description: "",
     applyFrom: "",
     applyTo: "",
+    isActive: true,
   });
 
   useEffect(() => {
@@ -44,6 +46,13 @@ function TaxManagement() {
       setLoading(false);
     }
   };
+
+  const filteredTaxs = taxs.filter((tax) => {
+    if (statusFilter === "all") return true;
+    if (statusFilter === "active") return tax.isActive === true;
+    if (statusFilter === "inactive") return tax.isActive === false;
+    return true;
+  });
 
   const handleCategoryChange = (e) => {
     const categoryName = e.target.value;
@@ -84,11 +93,58 @@ function TaxManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Validate: applyFrom must be today or future, not past (only for new tax)
+      if (!editingTax && formData.applyFrom) {
+        const selectedDate = new Date(formData.applyFrom);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (selectedDate < today) {
+          toast.error("Ngày bắt đầu không thể là ngày trong quá khứ. Vui lòng chọn ngày hôm nay hoặc ngày trong tương lai.");
+          return;
+        }
+      }
+
+      // Business rule: Check for same category with different rate that is active
       let applyToValue;
       if (formData.categoryName === "Movie Ticket") {
         applyToValue = [];
       } else {
         applyToValue = formData.applyTo ? formData.applyTo.split(",").filter(Boolean) : [];
+      }
+
+      // For Food & Beverage, check if any selected combo already has active tax with different rate
+      if (formData.categoryName === "Food & Beverage" && applyToValue.length > 0 && formData.isActive) {
+        for (const comboId of applyToValue) {
+          const existingTaxForCombo = taxs.find(
+            (t) => t._id !== editingTax?._id &&
+                  t.categoryName === "Food & Beverage" &&
+                  t.isActive === true &&
+                  t.applyTo &&
+                  Array.isArray(t.applyTo) &&
+                  t.applyTo.includes(comboId) &&
+                  t.taxRate !== formData.taxRate
+          );
+          if (existingTaxForCombo) {
+            const comboName = FOOD_BEVERAGE_COMBOS.find(c => c.id === comboId)?.name || comboId;
+            toast.error(`Combo "${comboName}" đã có thuế suất ${existingTaxForCombo.taxRate}% đang hoạt động. Không thể đặt thuế suất ${formData.taxRate}% khác cho cùng combo. Vui lòng vô hiệu hóa thuế cũ trước.`);
+            return;
+          }
+        }
+      }
+
+      // For Movie Ticket, check if same category has different rate
+      if (formData.categoryName === "Movie Ticket" && formData.isActive) {
+        const sameCategoryActive = taxs.find(
+          (t) => t._id !== editingTax?._id &&
+                 t.categoryName === formData.categoryName && 
+                 t.taxRate !== formData.taxRate && 
+                 t.isActive === true
+        );
+        
+        if (sameCategoryActive) {
+          toast.error(`Không thể tạo thuế suất ${formData.taxRate}% cho danh mục "Vé xem phim" khi đã có thuế suất ${sameCategoryActive.taxRate}% đang hoạt động. Vui lòng vô hiệu hóa thuế cũ trước.`);
+          return;
+        }
       }
 
       const taxData = {
@@ -119,7 +175,9 @@ function TaxManagement() {
       resetForm();
       fetchTaxs();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Lỗi khi lưu thuế");
+      console.error("Tax save error:", error);
+      const errorMessage = error?.response?.data?.message || error?.message || "Lỗi khi lưu thuế";
+      toast.error(errorMessage);
     }
   };
 
@@ -152,10 +210,6 @@ function TaxManagement() {
   };
 
   const handleEdit = (tax) => {
-    if (!tax.isActive) {
-      toast.warning("Không thể sửa thuế đang bị vô hiệu");
-      return;
-    }
     setEditingTax(tax);
     
     let applyToValue = "";
@@ -171,6 +225,7 @@ function TaxManagement() {
       description: tax.description || "",
       applyFrom: tax.applyFrom ? tax.applyFrom.split("T")[0] : "",
       applyTo: applyToValue,
+      isActive: tax.isActive,
     });
     setShowModal(true);
   };
@@ -200,13 +255,15 @@ function TaxManagement() {
   };
 
   const resetForm = () => {
+    const today = new Date().toISOString().split("T")[0];
     setEditingTax(null);
     setFormData({
       categoryName: "Movie Ticket",
       taxRate: 8,
       description: "",
-      applyFrom: "",
+      applyFrom: today,
       applyTo: "",
+      isActive: true,
     });
   };
 
@@ -252,15 +309,26 @@ function TaxManagement() {
     <div className="admin-management">
       <div className="management-header">
         <h2>Quản lý Thuế</h2>
-        <button
-          className="btn-primary"
-          onClick={() => {
-            resetForm();
-            setShowModal(true);
-          }}
-        >
-          + Thêm mới
-        </button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ padding: "8px", borderRadius: "4px", border: "1px solid #ddd" }}
+          >
+            <option value="all">Tất cả</option>
+            <option value="active">Hoạt động</option>
+            <option value="inactive">Tạm dừng</option>
+          </select>
+          <button
+            className="btn-primary"
+            onClick={() => {
+              resetForm();
+              setShowModal(true);
+            }}
+          >
+            + Thêm mới
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -281,7 +349,7 @@ function TaxManagement() {
             </tr>
           </thead>
           <tbody>
-            {taxs.map((tax, index) => (
+            {filteredTaxs.map((tax, index) => (
               <tr key={tax._id}>
                 <td>{index + 1}</td>
                 <td>
@@ -356,8 +424,21 @@ function TaxManagement() {
                   name="applyFrom"
                   value={formData.applyFrom}
                   onChange={handleInputChange}
+                  {...(!editingTax ? { min: new Date().toISOString().split("T")[0] } : {})}
                   required
                 />
+              </div>
+              
+              <div className="form-group">
+                <label>Trạng thái:</label>
+                <select
+                  name="isActive"
+                  value={formData.isActive}
+                  onChange={(e) => setFormData({ ...formData, isActive: e.target.value === "true" })}
+                >
+                  <option value="true">Hoạt động</option>
+                  <option value="false">Tạm dừng</option>
+                </select>
               </div>
               
               {formData.categoryName === "Movie Ticket" ? (
