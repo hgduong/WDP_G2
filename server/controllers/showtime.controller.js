@@ -157,14 +157,19 @@ exports.getShowtimesByCinema = async (req, res) => {
   }
 };
 
-// Thêm lịch chiếu mới
+// Thêm lịch chiếu mới (hỗ trợ 1 hoặc nhiều suất chiếu)
 exports.addShowtime = async (req, res) => {
   try {
-    const { movieId, roomId, startTime, duration, language, status } = req.body;
+    const { movieId, roomId, startTime, startTimes, duration, language, status } = req.body;
     
-    // Validate startTime is provided
-    if (!startTime) {
-      return res.status(400).json({ message: "Thời gian chiếu là bắt buộc" });
+    // Validate movieId
+    if (!movieId) {
+      return res.status(400).json({ message: "movieId là bắt buộc" });
+    }
+    
+    // Validate roomId
+    if (!roomId) {
+      return res.status(400).json({ message: "roomId là bắt buộc" });
     }
     
     // Kiểm tra phim tồn tại
@@ -185,24 +190,55 @@ exports.addShowtime = async (req, res) => {
       return res.status(400).json({ message: "Thời lượng phim không hợp lệ" });
     }
     
-    // Tạo lịch chiếu
-    const showtime = new Showtime({
-      movieId,
-      roomId,
-      startTime,
-      duration: finalDuration,
-      language: language || 'Tiếng Việt',
-      status: status || 'Scheduled'
-    });
+    // Xác định mảng thời gian chiếu
+    let timeList = [];
+    if (Array.isArray(startTimes) && startTimes.length > 0) {
+      timeList = startTimes;
+    } else if (startTime) {
+      timeList = [startTime];
+    } else {
+      return res.status(400).json({ message: "startTime hoặc startTimes là bắt buộc" });
+    }
     
-    await showtime.save();
+    // Validate all startTimes
+    for (const time of timeList) {
+      if (!time) {
+        return res.status(400).json({ message: "Thời gian chiếu là bắt buộc" });
+      }
+    }
+    
+    // Tạo nhiều lịch chiếu
+    const createdShowtimes = [];
+    const showtimeIds = [];
+    
+    for (const time of timeList) {
+      const showtime = new Showtime({
+        movieId,
+        roomId,
+        startTime: time,
+        duration: finalDuration,
+        language: language || 'Tiếng Việt',
+        status: status || 'Scheduled'
+      });
+      
+      await showtime.save();
+      createdShowtimes.push(showtime);
+      showtimeIds.push(showtime._id);
+    }
     
     // Cập nhật mảng showtimes trong Movie
     await Movie.findByIdAndUpdate(movieId, {
-      $push: { showtimes: showtime._id }
+      $push: { showtimes: { $each: showtimeIds } }
     });
     
-    const populatedShowtime = await Showtime.findById(showtime._id)
+    // Tự động cập nhật status phim thành NowShowing nếu chưa phải
+    await Movie.findByIdAndUpdate(movieId, {
+      status: 'NowShowing',
+      updatedAt: new Date()
+    });
+    
+    // Populate và trả về danh sách suất chiếu đã tạo
+    const populatedShowtimes = await Showtime.find({ _id: { $in: showtimeIds } })
       .populate("movieId", "title posterUrl duration")
       .populate("roomId", "name capacity seatmapId type cinemaId")
       .populate({
@@ -210,7 +246,7 @@ exports.addShowtime = async (req, res) => {
         populate: { path: "cinemaId", select: "name address city" }
       });
     
-    res.status(201).json(populatedShowtime);
+    res.status(201).json(populatedShowtimes);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }

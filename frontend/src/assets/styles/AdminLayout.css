@@ -54,7 +54,31 @@
 .sidebar-nav {
   flex: 1;
   padding: 20px 10px;
+  overflow-y: auto;
+  min-height: 0;
  
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: #141424;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: #3b3b4f;
+  border-radius: 8px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: #4a4a63;
+}
+
+.sidebar-nav {
+  scrollbar-color: #3b3b4f #141424;
+  scrollbar-width: thin;
 }
 
 .nav-item {
@@ -116,6 +140,8 @@
 .sidebar-footer {
   padding: 20px 10px;
   border-top: 1px solid #16213e;
+  margin-top: auto;
+  background-color: #1a1a2e;
 }
 
 .logout-btn {
@@ -124,18 +150,18 @@
   padding: 12px 15px;
   margin-top: 10px;
   border-radius: 8px;
-  color: #ff6b6b;
+  color: #fff;
   cursor: pointer;
   transition: all 0.3s;
   border: none;
-  background: none;
+  background: #e50914;
   width: 100%;
   text-align: left;
   font-size: 14px;
 }
 
 .logout-btn:hover {
-  background-color: #16213e;
+  background-color: #b2070f;
 }
 
 /* Main Content */
@@ -143,6 +169,8 @@
   flex: 1;
   margin-left: 260px;
   transition: margin-left 0.3s;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .admin-sidebar.closed + .admin-main {
@@ -172,6 +200,71 @@
 
 .admin-content {
   padding: 30px;
+}
+
+/* Logout Confirm Modal */
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.admin-modal {
+  width: 92%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.admin-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+  background: #f8f9fa;
+}
+
+.admin-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.admin-modal-close {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  cursor: pointer;
+  color: #666;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.admin-modal-close:hover {
+  background: #e9ecef;
+  color: #333;
+}
+
+.admin-modal-body {
+  padding: 20px;
+  font-size: 14px;
+  color: #333;
+}
+
+.admin-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 0 20px 20px;
 }
 
 /* Responsive */

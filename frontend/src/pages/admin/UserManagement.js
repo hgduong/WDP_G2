@@ -266,7 +266,7 @@ const UserManagement = () => {
                   <td>
                     <div className="action-buttons">
                       <button
-                        className="btn btn-primary btn-sm"
+                        className="btn btn-primary btn-sm btn-history"
                         onClick={() => handleViewBookings(user)}
                         title="Xem lịch sử đặt vé"
                       >
@@ -383,5 +383,4 @@ const UserManagement = () => {
 };
 
 export default UserManagement;
-
 
