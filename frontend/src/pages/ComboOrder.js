@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import "./ComboOrder.css";
+import { getActiveFoodBeverageTax } from "../services/taxsApi";
 
 const COMBOS = [
   {
@@ -78,6 +79,25 @@ const ComboOrder = () => {
       return acc;
     }, {})
   );
+  const [taxRate, setTaxRate] = useState(0);
+  const [taxInfo, setTaxInfo] = useState(null);
+
+  useEffect(() => {
+    const fetchTax = async () => {
+      try {
+        const tax = await getActiveFoodBeverageTax();
+        if (tax) {
+          setTaxRate(tax.taxRate);
+          setTaxInfo(tax);
+        } else {
+          setTaxRate(10);
+        }
+      } catch (error) {
+        setTaxRate(10);
+      }
+    };
+    fetchTax();
+  }, []);
 
   const total = useMemo(() => {
     return COMBOS.reduce(
@@ -85,6 +105,43 @@ const ComboOrder = () => {
       0
     );
   }, [quantities]);
+
+  const selectedCombos = useMemo(() => {
+    return COMBOS.filter((combo) => quantities[combo.id] > 0).map(
+      (combo) => combo.id
+    );
+  }, [quantities]);
+
+  const taxAmount = useMemo(() => {
+    if (!selectedCombos.length || !taxRate) return 0;
+    
+    const selectedComboIds = selectedCombos.sort();
+    const taxApplyTo = taxInfo?.applyTo;
+
+    if (!taxApplyTo || !Array.isArray(taxApplyTo)) {
+      return total * (taxRate / 100);
+    }
+
+    const hasSameCombo = selectedComboIds.every((id) =>
+      taxApplyTo.includes(id)
+    );
+
+    if (hasSameCombo) {
+      return total * (taxRate / 100);
+    }
+
+    let tax = 0;
+    for (const combo of COMBOS) {
+      const qty = quantities[combo.id] || 0;
+      if (qty > 0) {
+        const comboPrice = combo.price * qty;
+        if (taxApplyTo.includes(combo.id)) {
+          tax += comboPrice * (taxRate / 100);
+        }
+      }
+    }
+    return tax;
+  }, [quantities, taxRate, taxInfo, total, selectedCombos]);
 
   const updateQuantity = (id, nextValue) => {
     setQuantities((prev) => ({
@@ -144,6 +201,14 @@ const ComboOrder = () => {
       <div className="combo-summary">
         <div>
           <strong>Tổng combo:</strong> {formatVnd(total)}
+        </div>
+        {taxAmount > 0 && (
+          <div>
+            <strong>Thuế ({taxRate}%):</strong> {formatVnd(taxAmount)}
+          </div>
+        )}
+        <div>
+          <strong>Tổng cộng:</strong> {formatVnd(total + taxAmount)}
         </div>
         <button type="button">Tiếp tục</button>
       </div>
