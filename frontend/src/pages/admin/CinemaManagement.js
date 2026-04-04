@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   getCinemaById,
   updateCinema,
   getRoomsByCinema,
-  getShowtimesByCinema,
   getAllMovies,
   createRoom,
   updateRoom,
@@ -51,6 +50,7 @@ const CinemaManagement = () => {
   const [cinemaRooms, setCinemaRooms] = useState([]);
   const [movies, setMovies] = useState([]);
 
+  // Form data states
   const [cinemaFormData, setCinemaFormData] = useState({
     name: "",
     address: "",
@@ -73,9 +73,12 @@ const CinemaManagement = () => {
     status: "Active",
   });
 
+  // Time slots modal state
   const [showTimeSlotsModal, setShowTimeSlotsModal] = useState(false);
   const [editingTimeSlotsRoom, setEditingTimeSlotsRoom] = useState(null);
   const [timeSlotsInput, setTimeSlotsInput] = useState("");
+
+  // Delete confirmation state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingRoomId, setDeletingRoomId] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -102,27 +105,17 @@ const CinemaManagement = () => {
   const [selectedSeat, setSelectedSeat] = useState(null);
   const [originalSeats, setOriginalSeats] = useState([]);
 
-  useEffect(() => {
-    fetchTimeCinemas();
-    fetchMovies();
-  }, []);
-
-  const fetchMovies = async () => {
+  // Memoized API calls
+  const fetchMovies = useCallback(async () => {
     try {
       const data = await getAllMovies();
       setMovies(data);
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching movies:", err);
     }
-  };
+  }, []);
 
-  useEffect(() => {
-    if (selectedCinema) {
-      fetchRooms(selectedCinema._id);
-    }
-  }, [selectedCinema]);
-
-  const fetchTimeCinemas = async () => {
+  const fetchTimeCinemas = useCallback(async () => {
     try {
       setLoading(true);
       const cinema = await getCinemaById(TIME_CINEMAS_ID);
@@ -130,30 +123,38 @@ const CinemaManagement = () => {
       setError("");
     } catch (err) {
       setError("Failed to load cinema");
-      console.error(err);
+      console.error("Error fetching cinema:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchRooms = async (cinemaId) => {
+  const fetchRooms = useCallback(async (cinemaId) => {
     try {
-      const [roomsData, showtimesData] = await Promise.all([
-        getRoomsByCinema(cinemaId),
-        getShowtimesByCinema(cinemaId),
-      ]);
+      const roomsData = await getRoomsByCinema(cinemaId);
       setCinemaRooms(roomsData);
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching rooms:", err);
     }
-  };
+  }, []);
 
-  // Lấy danh sách movieId đã được chọn bởi các phòng khác
-  const getAssignedMovieIds = (currentRoomId) => {
+  // Initial data fetch
+  useEffect(() => {
+    fetchTimeCinemas();
+    fetchMovies();
+  }, [fetchTimeCinemas, fetchMovies]);
+
+  // Fetch rooms when cinema changes
+  useEffect(() => {
+    if (selectedCinema?._id) {
+      fetchRooms(selectedCinema._id);
+    }
+  }, [selectedCinema, fetchRooms]);
+
+  // Memoized helpers
+  const getAssignedMovieIds = useCallback((currentRoomId) => {
     const assignedIds = [];
     cinemaRooms.forEach((room) => {
-      // Khi thêm mới (currentRoomId là null/undefined), lấy tất cả các phòng có movie
-      // Khi sửa, bỏ qua phòng hiện tại
       if (currentRoomId === null || currentRoomId === undefined) {
         if (room.movieId) {
           assignedIds.push(room.movieId);
@@ -163,34 +164,45 @@ const CinemaManagement = () => {
       }
     });
     return assignedIds;
-  };
+  }, [cinemaRooms]);
 
-  // Lọc movies để loại trừ phim đã được chọn bởi phòng khác
-  const getAvailableMovies = (currentRoomId) => {
+  const getAvailableMovies = useCallback((currentRoomId) => {
     const assignedIds = getAssignedMovieIds(currentRoomId);
     return movies.filter((movie) => !assignedIds.includes(movie._id));
-  };
+  }, [movies, getAssignedMovieIds]);
 
-  // Lấy phim đang chiếu trong phòng - từ movieId trong room
-  const getMovieForRoom = (room) => {
+  // Initial data fetch
+  useEffect(() => {
+    fetchTimeCinemas();
+    fetchMovies();
+  }, [fetchTimeCinemas, fetchMovies]);
+
+  // Fetch rooms when cinema changes
+  useEffect(() => {
+    if (selectedCinema?._id) {
+      fetchRooms(selectedCinema._id);
+    }
+  }, [selectedCinema, fetchRooms]);
+
+  const getMovieForRoom = useCallback((room) => {
     const movieId = room.movieId;
     if (!movieId) return null;
     if (typeof movieId === "object") return movieId;
     return movies.find((m) => m._id === movieId) || null;
-  };
+  }, [movies]);
 
-  const handleCinemaInputChange = (e) => {
+  const handleCinemaInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setCinemaFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  }, []);
 
-  const handleRoomInputChange = (e) => {
+  const handleRoomInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setRoomFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  }, []);
 
   // Validate endDate must be after startTime
-  const validateEndDate = (movieId, startTime) => {
+  const validateEndDate = useCallback((movieId, startTime) => {
     if (!movieId || !startTime) return { valid: true, message: "" };
 
     const selectedMovie = movies.find((m) => m._id === movieId);
@@ -203,7 +215,6 @@ const CinemaManagement = () => {
       : null;
     const movieEndDate = new Date(selectedMovie.endDate);
 
-    // Get just the date parts (year, month, day) for comparison
     const startDateOnly = new Date(
       startDate.getFullYear(),
       startDate.getMonth(),
@@ -215,7 +226,6 @@ const CinemaManagement = () => {
       movieEndDate.getDate(),
     );
 
-    // Validate: showtime cannot be BEFORE the movie's releaseDate
     if (movieReleaseDate) {
       const releaseDateOnly = new Date(
         movieReleaseDate.getFullYear(),
@@ -232,7 +242,6 @@ const CinemaManagement = () => {
       }
     }
 
-    // Validate: showtime cannot be AFTER the movie's endDate
     if (startDateOnly > endDateOnly) {
       const endDateStr = formatDate(selectedMovie.endDate);
       const startDateStr = formatDate(startTime);
@@ -242,7 +251,7 @@ const CinemaManagement = () => {
       };
     }
     return { valid: true, message: "" };
-  };
+  }, [movies]);
 
   const handleSaveTimeSlots = async () => {
     try {
@@ -327,8 +336,11 @@ const CinemaManagement = () => {
         toast.success("Thêm phòng chiếu mới thành công!");
       }
 
-      // Refresh rooms to show updated data
-      await fetchRooms(roomFormData.cinemaId);
+      // Refresh rooms and movies to show updated data
+      await Promise.all([
+        fetchRooms(roomFormData.cinemaId),
+        fetchMovies()
+      ]);
       closeRoomModal();
     } catch (err) {
       const errorMsg =
