@@ -8,7 +8,7 @@ import {
 } from "../services/api";
 import { generateQRCodeUrl } from "../utils/orderUtils";
 
-const DEFAULT_PRICE = 60000;
+const DEFAULT_PRICE = 75000;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const formatSeatLabel = (seat, allSeats = []) => {
@@ -215,7 +215,7 @@ export default function SeatSelectionModal({
     if (!qrResult?.booking?._id) return;
     try {
       const booking = await getBookingById(qrResult.booking._id);
-      
+
       // If payment is Paid, Expired, or Cancelled, we should stop showing the overlay
       if (booking.paymentStatus === "Paid") {
         setQrResult(null);
@@ -235,11 +235,11 @@ export default function SeatSelectionModal({
   // Fallback Polling if socket fails
   useEffect(() => {
     if (!qrResult?._id && !qrResult?.booking?._id) return undefined;
-    
+
     const interval = setInterval(() => {
       checkPaymentStatus();
     }, 5000); // Check every 5 seconds
-    
+
     return () => clearInterval(interval);
   }, [qrResult, checkPaymentStatus]);
 
