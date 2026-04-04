@@ -5,6 +5,7 @@ const Room = require("../models/room");
 const Seat = require("../models/seat");
 const SeatStatus = require("../models/seatStatus");
 const Ticket = require("../models/ticket");
+const Tax = require("../models/tax");
 const bcrypt = require("bcrypt");
 const { sendMail } = require("../utils/mail");
 const mongoose = require("mongoose");
@@ -673,6 +674,12 @@ exports.createStaffBooking = async (req, res) => {
     let discountAmount = 0;
     let appliedVoucher = null;
 
+    // Get active movie ticket tax
+    const Tax = require("../models/tax");
+    const activeTax = await Tax.findOne({ categoryName: "Movie Ticket", isActive: true });
+    const taxRate = activeTax ? activeTax.taxRate : 8;
+    const taxAmount = (totalPrice * taxRate) / 100;
+
     if (voucherCode) {
       const voucher = await Voucher.findOne({ code: voucherCode });
       if (voucher) {
@@ -688,12 +695,13 @@ exports.createStaffBooking = async (req, res) => {
                 discountAmount = updatedVoucher.maxDiscount;
               }
               appliedVoucher = updatedVoucher._id;
-              totalPrice = Math.max(0, totalPrice - discountAmount);
             }
           }
         }
       }
     }
+
+    totalPrice = Math.max(0, totalPrice - discountAmount) + taxAmount;
 
     const cinemaId = showtime.roomId?.cinemaId?._id || showtime.roomId?.cinemaId;
 
@@ -719,6 +727,12 @@ exports.createStaffBooking = async (req, res) => {
         notes: notes?.trim() || "",
       },
     });
+
+    // Update Movie Ticket tax applyTo with booking ID
+    await Tax.updateOne(
+      { categoryName: "Movie Ticket", isActive: true },
+      { $addToSet: { applyTo: booking._id } }
+    );
 
     if (appliedVoucher) {
       await Voucher.findByIdAndUpdate(appliedVoucher, { $inc: { usedCount: 1 } });

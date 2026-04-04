@@ -234,6 +234,14 @@ const createPendingQrBooking = async ({ userId, showtimeId, seatIds, customerInf
 
     const basePrice = baseSeatPriceFromContext(showtime, room);
     const amount = calculateTotalPrice(holdState.selectedSeats, basePrice);
+    
+    // Get active movie ticket tax
+    const Tax = require("../models/tax");
+    const activeTax = await Tax.findOne({ categoryName: "Movie Ticket", isActive: true });
+    const taxRate = activeTax ? activeTax.taxRate : 8;
+    const taxAmount = (amount * taxRate) / 100;
+    const totalAmount = amount + taxAmount;
+    
     const bookingCode = generateBookingCode("BK");
     const orderCode = createOrderCode();
 
@@ -243,7 +251,8 @@ const createPendingQrBooking = async ({ userId, showtimeId, seatIds, customerInf
       cinemaId: cinema._id,
       roomId: room._id,
       seats: holdState.normalizedSeatIds,
-      totalPrice: amount,
+      totalPrice: totalAmount,
+      originalPrice: amount,
       bookingCode,
       status: "Pending",
       bookingSource: "Customer",
@@ -262,7 +271,7 @@ const createPendingQrBooking = async ({ userId, showtimeId, seatIds, customerInf
         bookingId: draftBooking._id,
         bookingCode,
         orderCode,
-        amount,
+        amount: totalAmount,
         customerInfo: draftBooking.customerInfo,
         expiresAt: holdState.expiresAt,
       }),
@@ -287,7 +296,7 @@ const createPendingQrBooking = async ({ userId, showtimeId, seatIds, customerInf
           {
             bookingId: draftBooking._id,
             userId,
-            amount,
+            amount: totalAmount,
             currency: payosResponse.currency || "VND",
             method: "PayOS",
             paymentLinkId: payosResponse.paymentLinkId || null,
@@ -498,6 +507,13 @@ const finalizePaidBooking = async ({ paymentId, providerPayment = null, webhookD
     booking.paymentStatus = "Paid";
     booking.updatedAt = new Date();
     await booking.save({ session });
+
+    // Update Movie Ticket tax applyTo with booking ID
+    const Tax = require("../models/tax");
+    await Tax.updateOne(
+      { categoryName: "Movie Ticket", isActive: true },
+      { $addToSet: { applyTo: booking._id } }
+    );
 
     payment.status = "Paid";
     payment.providerStatus = providerPayment?.status || payment.providerStatus || "PAID";

@@ -86,7 +86,6 @@ const ComboOrder = () => {
     const fetchTax = async () => {
       try {
         const tax = await getActiveFoodBeverageTax();
-        console.log("Tax from API:", tax);
         if (tax && tax.taxRate) {
           setTaxRate(tax.taxRate);
           setTaxInfo(tax);
@@ -95,7 +94,6 @@ const ComboOrder = () => {
           setTaxInfo(null);
         }
       } catch (error) {
-        console.error("Tax fetch error:", error);
         setTaxRate(0);
         setTaxInfo(null);
       }
@@ -117,7 +115,6 @@ const ComboOrder = () => {
   }, [quantities]);
 
   const taxAmount = useMemo(() => {
-    console.log("taxRate:", taxRate, "taxInfo:", taxInfo);
     if (!selectedCombos.length || !taxRate || taxRate === 0) return 0;
     
     const selectedComboIds = selectedCombos.sort();

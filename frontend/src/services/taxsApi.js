@@ -74,3 +74,19 @@ export const getActiveFoodBeverageTax = async () => {
     return null;
   }
 };
+
+export const getActiveMovieTicketTax = async () => {
+  try {
+    const response = await API.get("/api/taxs/active/movie-ticket", {
+      params: { t: Date.now() },
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
+    });
+    return response.data;
+  } catch (error) {
+    return null;
+  }
+};
