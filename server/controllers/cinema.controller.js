@@ -1,4 +1,5 @@
 // controllers/cinema.controller.js
+const mongoose = require('mongoose');
 const Cinema = require("../models/cinema");
 const Room = require("../models/room");
 const Seat = require("../models/seat");
@@ -117,47 +118,68 @@ exports.getRoomById = async (req, res) => {
 
 // Thêm phòng mới
 exports.addRoom = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    // Remove capacity from request body - it will be calculated from seats
-    const { capacity, ...roomData } = req.body;
+    const { capacity, name, cinemaId, movieId, ...roomData } = req.body;
+
+    if (!name) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Tên phòng là bắt buộc" });
+    }
+
+    if (!cinemaId) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "cinemaId là bắt buộc" });
+    }
+
+    // Handle movieId properly
+    if (movieId) {
+      roomData.movieId = movieId;
+    }
+
+    const existingRoom = await Room.findOne({ name: name.trim(), cinemaId }).session(session);
+
+    if (existingRoom) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Tên phòng đã tồn tại trong rạp này" });
+    }
+
+    const room = new Room({
+      name: name.trim(),
+      cinemaId,
+      ...roomData
+    });
+    await room.save({ session });
     
-    // Create room first (capacity will be calculated from seats)
-    const room = new Room(roomData);
-    await room.save();
-    
-    // Auto-generate seat layout with default capacity of 50
     const seats = buildSeatLayout(50);
     const seatIds = [];
     
-    // Create seats for this room
     for (const seatData of seats) {
-      // Check if seat with same row/number already exists in this room
-      let seat = await Seat.findOne({ roomId: room._id, row: seatData.row, number: seatData.number });
+      let seat = await Seat.findOne({ roomId: room._id, row: seatData.row, number: seatData.number }).session(session);
       
       if (!seat) {
-        // Create new seat for this room
-        seat = await Seat.create({
-          roomId: room._id,
-          ...seatData
-        });
+        seat = await Seat.create([{ roomId: room._id, ...seatData }], { session });
+        seat = seat[0];
       }
       
       seatIds.push(seat._id);
     }
     
-    // Update room with seats and auto-calculate capacity from seats array
     room.seats = seatIds;
     room.capacity = seatIds.length;
-    await room.save();
+    await room.save({ session });
     
-    // Cập nhật mảng rooms trong Cinema
-    await Cinema.findByIdAndUpdate(req.body.cinemaId, {
-      $push: { rooms: room._id }
-    });
+    await Cinema.findByIdAndUpdate(cinemaId, { $push: { rooms: room._id } }, { session });
     
+    await session.commitTransaction();
     res.status(201).json(room);
   } catch (error) {
+    await session.abortTransaction();
     res.status(400).json({ message: error.message });
+  } finally {
+    session.endSession();
   }
 };
 
@@ -165,46 +187,62 @@ exports.addRoom = async (req, res) => {
 exports.updateRoom = async (req, res) => {
   try {
     const existingRoom = await Room.findById(req.params.id);
-    
-    // Remove capacity from request body - it will be calculated from seats
-    const { capacity, ...roomData } = req.body;
-    
-    // Update room (capacity will be calculated from seats)
-    const room = await Room.findByIdAndUpdate(req.params.id, roomData, { new: true });
-    if (!room) {
+    if (!existingRoom) {
       return res.status(404).json({ message: "Phòng không tồn tại" });
     }
-    
-    // Always regenerate seat layout with default capacity of 50
-    // Delete old seats if exists
-    if (existingRoom?.seats && existingRoom.seats.length > 0) {
-      await Seat.deleteMany({ _id: { $in: existingRoom.seats } });
+
+    const { capacity, name, cinemaId, regenerateSeats, movieId, ...roomData } = req.body;
+
+    // Handle movieId properly - convert empty string to null
+    if (movieId) {
+      roomData.movieId = movieId;
+    } else {
+      roomData.movieId = null;
     }
-    
-    // Create new seat layout
-    const seats = buildSeatLayout(50);
-    const seatIds = [];
-    
-    // Create seats for this room
-    for (const seatData of seats) {
-      // Check if seat with same row/number already exists in this room
-      let seat = await Seat.findOne({ roomId: room._id, row: seatData.row, number: seatData.number });
-      
-      if (!seat) {
-        // Create new seat for this room
-        seat = await Seat.create({
-          roomId: room._id,
-          ...seatData
-        });
+
+    // Check duplicate room name if name is being updated
+    if (name && name !== existingRoom.name) {
+      const query = {
+        name: name.trim(),
+        cinemaId: cinemaId || existingRoom.cinemaId,
+        _id: { $ne: req.params.id }
+      };
+
+      const duplicateRoom = await Room.findOne(query);
+
+      if (duplicateRoom) {
+        return res.status(400).json({ message: "Tên phòng đã tồn tại trong rạp này" });
       }
-      
-      seatIds.push(seat._id);
+      roomData.name = name.trim();
     }
-    
-    // Update room with new seats and auto-calculate capacity from seats array
-    room.seats = seatIds;
-    room.capacity = seatIds.length;
-    await room.save();
+
+    // Only regenerate seats when explicitly requested
+    if (regenerateSeats) {
+      if (existingRoom?.seats && existingRoom.seats.length > 0) {
+        await Seat.deleteMany({ _id: { $in: existingRoom.seats } });
+      }
+
+      const seats = buildSeatLayout(50);
+      const seatIds = [];
+
+      for (const seatData of seats) {
+        let seat = await Seat.findOne({ roomId: existingRoom._id, row: seatData.row, number: seatData.number });
+
+        if (!seat) {
+          seat = await Seat.create({
+            roomId: existingRoom._id,
+            ...seatData
+          });
+        }
+
+        seatIds.push(seat._id);
+      }
+
+      roomData.seats = seatIds;
+      roomData.capacity = seatIds.length;
+    }
+
+    const room = await Room.findByIdAndUpdate(req.params.id, roomData, { new: true });
     
     res.json(room);
   } catch (error) {

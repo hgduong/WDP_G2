@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   getAllMovies,
   getMovieById,
@@ -17,6 +17,12 @@ const GENRES = [
   "Sci-Fi", "Animation", "Documentary", "Fantasy", "Adventure",
   "Crime", "Mystery", "Family", "Musical", "War", "Western",
 ];
+
+// Get today's date in yyyy-mm-dd format for date input min
+const getTodayDateString = () => {
+  const today = new Date();
+  return today.toISOString().split("T")[0];
+};
 
 const formatDate = (date) => {
   if (!date) return "";
@@ -58,13 +64,8 @@ const MovieManagement = () => {
     status: "ComingSoon",
   });
 
-  useEffect(() => {
-    fetchMovies();
-    fetchActors();
-    fetchDirectors();
-  }, []);
-
-  const fetchMovies = async () => {
+  // Define fetch functions first
+  const fetchMovies = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getAllMovies();
@@ -76,25 +77,32 @@ const MovieManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchActors = async () => {
+  const fetchActors = useCallback(async () => {
     try {
       const data = await getAllActors();
       setActors(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
     }
-  };
+  }, []);
 
-  const fetchDirectors = async () => {
+  const fetchDirectors = useCallback(async () => {
     try {
       const data = await getAllDirectors();
       setDirectors(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
     }
-  };
+  }, []);
+
+  // Then useEffect with parallel fetching
+  useEffect(() => {
+    fetchMovies();
+    // Parallel fetch for actors and directors
+    Promise.all([fetchActors(), fetchDirectors()]).catch(console.error);
+  }, [fetchMovies, fetchActors, fetchDirectors]);
 
   const calculateStatus = () => {
     const now = new Date();
@@ -137,13 +145,25 @@ const MovieManagement = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
+    // Validate releaseDate - cannot be in the past
+    if (name === "releaseDate" && value) {
+      const selectedDate = new Date(value);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (selectedDate < today) {
+        toast.warning("Ngày khởi chiếu không thể là ngày trong quá khứ");
+        return;
+      }
+    }
+    
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
   };
 
-  const handleGenreChange = (genre) => {
+  const handleGenreChange = useCallback((genre) => {
     setFormData((prev) => {
       const currentGenres = prev.genre || [];
       if (currentGenres.includes(genre)) {
@@ -151,11 +171,11 @@ const MovieManagement = () => {
       }
       return { ...prev, genre: [...currentGenres, genre] };
     });
-  };
+  }, []);
 
   const normalizeName = (value) => value.trim().replace(/\s+/g, " ");
 
-  const handleDirectorToggle = (directorId) => {
+  const handleDirectorToggle = useCallback((directorId) => {
     setFormData((prev) => {
       const current = prev.directors || [];
       if (current.includes(directorId)) {
@@ -163,9 +183,9 @@ const MovieManagement = () => {
       }
       return { ...prev, directors: [...current, directorId] };
     });
-  };
+  }, []);
 
-  const handleCastToggle = (actorId) => {
+  const handleCastToggle = useCallback((actorId) => {
     setFormData((prev) => {
       const current = prev.cast || [];
       if (current.includes(actorId)) {
@@ -173,7 +193,7 @@ const MovieManagement = () => {
       }
       return { ...prev, cast: [...current, actorId] };
     });
-  };
+  }, []);
 
   const getSelectedNames = (items, selectedIds) => {
     const map = new Map(items.map((item) => [item._id, item.name]));
@@ -526,13 +546,26 @@ const MovieManagement = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Ngày khởi chiếu</label>
-                  <input type="date" name="releaseDate" value={formData.releaseDate} onChange={handleInputChange} />
-                  <small className="text-muted">Phim sẽ là "Sắp chiếu" khi còn 7 ngày nữa mới chiếu</small>
+                  <label>Ngày khởi chiếu *</label>
+                  <input 
+                    type="date" 
+                    name="releaseDate" 
+                    value={formData.releaseDate} 
+                    onChange={handleInputChange} 
+                    min={getTodayDateString()}
+                    required 
+                  />
+                  <small className="text-muted">Ngày khởi chiếu phải là hôm nay hoặc tương lai</small>
                 </div>
                 <div className="form-group">
                   <label>Ngày kết thúc</label>
-                  <input type="date" name="endDate" value={formData.endDate} onChange={handleInputChange} />
+                  <input 
+                    type="date" 
+                    name="endDate" 
+                    value={formData.endDate} 
+                    onChange={handleInputChange}
+                    min={formData.releaseDate || getTodayDateString()}
+                  />
                 </div>
               </div>
 

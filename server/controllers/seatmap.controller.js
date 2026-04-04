@@ -96,7 +96,7 @@ exports.generateSeatLayout = async (req, res) => {
     // Handle duplicate key error
     if (error.code === 11000) {
       return res.status(400).json({ 
-        message: "Ghế đã tồn tại trong hệ thống. Vui lòng kiểm tra lại." 
+        message: `Ghế ${req.body.row}${req.body.number} đã tồn tại trong hệ thống` 
       });
     }
     res.status(500).json({ message: error.message });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   getAllShowtimes, 
   createShowtime, 
@@ -42,16 +42,25 @@ const ShowtimeManagement = () => {
 
   // Handle actual delete after confirmation
   const handleConfirmDelete = async () => {
+    if (deletingShowtimeIds.length === 0) {
+      toast.warning('Không có suất chiếu để xóa');
+      setShowDeleteConfirm(false);
+      return;
+    }
+    
     setIsDeleting(true);
     try {
-      // Delete showtimes for today (as template)
-      // The scheduler will stop generating showtimes for future days
+      console.log('Deleting:', deletingShowtimeIds.length, 'showtimes');
+      let deletedCount = 0;
       for (const id of deletingShowtimeIds) {
         await deleteShowtime(id);
+        deletedCount++;
       }
+      console.log('Deleted:', deletedCount, 'showtimes');
       await fetchData();
-      toast.success('Xóa suất chiếu thành công! Hệ thống sẽ ngừng tạo suất chiếu cho các ngày sau.');
+      toast.success(`Đã xóa ${deletedCount} suất chiếu!`);
     } catch (err) {
+      console.error('Delete error:', err);
       toast.error(err.message || 'Failed to delete showtime');
     } finally {
       setIsDeleting(false);
@@ -96,11 +105,7 @@ const ShowtimeManagement = () => {
     return rooms.filter(room => room.movieId === movieId);
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [showtimesData, moviesData, roomsData] = await Promise.all([
@@ -118,7 +123,11 @@ const ShowtimeManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Generate time slots based on movie duration (for today as template)
   const generateTimeSlots = () => {
@@ -203,38 +212,77 @@ const ShowtimeManagement = () => {
     setIsSaving(true);
 
     try {
-      // Create showtime for today only (as template for scheduler)
-      // The scheduler will use these as templates to generate showtimes for all days
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      const dateStr = `${year}-${month}-${day}`;
+      const movie = movies.find(m => m._id === selectedMovie);
+      const releaseDate = movie?.releaseDate ? new Date(movie.releaseDate) : new Date();
+      
+      // Default to next 7 days if no endDate
+      let endDate;
+      if (movie?.endDate) {
+        endDate = new Date(movie.endDate);
+      } else {
+        endDate = new Date(releaseDate.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      }
 
-      for (const slot of selectedSlots) {
-        // Create showtime for today with the selected time
-        const slotTime = new Date(slot.startTime);
-        const showtimeDate = new Date(dateStr);
-        showtimeDate.setHours(slotTime.getHours(), slotTime.getMinutes(), 0, 0);
+      // Normalize to start of day
+      releaseDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
 
-        const showtimeData = {
-          movieId: selectedMovie,
-          roomId: selectedRoom,
-          startTime: showtimeDate.toISOString(),
-          duration: slot.movieDuration,
-          language: 'Tiếng Việt'
-        };
-        await createShowtime(showtimeData);
+      // Generate showtimes for next 7 days or within date range
+      const currentDate = new Date(releaseDate);
+      if (currentDate < new Date()) {
+        currentDate.setTime(Date.now());
+        currentDate.setHours(0, 0, 0, 0);
+      }
+      
+      let totalCreated = 0;
+      let daysCount = 0;
+      const maxDays = 7; // Limit to 7 days
+
+      while (currentDate <= endDate && daysCount < maxDays) {
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+
+        for (const slot of selectedSlots) {
+          const slotTime = new Date(slot.startTime);
+          const showtimeDate = new Date(dateStr);
+          showtimeDate.setHours(slotTime.getHours(), slotTime.getMinutes(), 0, 0);
+
+          const showtimeData = {
+            movieId: selectedMovie,
+            roomId: selectedRoom,
+            startTime: showtimeDate.toISOString(),
+            duration: slot.movieDuration,
+            language: 'Tiếng Việt'
+          };
+          await createShowtime(showtimeData);
+          totalCreated++;
+        }
+
+        currentDate.setDate(currentDate.getDate() + 1);
+        daysCount++;
       }
       
       await fetchData();
       closeModal();
-      toast.success(`Đã thêm ${selectedSlots.length} suất chiếu thành công! Hệ thống sẽ tự động tạo suất chiếu cho các ngày sau.`);
+      const selMovie = movies.find(m => m._id === selectedMovie);
+      const startDate = selMovie?.releaseDate ? new Date(selMovie.releaseDate) : new Date();
+      toast.success(`Đã thêm ${totalCreated} suất chiếu cho ${daysCount} ngày tới!`);
     } catch (err) {
       toast.error(err.message || 'Failed to save showtimes');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const formatDate = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
   };
 
   const handleDelete = async (id) => {
@@ -260,7 +308,7 @@ const ShowtimeManagement = () => {
     return true;
   });
 
-  // Group showtimes by movie + room
+  // Group showtimes by movie + room (only unique times, not by day)
   const groupedShowtimes = () => {
     const groups = {};
     filteredShowtimes.forEach(showtime => {
@@ -272,10 +320,17 @@ const ShowtimeManagement = () => {
         groups[key] = {
           movieId: showtime.movieId,
           roomId: showtime.roomId,
-          showtimes: []
+          showtimes: [],
+          uniqueTimes: new Set()
         };
       }
-      groups[key].showtimes.push(showtime);
+      
+      // Extract just the time part (HH:mm) to check uniqueness
+      const timePart = formatTime(showtime.startTime);
+      if (!groups[key].uniqueTimes.has(timePart)) {
+        groups[key].uniqueTimes.add(timePart);
+        groups[key].showtimes.push(showtime);
+      }
     });
     
     // Sort showtimes within each group by time
@@ -286,19 +341,37 @@ const ShowtimeManagement = () => {
     return Object.values(groups);
   };
 
-  const handleDeleteGroup = async (showtimesToDelete) => {
-    // Delete showtime group for today (as template)
-    // The scheduler will stop generating showtimes for future days
-    setDeletingShowtimeIds(showtimesToDelete.map(s => s._id));
+  const handleDeleteGroup = async (group) => {
+    // Get ALL showtime IDs directly from showtimes (not filtered)
+    const allForGroup = showtimes.filter(s => {
+      const sMovieId = s.movieId?._id || s.movieId;
+      const sRoomId = s.roomId?._id || s.roomId;
+      const gMovieId = group.movieId?._id || group.movieId;
+      const gRoomId = group.roomId?._id || group.roomId;
+      return sMovieId === gMovieId && sRoomId === gRoomId;
+    });
+    
+    const idsToDelete = allForGroup.map(s => s._id);
+    console.log('Deleting showtime IDs:', idsToDelete);
+    
+    setDeletingShowtimeIds(idsToDelete);
     setDeletingShowtimeId(null);
     setShowDeleteConfirm(true);
   };
 
   const handleEdit = (group) => {
-    // Load all showtimes in the group
+    // Get ALL showtimes for this movie+room from filtered data
+    const allForGroup = filteredShowtimes.filter(s => {
+      const sMovieId = s.movieId?._id || s.movieId;
+      const sRoomId = s.roomId?._id || s.roomId;
+      const gMovieId = group.movieId?._id || group.movieId;
+      const gRoomId = group.roomId?._id || group.roomId;
+      return sMovieId === gMovieId && sRoomId === gRoomId;
+    });
+    
     setEditingGroup(group);
-    setExistingShowtimes(group.showtimes);
-    setEditSelectedSlots(group.showtimes.map(s => ({ startTime: s.startTime, _id: s._id })));
+    setExistingShowtimes(allForGroup);
+    setEditSelectedSlots(allForGroup.map(s => ({ startTime: s.startTime, _id: s._id, movieDuration: s.duration })));
     
     setEditGeneratedSlots([]);
     
@@ -394,51 +467,64 @@ const ShowtimeManagement = () => {
     setIsUpdating(true);
     
     try {
-      // Find showtimes to delete (existing ones not in selectedSlots)
-      const existingIds = existingShowtimes.map(s => s._id);
+      // Get all existing showtime IDs for this movie+room
+      const existingForGroup = filteredShowtimes.filter(s => {
+        const sMovieId = s.movieId?._id || s.movieId;
+        const sRoomId = s.roomId?._id || s.roomId;
+        return sMovieId === editFormData.movieId && sRoomId === editFormData.roomId;
+      });
+      
+      const existingIds = existingForGroup.map(s => s._id);
       const selectedIds = editSelectedSlots.filter(s => s._id).map(s => s._id);
       const toDelete = existingIds.filter(id => !selectedIds.includes(id));
 
-      // Find new slots to create (ones without _id)
-      const toCreate = editSelectedSlots.filter(s => !s._id);
-
-      // Delete unselected showtimes
+      // Delete all old showtimes
       for (const id of toDelete) {
         await deleteShowtime(id);
       }
 
-      // Create new showtimes for today only (as template)
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      const dateStr = `${year}-${month}-${day}`;
+      // Get movie info
+      const movie = movies.find(m => m._id === editFormData.movieId);
+      const releaseDate = movie?.releaseDate ? new Date(movie.releaseDate) : new Date();
+      let endDate = movie?.endDate ? new Date(movie.endDate) : new Date(releaseDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+      
+      releaseDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
 
-      for (const slot of toCreate) {
-        // Create showtime for today with the selected time
-        const slotTime = new Date(slot.startTime);
-        const showtimeDate = new Date(dateStr);
-        showtimeDate.setHours(slotTime.getHours(), slotTime.getMinutes(), 0, 0);
-
-        const showtimeData = {
-          movieId: editFormData.movieId,
-          roomId: editFormData.roomId,
-          startTime: showtimeDate.toISOString(),
-          duration: slot.movieDuration,
-          language: editFormData.language
-        };
-        await createShowtime(showtimeData);
+      // Generate showtimes for next 7 days
+      const currentDate = new Date(releaseDate);
+      if (currentDate < new Date()) {
+        currentDate.setTime(Date.now());
+        currentDate.setHours(0, 0, 0, 0);
       }
+      
+      let daysCount = 0;
+      const maxDays = 7;
 
-      // Update remaining showtimes
-      const toUpdate = existingShowtimes.filter(s => selectedIds.includes(s._id));
-      for (const showtime of toUpdate) {
-        await updateShowtime(showtime._id, {
-          movieId: editFormData.movieId,
-          roomId: editFormData.roomId,
-          language: editFormData.language,
-          status: editFormData.status
-        });
+      while (currentDate <= endDate && daysCount < maxDays) {
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+
+        for (const slot of editSelectedSlots.filter(s => !s._id)) {
+          const slotTime = new Date(slot.startTime);
+          const showtimeDate = new Date(dateStr);
+          showtimeDate.setHours(slotTime.getHours(), slotTime.getMinutes(), 0, 0);
+
+          const showtimeData = {
+            movieId: editFormData.movieId,
+            roomId: editFormData.roomId,
+            startTime: showtimeDate.toISOString(),
+            duration: slot.movieDuration || 120,
+            language: editFormData.language,
+            status: editFormData.status
+          };
+          await createShowtime(showtimeData);
+        }
+
+        currentDate.setDate(currentDate.getDate() + 1);
+        daysCount++;
       }
 
       await fetchData();
@@ -446,7 +532,7 @@ const ShowtimeManagement = () => {
       setEditingGroup(null);
       setExistingShowtimes([]);
       setEditSelectedSlots([]);
-      toast.success('Cập nhật lịch chiếu thành công! Hệ thống sẽ tự động cập nhật suất chiếu cho các ngày sau.');
+      toast.success('Cập nhật lịch chiếu thành công!');
     } catch (err) {
       toast.error(err.message || 'Failed to update showtimes');
     } finally {
@@ -578,7 +664,7 @@ const ShowtimeManagement = () => {
                   </button>
                   <button 
                     className="btn btn-sm btn-delete"
-                    onClick={() => handleDeleteGroup(group.showtimes)}
+                    onClick={() => handleDeleteGroup(group)}
                   >
                     Xóa
                   </button>
@@ -893,7 +979,7 @@ const ShowtimeManagement = () => {
               </div>
 
               <p style={{marginTop: '15px', color: '#666'}}>
-                Tổng cộng: <strong>{editSelectedSlots.length}</strong> suất chiếu sẽ được lưu
+                Tổng cộng: <strong>{editSelectedSlots.length}</strong> khung giờ sẽ được lưu cho TẤT CẢ CÁC NGÀY
               </p>
 
               <hr style={{margin: '20px 0'}} />
