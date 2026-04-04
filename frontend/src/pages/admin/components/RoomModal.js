@@ -11,6 +11,7 @@ const RoomModal = ({
   onInputChange,
   onSubmit,
   onClose,
+  isSaving,
 }) => {
   if (!show) return null;
 
@@ -55,25 +56,28 @@ const RoomModal = ({
 
           <div className="form-row">
             <div className="form-group">
-              <label>Chọn phim (tối đa 2, giữ Ctrl/Cmd để chọn nhiều)</label>
-              <select
-                name="movieIds"
-                value={formData.movieIds}
-                onChange={onInputChange}
-                multiple
-                style={{ height: '120px' }}
-              >
-                {getAvailableMovies(
-                  editingRoom ? editingRoom._id : null,
-                ).map((movie, index) => (
-                  <option key={movie._id} value={movie._id}>
-                    {movie.title} {index === 0 ? '⭐ (ưu tiên)' : ''}
-                  </option>
+              <label>Chọn phim (giữ Ctrl/Cmd để chọn nhiều)</label>
+              <div className="movie-checkbox-list">
+                {movies.map((movie) => (
+                  <label key={movie._id} className="movie-checkbox-item">
+                    <input
+                      type="checkbox"
+                      name="movieIds"
+                      value={movie._id}
+                      checked={(formData.movieIds || []).includes(movie._id)}
+                      onChange={(e) => {
+                        const values = formData.movieIds || [];
+                        if (e.target.checked) {
+                          onInputChange({ target: { name: 'movieIds', value: [...values, movie._id] } });
+                        } else {
+                          onInputChange({ target: { name: 'movieIds', value: values.filter(id => id !== movie._id) } });
+                        }
+                      }}
+                    />
+                    <span className="movie-title">{movie.title}</span>
+                  </label>
                 ))}
-              </select>
-              <small style={{color: '#666', fontSize: '11px'}}>
-                ⭐ = phim ưu tiên chiếu trước, các phim khác phải chọn giờ cách xa tối thiểu 30 phút
-              </small>
+              </div>
             </div>
           </div>
 
@@ -107,8 +111,8 @@ const RoomModal = ({
             >
               Hủy
             </button>
-            <button type="submit" className="btn btn-primary">
-              {editingRoom ? "Cập nhật" : "Thêm mới"}
+            <button type="submit" className="btn btn-primary" disabled={isSaving}>
+              {isSaving ? "Đang lưu..." : editingRoom ? "Cập nhật" : "Thêm mới"}
             </button>
           </div>
         </form>

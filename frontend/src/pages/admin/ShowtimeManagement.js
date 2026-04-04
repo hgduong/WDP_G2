@@ -432,8 +432,51 @@ const ShowtimeManagement = () => {
       return sMovieId === gMovieId && sRoomId === gRoomId;
     });
     
-    // Keep all showtimes in editingGroup (for display), and select ALL initially
-    setEditingGroup({...group, showtimes: allForGroup});
+    // Get movie duration to generate time slots
+    const movie = movies.find(m => m._id === gMovieId);
+    const duration = movie?.duration || 120;
+    
+    // Generate all possible time slots for each day
+    const possibleSlots = [];
+    let currentHour = 7;
+    let currentMinute = 0;
+    while (currentHour < 22) {
+      const roundedMinute = Math.round(currentMinute / 5) * 5;
+      let adjustedHour = currentHour;
+      let adjustedMinute = roundedMinute;
+      if (adjustedMinute >= 60) {
+        adjustedHour += 1;
+        adjustedMinute -= 60;
+      }
+      const breakTime = (possibleSlots.length > 0 && possibleSlots.length % 2 === 1) ? 45 : 15;
+      const endHour = adjustedHour + Math.floor((adjustedMinute + duration + breakTime) / 60);
+      const endMinute = (adjustedMinute + duration + breakTime) % 60;
+      if (endHour < 23 || (endHour === 23 && endMinute === 0)) {
+        possibleSlots.push({ hour: adjustedHour, minute: adjustedMinute });
+      }
+      currentMinute += duration + breakTime;
+      while (currentMinute >= 60) {
+        currentHour += 1;
+        currentMinute -= 60;
+      }
+    }
+    
+    // Group existing showtimes by date
+    const showtimesByDate = {};
+    allForGroup.forEach(s => {
+      const dateKey = new Date(s.startTime).toISOString().split('T')[0];
+      if (!showtimesByDate[dateKey]) showtimesByDate[dateKey] = [];
+      showtimesByDate[dateKey].push(s);
+    });
+    
+    // Keep all showtimes in editingGroup, and select ALL initially
+    setEditingGroup({
+      ...group, 
+      showtimes: allForGroup,
+      possibleSlots: possibleSlots,
+      showtimesByDate: showtimesByDate,
+      duration: duration
+    });
     setExistingShowtimes(allForGroup);
     setEditSelectedSlots(allForGroup.map(s => ({ startTime: s.startTime, _id: s._id, movieDuration: s.duration, roomId: s.roomId?._id || s.roomId })));
     
@@ -506,22 +549,55 @@ const ShowtimeManagement = () => {
     setEditGeneratedSlots(slots);
   };
 
-  const toggleEditSlot = (showtime) => {
-    // Toggle individual showtime by _id
-    const existsIndex = editSelectedSlots.findIndex(s => s._id === showtime._id);
-    if (existsIndex >= 0) {
-      // Remove from selected (this specific showtime will be deleted on save)
-      const updated = [...editSelectedSlots];
-      updated.splice(existsIndex, 1);
-      setEditSelectedSlots(updated);
-    } else {
-      // Add to selected
-      setEditSelectedSlots([...editSelectedSlots, { 
-        startTime: showtime.startTime, 
-        _id: showtime._id, 
-        movieDuration: showtime.duration, 
-        roomId: showtime.roomId?._id || showtime.roomId 
-      }]);
+  const toggleEditSlot = (slotInfo) => {
+    // slotInfo contains: existingShowtime, slot, date
+    const { existingShowtime, slot, date } = slotInfo;
+    
+    if (existingShowtime) {
+      // Toggle existing showtime - use its _id to identify
+      const existsIndex = editSelectedSlots.findIndex(s => s._id === existingShowtime._id);
+      if (existsIndex >= 0) {
+        const updated = [...editSelectedSlots];
+        updated.splice(existsIndex, 1);
+        setEditSelectedSlots(updated);
+      } else {
+        setEditSelectedSlots([...editSelectedSlots, { 
+          startTime: existingShowtime.startTime, 
+          _id: existingShowtime._id, 
+          movieDuration: existingShowtime.duration, 
+          roomId: existingShowtime.roomId?._id || existingShowtime.roomId 
+        }]);
+      }
+    } else if (slot && date) {
+      // Add new showtime for this specific date and slot
+      const slotTime = new Date(date);
+      slotTime.setHours(slot.hour, slot.minute, 0, 0);
+      const slotDateStr = slotTime.toISOString().split('T')[0];
+      
+      // Check if this slot already exists in editSelectedSlots for this specific date
+      const existsIndex = editSelectedSlots.findIndex(s => {
+        if (s._id) return false; // Only check new slots (no _id)
+        const st = new Date(s.startTime);
+        const stDateStr = st.toISOString().split('T')[0];
+        return stDateStr === slotDateStr && 
+               st.getHours() === slot.hour && 
+               st.getMinutes() === slot.minute;
+      });
+      
+      if (existsIndex >= 0) {
+        // Remove (don't create new)
+        const updated = [...editSelectedSlots];
+        updated.splice(existsIndex, 1);
+        setEditSelectedSlots(updated);
+      } else {
+        // Add new slot for this specific date (will be created on save)
+        setEditSelectedSlots([...editSelectedSlots, {
+          startTime: slotTime.toISOString(),
+          _id: null,
+          movieDuration: editingGroup.duration || 120,
+          roomId: editingGroup.roomId
+        }]);
+      }
     }
   };
 
@@ -537,14 +613,14 @@ const ShowtimeManagement = () => {
     setIsUpdating(true);
     
     try {
-      // Get existing showtime IDs for this movie+room
+      // Get all existing showtimes for this movie+room (all dates)
       const existingForGroup = filteredShowtimes.filter(s => {
         const sMovieId = s.movieId?._id || s.movieId;
         const sRoomId = s.roomId?._id || s.roomId;
         return sMovieId === editFormData.movieId && sRoomId === editFormData.roomId;
       });
       
-      // Get selected IDs from editSelectedSlots
+      // Get selected IDs from editSelectedSlots (showtimes with _id that are kept)
       const selectedIds = editSelectedSlots.filter(s => s._id).map(s => s._id);
       
       // Delete showtimes that were unchecked (not in selectedIds)
@@ -553,51 +629,21 @@ const ShowtimeManagement = () => {
         await deleteShowtime(st._id);
       }
       
-      // Get movie info
-      const movie = movies.find(m => m._id === editFormData.movieId);
-      const releaseDate = movie?.releaseDate ? new Date(movie.releaseDate) : new Date();
-      let endDate = movie?.endDate ? new Date(movie.endDate) : new Date(releaseDate.getTime() + 7 * 24 * 60 * 60 * 1000);
-      
-      releaseDate.setHours(0, 0, 0, 0);
-      endDate.setHours(23, 59, 59, 999);
-
-      // Generate showtimes for next 7 days
-      const currentDate = new Date(releaseDate);
-      if (currentDate < new Date()) {
-        currentDate.setTime(Date.now());
-        currentDate.setHours(0, 0, 0, 0);
+      // Create NEW showtimes for slots without _id (new slots user added)
+      // These are for specific dates stored in the slot startTime
+      const newSlots = editSelectedSlots.filter(s => !s._id);
+      for (const slot of newSlots) {
+        const showtimeData = {
+          movieId: editFormData.movieId,
+          roomId: editFormData.roomId,
+          startTime: slot.startTime,
+          duration: slot.movieDuration || 120,
+          language: editFormData.language,
+          status: editFormData.status
+        };
+        await createShowtime(showtimeData);
       }
       
-      let daysCount = 0;
-      const maxDays = 7;
-
-      while (currentDate <= endDate && daysCount < maxDays) {
-        const year = currentDate.getFullYear();
-        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-        const day = String(currentDate.getDate()).padStart(2, '0');
-        const dateStr = `${year}-${month}-${day}`;
-
-        // Only create NEW showtimes (slots without _id)
-        for (const slot of editSelectedSlots.filter(s => !s._id)) {
-          const slotTime = new Date(slot.startTime);
-          const showtimeDate = new Date(dateStr);
-          showtimeDate.setHours(slotTime.getHours(), slotTime.getMinutes(), 0, 0);
-
-          const showtimeData = {
-            movieId: editFormData.movieId,
-            roomId: editFormData.roomId,
-            startTime: showtimeDate.toISOString(),
-            duration: slot.movieDuration || 120,
-            language: editFormData.language,
-            status: editFormData.status
-          };
-          await createShowtime(showtimeData);
-        }
-
-        currentDate.setDate(currentDate.getDate() + 1);
-        daysCount++;
-      }
-
       await fetchData();
       setShowEditModal(false);
       setEditingGroup(null);
@@ -969,17 +1015,11 @@ const ShowtimeManagement = () => {
             <div className="modal-body">
               {/* List of time slots - show all but edit by unique times */}
               <div className="form-group">
-                <label>Giờ chiếu hiện tại (tick để giữ, bỏ tick để xóa khỏi mẫu):</label>
+                <label>Giờ chiếu (tick để giữ, bỏ tick để xóa, hiện tất cả mốc giờ trong ngày):</label>
                 {(() => {
-                  // Group showtimes by date for display
-                  const groupedByDate = {};
-                  editingGroup.showtimes.forEach(s => {
-                    const dateKey = new Date(s.startTime).toISOString().split('T')[0];
-                    if (!groupedByDate[dateKey]) groupedByDate[dateKey] = [];
-                    groupedByDate[dateKey].push(s);
-                  });
-                  
-                  const sortedDates = Object.keys(groupedByDate).sort();
+                  const showtimesByDate = editingGroup.showtimesByDate || {};
+                  const possibleSlots = editingGroup.possibleSlots || [];
+                  const sortedDates = Object.keys(showtimesByDate).sort();
                   
                   if (sortedDates.length === 0) {
                     return <p style={{color: '#666', fontStyle: 'italic'}}>Không có suất chiếu nào</p>;
@@ -994,9 +1034,7 @@ const ShowtimeManagement = () => {
                       paddingBottom: '10px'
                     }}>
                       {sortedDates.map(date => {
-                        const dateShowtimes = groupedByDate[date].sort((a, b) => 
-                          new Date(a.startTime) - new Date(b.startTime)
-                        );
+                        const dateShowtimes = showtimesByDate[date] || [];
                         const dateLabel = new Date(date).toLocaleDateString('vi-VN', {
                           weekday: 'short',
                           day: 'numeric',
@@ -1005,7 +1043,7 @@ const ShowtimeManagement = () => {
                         
                         return (
                           <div key={date} style={{
-                            minWidth: '100px',
+                            minWidth: '140px',
                             background: '#f8f9fa',
                             borderRadius: '8px',
                             padding: '8px',
@@ -1023,16 +1061,40 @@ const ShowtimeManagement = () => {
                               {dateLabel}
                             </div>
                             <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
-                              {dateShowtimes.map(showtime => {
-                                // Check if this specific showtime is selected by _id
-                                const isSelected = isSlotSelected(showtime);
+                              {possibleSlots.map((slot, idx) => {
+                                const slotTime = new Date(date);
+                                slotTime.setHours(slot.hour, slot.minute, 0, 0);
+                                const slotTimeStr = slotTime.toISOString();
+                                
+                                // Find if this slot exists in showtimes
+                                const existingShowtime = dateShowtimes.find(s => {
+                                  const st = new Date(s.startTime);
+                                  return st.getHours() === slot.hour && st.getMinutes() === slot.minute;
+                                });
+                                
+                                // Check if selected (either existing or new)
+                                let isSelected = false;
+                                if (existingShowtime) {
+                                  isSelected = isSlotSelected(existingShowtime);
+                                } else {
+                                // Check if this slot is added as new (for this specific date)
+                                isSelected = editSelectedSlots.some(s => {
+                                  if (s._id) return false;
+                                  const st = new Date(s.startTime);
+                                  const stDateStr = st.toISOString().split('T')[0];
+                                  return stDateStr === date && 
+                                         st.getHours() === slot.hour && 
+                                         st.getMinutes() === slot.minute;
+                                });
+                                }
+                                
                                 return (
                                   <div
-                                    key={showtime._id}
-                                    onClick={() => toggleEditSlot(showtime)}
+                                    key={idx}
+                                    onClick={() => toggleEditSlot({ existingShowtime, slot, date })}
                                     style={{
                                       padding: '6px 8px',
-                                      border: isSelected ? '2px solid #28a745' : '1px solid #dee2e6',
+                                      border: isSelected ? '2px solid #28a745' : '1px solid #e0e0e0',
                                       borderRadius: '4px',
                                       background: isSelected ? '#d4edda' : '#fff',
                                       cursor: 'pointer',
@@ -1045,10 +1107,10 @@ const ShowtimeManagement = () => {
                                     <input
                                       type="checkbox"
                                       checked={isSelected}
-                                      onChange={() => toggleEditSlot(showtime)}
+                                      onChange={() => toggleEditSlot({ existingShowtime, slot, date })}
                                     />
                                     <span style={{fontWeight: 'bold'}}>
-                                      {formatTime(showtime.startTime)}
+                                      {String(slot.hour).padStart(2, '0')}:{String(slot.minute).padStart(2, '0')}
                                     </span>
                                   </div>
                                 );
@@ -1060,62 +1122,12 @@ const ShowtimeManagement = () => {
                     </div>
                   );
                 })()}
-                <small style={{color: '#666'}}>Đã chọn: {editSelectedSlots.length} giờ (áp dụng cho tất cả các ngày)</small>
+                <small style={{color: '#666'}}>Đã chọn: {editSelectedSlots.length} suất chiếu</small>
               </div>
 
-              {/* Thêm giờ mới */}
-              <div className="form-group" style={{marginTop: '20px'}}>
-                <label>Thêm giờ chiếu mới (từ khung giờ phòng):</label>
-                <button 
-                  type="button" 
-                  className="btn btn-primary"
-                  onClick={generateEditTimeSlots}
-                  style={{marginTop: '10px'}}
-                >
-                  🔄 Lấy khung giờ phòng
-                </button>
-
-                {editGeneratedSlots.length > 0 && (
-                  <div className="slots-grid" style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
-                    gap: '10px',
-                    marginTop: '15px',
-                    maxHeight: '200px',
-                    overflowY: 'auto',
-                    padding: '10px',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '8px'
-                  }}>
-                    {editGeneratedSlots.map((slot, index) => {
-                      const isSelected = isSlotSelected(slot);
-                      return (
-                        <div
-                          key={index}
-                          onClick={() => toggleEditSlot(slot)}
-                          style={{
-                            padding: '10px',
-                            border: isSelected ? '2px solid #28a745' : '1px solid #dee2e6',
-                            borderRadius: '8px',
-                            background: isSelected ? '#d4edda' : '#fff',
-                            cursor: 'pointer',
-                            textAlign: 'center'
-                          }}
-                        >
-                          <div style={{fontWeight: 'bold'}}>
-                            {new Date(slot.startTime).toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'})}
-                          </div>
-                          {isSelected && <div style={{fontSize: '11px', color: '#28a745'}}>✓ Thêm</div>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+              <div style={{marginTop: '15px', padding: '10px', background: '#e7f3ff', borderRadius: '6px', fontSize: '13px'}}>
+                <strong>Lưu ý:</strong> Bỏ tick suất chiếu sẽ xóa suất đó. Để thêm suất chiếu mới, vui lòng tạo lịch chiếu mới.
               </div>
-
-              <p style={{marginTop: '15px', color: '#666'}}>
-                Tổng cộng: <strong>{editSelectedSlots.length}</strong> khung giờ sẽ được lưu cho TẤT CẢ CÁC NGÀY
-              </p>
 
               <hr style={{margin: '20px 0'}} />
 
