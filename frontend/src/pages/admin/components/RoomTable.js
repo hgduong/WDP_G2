@@ -69,13 +69,15 @@ const RoomTable = ({
                 <td>{getStatusBadge(room.status)}</td>
                 <td>
                   <button
-                    className="btn btn-sm btn-info"
+                    className="btn btn-sm btn-seat-config"
+                    style={{ marginRight: '6px' }}
                     onClick={() => onOpenSeatConfig(room)}
                   >
                     Cấu hình ghế
                   </button>
                   <button
                     className="btn btn-sm btn-edit"
+                    style={{ marginRight: '6px' }}
                     onClick={() => onEditRoom(room)}
                   >
                     Sửa

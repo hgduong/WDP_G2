@@ -83,6 +83,9 @@ const CinemaManagement = () => {
   const [deletingRoomId, setDeletingRoomId] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Room save loading state
+  const [isSavingRoom, setIsSavingRoom] = useState(false);
+
   // Seat management state
   const [showSeatModal, setShowSeatModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -186,12 +189,8 @@ const CinemaManagement = () => {
   const handleRoomInputChange = useCallback((e) => {
     const { name, value } = e.target;
     if (name === 'movieIds') {
-      const values = Array.from(e.target.selectedOptions, option => option.value);
-      if (values.length > 2) {
-        toast.warning("Mỗi phòng chỉ chiếu tối đa 2 phim");
-        return;
-      }
-      setRoomFormData((prev) => ({ ...prev, [name]: values }));
+      const values = Array.isArray(value) ? value : Array.from(e.target.selectedOptions, option => option.value);
+      setRoomFormData((prev) => ({ ...prev, [name]: values || [] }));
     } else {
       setRoomFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -298,6 +297,8 @@ const CinemaManagement = () => {
   const handleRoomSubmit = async (e) => {
     e.preventDefault();
 
+    if (isSavingRoom) return;
+
     // Validate endDate if movie and startTime are selected
     if (roomFormData.movieIds && roomFormData.movieIds.length > 0 && roomFormData.startTime) {
       const validation = validateEndDate(
@@ -309,6 +310,8 @@ const CinemaManagement = () => {
         return;
       }
     }
+
+    setIsSavingRoom(true);
 
     try {
       const roomData = {
@@ -344,6 +347,8 @@ const CinemaManagement = () => {
         err?.message ||
         "Có lỗi xảy ra khi lưu phòng chiếu";
       toast.error(errorMsg);
+    } finally {
+      setIsSavingRoom(false);
     }
   };
 
@@ -867,6 +872,7 @@ const CinemaManagement = () => {
         onInputChange={handleRoomInputChange}
         onSubmit={handleRoomSubmit}
         onClose={closeRoomModal}
+        isSaving={isSavingRoom}
       />
 
       {/* Time Slots Modal */}
