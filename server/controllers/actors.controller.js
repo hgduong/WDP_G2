@@ -21,7 +21,7 @@ exports.getAllActors = async (req, res) => {
     ]);
     res.json(actors);
     if (!actors){
-      return res.status(404).json({message: "KhÃ´ng cÃ³ diá»…n viÃªn nÃ o"})
+      return res.status(404).json({message: "Không có diễn viên nào"})
     }
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -32,7 +32,7 @@ exports.getActorById = async (req, res) => {
   try {
     const actor = await Actor.findById(req.params.id);
     if (!actor) {
-      return res.status(404).json({ message: "Diá»…n viÃªn khÃ´ng tá»“n táº¡i" });
+      return res.status(404).json({ message: "Diễn Viên ko tồn tại" });
     }
     res.json(actor);
   } catch (error) {
@@ -44,13 +44,13 @@ exports.createActor = async (req, res) => {
   try {
     const name = normalizeName(req.body.name || "");
     if (!name) {
-      return res.status(400).json({ message: "TÃªn diá»…n viÃªn lÃ  báº¯t buá»™c" });
+      return res.status(400).json({ message: "Tên diễn viên là bắt buộc" });
     }
 
     const nameLower = name.toLowerCase();
     const existing = await Actor.findOne({ nameLower });
     if (existing) {
-      return res.status(400).json({ message: "Diá»…n viÃªn Ä‘Ã£ tá»“n táº¡i" });
+      return res.status(400).json({ message: "Diễn viên này đã trùng!" });
     }
 
     const actor = await Actor.create({
@@ -94,7 +94,7 @@ exports.updateActor = async (req, res) => {
     });
 
     if (!actor) {
-      return res.status(404).json({ message: "Diá»…n viÃªn khÃ´ng tá»“n táº¡i" });
+      return res.status(404).json({ message: "Diễn viên ko tồn tại" });
     }
 
     res.json(actor);
@@ -115,7 +115,7 @@ exports.deleteActor = async (req, res) => {
       { $pull: { cast: actor._id } }
     );
 
-    res.json({ message: "ÄÃ£ xÃ³a diá»…n viÃªn" });
+    res.json({ message: "" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
