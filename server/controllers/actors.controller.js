@@ -107,7 +107,7 @@ exports.deleteActor = async (req, res) => {
   try {
     const actor = await Actor.findByIdAndDelete(req.params.id);
     if (!actor) {
-      return res.status(404).json({ message: "Diá»…n viÃªn khÃ´ng tá»“n táº¡i" });
+      return res.status(404).json({ message: "Diễn viên ko tồn tại" });
     }
 
     await Movie.updateMany(
